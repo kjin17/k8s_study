@@ -1,7 +1,7 @@
 # Kubernetes Study Scripts
 
 Kubernetes 클러스터 **자동 설치**, **오브젝트 학습**, **애드온 설치**를 위한 인터랙티브 쉘 스크립트 모음입니다.
-**컨테이너 기초 교육 자료**도 함께 제공합니다.
+**컨테이너 기초 교육 자료**, **Harbor & Trivy 프라이빗 레지스트리 교육 자료**, **Git & GitHub 기초 교육 자료**도 함께 제공합니다.
 
 ---
 
@@ -10,9 +10,12 @@ Kubernetes 클러스터 **자동 설치**, **오브젝트 학습**, **애드온 
 | 파일 | 용도 |
 |------|------|
 | [`container-basics.md`](container-basics.md) | 리눅스 컨테이너 기초 교육 (입문자용) |
+| [`harbor-registry.md`](harbor-registry.md) | Harbor & Trivy 프라이빗 레지스트리 교육 |
+| [`git-basics.md`](git-basics.md) | Git & GitHub 기초 교육 (입문자용) |
 | `k8s-install.sh` | 가상머신 3대에 K8s 클러스터 자동 설치 |
 | `k8s-learn.sh`   | K8s 오브젝트 인터랙티브 학습 (입문자용) |
 | `k8s-addon.sh`   | 자주 쓰는 오픈소스 애드온 인터랙티브 설치 |
+| `harbor-registry.sh` | Harbor & Trivy 인터랙티브 설치/실습 |
 
 ---
 
@@ -330,4 +333,52 @@ kubectl port-forward svc/minio 9001:9001 -n velero
 
 ```
 k8s-addon-20240329-150000.log
+```
+
+---
+
+## harbor-registry.sh — Harbor & Trivy 프라이빗 레지스트리 실습
+
+Harbor(프라이빗 컨테이너 레지스트리)와 Trivy(취약점 스캐너)를 **Helm 3** 기반으로 인터랙티브하게 설치하고 실습합니다. Docker/Helm 명령어를 활용한 이미지·차트 관리까지 포함합니다.
+
+### 실행
+
+```bash
+chmod +x harbor-registry.sh
+./harbor-registry.sh
+```
+
+> **사전 요구사항**: `kubectl` + 클러스터 연결 필수. `helm`과 `docker`는 없으면 자동 설치를 제안합니다.
+
+### 포함 메뉴 (7종)
+
+| # | 메뉴 | 설명 |
+|---|------|------|
+| 1 | **Harbor 설치** | Helm 으로 Harbor 배포 (NodePort/Ingress/LB 선택, TLS, PVC 크기 설정) |
+| 2 | **Harbor 프로젝트 관리** | 프로젝트 생성/조회, Public/Private 설정, 역할 기반 접근 제어 |
+| 3 | **Docker Push/Pull 실습** | docker login → pull → tag → push → pull 전체 워크플로우 |
+| 4 | **Trivy 취약점 스캔** | CLI 독립 스캔 또는 Harbor 통합 스캔, 심각도별 필터링 |
+| 5 | **Helm 차트 관리** | OCI 기반 차트 생성 → 패키징 → push → pull 실습 |
+| 6 | **이미지 보안 설정** | 자동 스캔 활성화, 취약 이미지 배포 차단, 보안 현황 조회 |
+| 7 | **Harbor 삭제** | Helm Release, PVC, Namespace 완전 삭제 |
+
+### 교육 자료
+
+상세한 개념 설명과 명령어 레퍼런스는 [`harbor-registry.md`](harbor-registry.md)를 참고하세요.
+
+| 주제 | 내용 |
+|------|------|
+| 컨테이너 레지스트리 개념 | 퍼블릭 vs 프라이빗, 이미지 주소 구조 |
+| Harbor 아키텍처 | Core, Registry, Trivy, PostgreSQL, Redis, Job Service |
+| Docker CLI 사용법 | login, tag, push, pull, imagePullSecrets |
+| Helm 차트 관리 | OCI 방식 push/pull, ChartMuseum 비교 |
+| Trivy 취약점 스캔 | CLI 스캔, Harbor 통합 스캔, 심각도 등급 |
+| 보안 모범 사례 | 이미지 서명, RBAC, TLS, 네트워크 정책 |
+| CI/CD 연동 | Jenkins, GitLab CI 파이프라인 예시 |
+| 문제 해결 | 인증서 오류, Push 실패, 스캔 실패 대응 |
+
+### 로그
+
+```
+harbor-registry-20240329-160000.log
 ```
