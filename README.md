@@ -1,7 +1,7 @@
 # Kubernetes Study Scripts
 
 Kubernetes 클러스터 **자동 설치**, **오브젝트 학습**, **애드온 설치**를 위한 인터랙티브 쉘 스크립트 모음입니다.
-**컨테이너 기초 교육 자료**, **Kubernetes 마스터 노드 컴포넌트 교육 자료**, **Kubernetes 네트워킹 심화 교육 자료**, **Kubernetes 스토리지 심화 교육 자료**, **Harbor & Trivy 프라이빗 레지스트리 교육 자료**, **Git & GitHub 기초 교육 자료**도 함께 제공합니다.
+**컨테이너 기초 교육 자료**, **Kubernetes 마스터 노드 컴포넌트 교육 자료**, **Kubernetes 워커 노드 컴포넌트 교육 자료**, **Kubernetes 네트워킹 심화 교육 자료**, **Kubernetes 스토리지 심화 교육 자료**, **Harbor & Trivy 프라이빗 레지스트리 교육 자료**, **Git & GitHub 기초 교육 자료**도 함께 제공합니다.
 
 ---
 
@@ -11,6 +11,7 @@ Kubernetes 클러스터 **자동 설치**, **오브젝트 학습**, **애드온 
 |------|------|
 | [`container-basics.md`](container-basics.md) | 리눅스 컨테이너 기초 교육 (입문자용) |
 | [`k8s-master-components.md`](k8s-master-components.md) | K8s 마스터 노드(Control Plane) 핵심 컴포넌트 교육 |
+| [`k8s-worker-components.md`](k8s-worker-components.md) | K8s 워커 노드 컴포넌트 교육 (kubelet, containerd, DaemonSet, crictl) |
 | [`k8s-networking.md`](k8s-networking.md) | K8s 네트워킹 심화 교육 (CNI, kube-proxy, CoreDNS, Ingress, LoadBalancer) |
 | [`k8s-storage.md`](k8s-storage.md) | K8s 스토리지 심화 교육 (PV, PVC, StorageClass, CSI, vSphere CSI, StatefulSet) |
 | [`harbor-registry.md`](harbor-registry.md) | Harbor & Trivy 프라이빗 레지스트리 교육 |
