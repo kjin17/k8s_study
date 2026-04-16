@@ -1,7 +1,7 @@
 # Kubernetes Study Scripts
 
 Kubernetes 클러스터 **자동 설치**, **오브젝트 학습**, **애드온 설치**를 위한 인터랙티브 쉘 스크립트 모음입니다.
-**컨테이너 기초 교육 자료**, **Kubernetes 마스터 노드 컴포넌트 교육 자료**, **Kubernetes 워커 노드 컴포넌트 교육 자료**, **Kubernetes 네트워킹 심화 교육 자료**, **Kubernetes 스토리지 심화 교육 자료**, **CRD와 Cluster API 교육 자료**, **Harbor & Trivy 프라이빗 레지스트리 교육 자료**, **Git & GitHub 기초 교육 자료**, **CI/CD(Jenkins, ArgoCD, FluxCD) 교육 자료**도 함께 제공합니다.
+**컨테이너 기초 교육 자료**, **Kubernetes 마스터 노드 컴포넌트 교육 자료**, **Kubernetes 워커 노드 컴포넌트 교육 자료**, **Kubernetes 네트워킹 심화 교육 자료**, **Kubernetes 스토리지 심화 교육 자료**, **CRD와 Cluster API 교육 자료**, **Harbor & Trivy 프라이빗 레지스트리 교육 자료**, **Git & GitHub 기초 교육 자료**, **CI/CD(Jenkins, ArgoCD, FluxCD) 교육 자료**, **K8s RBAC 교육 자료**도 함께 제공합니다.
 
 ---
 
@@ -18,10 +18,12 @@ Kubernetes 클러스터 **자동 설치**, **오브젝트 학습**, **애드온 
 | [`harbor-registry.md`](harbor-registry.md) | Harbor & Trivy 프라이빗 레지스트리 교육 |
 | [`git-basics.md`](git-basics.md) | Git & GitHub 기초 교육 (입문자용) |
 | [`k8s-cicd.md`](k8s-cicd.md) | CI/CD 교육 (Jenkins, ArgoCD, FluxCD, GitOps) |
+| [`k8s-rbac.md`](k8s-rbac.md) | K8s RBAC 교육 (인증/인가, Role, RoleBinding, ServiceAccount) |
 | `k8s-install.sh` | 가상머신 3대에 K8s 클러스터 자동 설치 |
 | `k8s-learn.sh`   | K8s 오브젝트 인터랙티브 학습 (입문자용) |
 | `k8s-addon.sh`   | 자주 쓰는 오픈소스 애드온 인터랙티브 설치 |
 | `harbor-registry.sh` | Harbor & Trivy 인터랙티브 설치/실습 |
+| `k8s-rbac.sh`    | K8s RBAC 인터랙티브 실습 (Role/Binding/SA/User 생성 + 권한 테스트) |
 
 ---
 
@@ -388,3 +390,43 @@ chmod +x harbor-registry.sh
 ```
 harbor-registry-20240329-160000.log
 ```
+
+---
+
+## k8s-rbac.sh — RBAC 인터랙티브 실습
+
+Kubernetes RBAC(Role-Based Access Control)를 직접 만들고 테스트해보는 인터랙티브 실습 스크립트입니다.
+ServiceAccount, Role, ClusterRole, RoleBinding을 단계별로 생성하고 `kubectl auth can-i`로 권한을 검증합니다.
+
+### 실행
+
+```bash
+chmod +x k8s-rbac.sh
+./k8s-rbac.sh
+```
+
+> **사전 요구사항**: `kubectl` + 클러스터 연결 필수. RBAC 리소스 생성 권한(보통 cluster-admin) 필요.
+> `openssl`은 X.509 사용자 생성 메뉴 사용 시 필요합니다. `jq`는 권한 inspect 메뉴에서 권장됩니다.
+
+### 포함 메뉴 (10단계)
+
+| # | 메뉴 | 학습 내용 |
+|---|------|----------|
+| 1 | **실습 NS 준비** | `rbac-lab` 네임스페이스 + 데모 Pod 생성 |
+| 2 | **ServiceAccount 생성** | SA 생성 + `kubectl create token`으로 토큰 발급 |
+| 3 | **Role 생성** | NS 한정 권한 (Pod 읽기 / Deployment 편집 / ConfigMap 관리 / Pod exec) |
+| 4 | **ClusterRole 생성** | 전역 권한 (Node 읽기 / PV 읽기 / 모든 Pod 읽기) |
+| 5 | **RoleBinding 생성** | Subject(SA/User/Group) ↔ Role 또는 ClusterRole 연결 |
+| 6 | **ClusterRoleBinding 생성** | 전역 권한 부여 |
+| 7 | **권한 테스트** | `kubectl auth can-i` 단일/리스트/일괄 체크 + `--as` impersonation |
+| 8 | **X.509 사용자 만들기** | OpenSSL CSR → K8s CSR 승인 → 인증서 발급 → kubeconfig 생성 |
+| 9 | **RBAC 상태 조회** | NS의 SA/Role/RB 한 번에 조회 + 특정 사용자의 모든 권한 추적 |
+| 10 | **Forbidden 시나리오** | 권한 없는 SA로 Forbidden 발생 → 정확한 권한 추가 → 해결 |
+
+### 교육 자료
+
+상세한 개념 설명은 [`k8s-rbac.md`](k8s-rbac.md)를 참고하세요. (인증/인가, 4대 RBAC 리소스, ServiceAccount Token 메커니즘, Aggregated ClusterRole, 트러블슈팅 포함)
+
+### 정리
+
+스크립트 종료 시 `r` 메뉴를 선택하면 생성된 네임스페이스(`rbac-lab`)와 ClusterRole/ClusterRoleBinding이 한 번에 정리됩니다.
