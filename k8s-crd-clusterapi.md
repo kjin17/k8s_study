@@ -936,96 +936,183 @@ spec:
 
 ---
 
-## 10. VKS에서 클러스터를 CRD로 관리하기
+## 10. VKS에서 클러스터를 CRD로 관리하기 (VCF 9.0)
 
-### TanzuKubernetesCluster CRD
+### VCF 9.0에서의 변화
 
-VKS에서 Guest Cluster를 생성할 때 사용하는 핵심 CRD입니다.
+```
+┌─────────────────────────────────────────────────────────────┐
+│           VCF 9.0 — VKS의 진화                                │
+│                                                             │
+│  이전 (vSphere 8.x / Tanzu):                                 │
+│  ├── CRD: TanzuKubernetesCluster (TKC)                      │
+│  ├── CLI: kubectl vsphere login --tanzu-kubernetes-cluster-* │
+│  ├── 버전: TanzuKubernetesRelease (TKR)                      │
+│  └── 브랜딩: vSphere with Tanzu                              │
+│                                                             │
+│  현재 (VCF 9.0):                                              │
+│  ├── CRD: Cluster (CAPI 표준 Cluster API 리소스 직접 사용)    │
+│  ├── CLI: kubectl vcf login                                  │
+│  ├── 버전: KubernetesRelease (VKR, Tanzu 접두사 제거)         │
+│  └── 브랜딩: VMware Cloud Foundation — VKS                    │
+│                                                             │
+│  핵심 변화:                                                   │
+│  ✅ Tanzu 전용 CRD → Cluster API 표준 리소스로 전환            │
+│  ✅ kubectl vsphere → kubectl vcf 로 CLI 변경                 │
+│  ✅ 더 표준적인 Cluster API 기반 워크플로우                     │
+│  ✅ ClusterClass를 활용한 템플릿 기반 클러스터 생성             │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### VCF 9.0 VKS 클러스터 CRD
+
+VCF 9.0에서는 TanzuKubernetesCluster 대신 **Cluster API 표준 Cluster 리소스**와 **ClusterClass**를 사용합니다.
 
 ```yaml
-# TanzuKubernetesCluster — YAML 하나로 K8s 클러스터 생성!
-apiVersion: run.tanzu.vmware.com/v1alpha3
-kind: TanzuKubernetesCluster
+# VCF 9.0 — Cluster API 표준 Cluster 리소스로 K8s 클러스터 생성
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
 metadata:
   name: dev-cluster
   namespace: dev-namespace              # vSphere Namespace
 spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks: ["192.168.0.0/16"]
+    services:
+      cidrBlocks: ["10.96.0.0/12"]
   topology:
+    class: tanzukubernetescluster       # ClusterClass 참조
+    version: v1.31.0+vmware.1           # K8s 버전 (KubernetesRelease)
     controlPlane:
       replicas: 1                       # Master 노드 수
-      vmClass: best-effort-medium       # VM 사양 (vSphere VM Class)
-      storageClass: vsan-default-storage-policy
-      tkr:
-        reference:
-          name: v1.31.0---vmware.1-fips  # Tanzu Kubernetes Release 버전
-    nodePools:
-    - name: worker-pool-1
-      replicas: 3                       # Worker 노드 수
-      vmClass: best-effort-large        # Worker VM 사양
-      storageClass: vsan-default-storage-policy
-      tkr:
-        reference:
-          name: v1.31.0---vmware.1-fips
-  settings:
-    storage:
-      defaultClass: vsan-default-storage-policy
-    network:
-      cni:
-        name: antrea                    # CNI 플러그인
-      pods:
-        cidrBlocks: ["192.168.0.0/16"]
-      services:
-        cidrBlocks: ["10.96.0.0/12"]
+      metadata: {}
+    workers:
+      machineDeployments:
+      - class: node-pool
+        name: worker-pool-1
+        replicas: 3                     # Worker 노드 수
+        metadata: {}
+    variables:
+    - name: vmClass
+      value: best-effort-medium         # Control Plane VM 사양
+    - name: workerVmClass
+      value: best-effort-large          # Worker VM 사양
+    - name: storageClass
+      value: vsan-default-storage-policy
+    - name: defaultStorageClass
+      value: vsan-default-storage-policy
+    - name: ntp
+      value: time.example.com
+```
+
+### ClusterClass란?
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│          ClusterClass — 클러스터 템플릿                        │
+│                                                             │
+│  VCF 9.0에서는 ClusterClass가 클러스터의 "설계도" 역할         │
+│  관리자가 ClusterClass를 정의하면,                             │
+│  사용자는 Cluster CR에서 class를 참조하여 생성                  │
+│                                                             │
+│  ┌─── ClusterClass ──────────────────────────────────┐      │
+│  │  (관리자가 정의하는 클러스터 템플릿)                  │      │
+│  │                                                    │      │
+│  │  ├── Control Plane 구성 (KubeadmControlPlane)      │      │
+│  │  ├── Worker Node 구성 (MachineDeployment 템플릿)    │      │
+│  │  ├── Infrastructure 구성 (VSphereMachineTemplate)  │      │
+│  │  ├── 허용 변수 정의 (vmClass, storageClass 등)      │      │
+│  │  └── 기본값, 검증 규칙                               │      │
+│  └────────────────────────────────────────────────────┘      │
+│           │                                                  │
+│           │  참조 (spec.topology.class)                       │
+│           ▼                                                  │
+│  ┌─── Cluster CR (사용자가 생성) ─────────────────────┐      │
+│  │                                                    │      │
+│  │  class: tanzukubernetescluster                     │      │
+│  │  version: v1.31.0+vmware.1                         │      │
+│  │  controlPlane.replicas: 3                          │      │
+│  │  workers.replicas: 5                               │      │
+│  │  variables: vmClass=guaranteed-large               │      │
+│  │                                                    │      │
+│  │  → ClusterClass 템플릿 + 사용자 변수를 결합하여      │      │
+│  │    실제 클러스터 생성!                                │      │
+│  └────────────────────────────────────────────────────┘      │
+│                                                             │
+│  장점:                                                       │
+│  ├── 클러스터 구성의 표준화 (조직 전체 일관성)                 │
+│  ├── 사용자는 변수(replicas, vmClass 등)만 지정               │
+│  ├── 인프라 세부사항은 ClusterClass에 캡슐화                   │
+│  └── Cluster API 표준 → 벤더 독립적                          │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ### 클러스터 생성부터 사용까지
 
 ```bash
-# 1. Supervisor Cluster에 접속 (vSphere 관리자가 제공한 kubeconfig)
-kubectl vsphere login --server=supervisor.example.com \
-  --vsphere-username=admin@vsphere.local \
-  --tanzu-kubernetes-cluster-namespace=dev-namespace
+# 1. Supervisor Cluster에 접속 (VCF 9.0 — kubectl vcf 사용)
+kubectl vcf login --server=supervisor.example.com \
+  --vsphere-username=admin@vsphere.local
 
-# 2. 사용 가능한 VM Class 확인
+# 컨텍스트 전환 (vSphere Namespace)
+kubectl config use-context dev-namespace
+
+# 2. 사용 가능한 ClusterClass 확인
+kubectl get clusterclass
+# NAME                        AGE
+# tanzukubernetescluster      30d
+
+# 3. 사용 가능한 VM Class 확인
 kubectl get virtualmachineclasses
 # NAME                   CPU   MEMORY   AGE
 # best-effort-small      2     4Gi      30d
 # best-effort-medium     4     8Gi      30d
 # best-effort-large      4     16Gi     30d
 # guaranteed-medium      4     8Gi      30d
+# guaranteed-large       4     16Gi     30d
 
-# 3. 사용 가능한 K8s 버전(TKR) 확인
-kubectl get tanzukubernetesreleases
-# NAME                              VERSION   READY   COMPATIBLE
-# v1.31.0---vmware.1-fips           1.31.0    True    True
-# v1.30.4---vmware.1-fips           1.30.4    True    True
-# v1.29.8---vmware.1-fips           1.29.8    True    True
+# 4. 사용 가능한 K8s 버전(VKR) 확인
+kubectl get kubernetesreleases
+# NAME                     VERSION        READY   COMPATIBLE
+# v1.31.0---vmware.1       1.31.0         True    True
+# v1.30.4---vmware.1       1.30.4         True    True
+# v1.29.8---vmware.1       1.29.8         True    True
 
-# 4. 사용 가능한 StorageClass 확인
+# 5. 사용 가능한 StorageClass 확인
 kubectl get storageclass
 # NAME                             PROVISIONER
 # vsan-default-storage-policy      csi.vsphere.vmware.com
 
-# 5. TanzuKubernetesCluster 생성!
+# 6. Cluster 생성!
 kubectl apply -f dev-cluster.yaml
 
-# 6. 클러스터 생성 진행 상태 확인
-kubectl get tkc dev-cluster -w
-# NAME          CONTROL PLANE   WORKER   TKR                    AGE   READY   PHASE
-# dev-cluster   1/1             0/3      v1.31.0---vmware.1     1m    False   creating
-# dev-cluster   1/1             1/3      v1.31.0---vmware.1     3m    False   creating
-# dev-cluster   1/1             2/3      v1.31.0---vmware.1     5m    False   creating
-# dev-cluster   1/1             3/3      v1.31.0---vmware.1     7m    True    running
+# 7. 클러스터 생성 진행 상태 확인
+kubectl get cluster dev-cluster -w
+# NAME          CLUSTERCLASS                PHASE          AGE   VERSION
+# dev-cluster   tanzukubernetescluster      Provisioning   1m    v1.31.0+vmware.1
+# dev-cluster   tanzukubernetescluster      Provisioning   3m    v1.31.0+vmware.1
+# dev-cluster   tanzukubernetescluster      Provisioned    7m    v1.31.0+vmware.1
+
+# Control Plane과 Worker 상태 상세 확인
+kubectl get machines -l cluster.x-k8s.io/cluster-name=dev-cluster
+# NAME                                  CLUSTER       PHASE     AGE   VERSION
+# dev-cluster-cp-xxxxx                  dev-cluster   Running   5m    v1.31.0
+# dev-cluster-worker-pool-1-yyyyy-0     dev-cluster   Running   4m    v1.31.0
+# dev-cluster-worker-pool-1-yyyyy-1     dev-cluster   Running   4m    v1.31.0
+# dev-cluster-worker-pool-1-yyyyy-2     dev-cluster   Running   3m    v1.31.0
 ```
 
 ### Guest Cluster에 접속
 
 ```bash
-# 방법 1: kubectl vsphere login
-kubectl vsphere login --server=supervisor.example.com \
+# 방법 1: kubectl vcf login (VCF 9.0)
+kubectl vcf login --server=supervisor.example.com \
   --vsphere-username=admin@vsphere.local \
-  --tanzu-kubernetes-cluster-name=dev-cluster \
-  --tanzu-kubernetes-cluster-namespace=dev-namespace
+  --workload-cluster-name=dev-cluster \
+  --workload-cluster-namespace=dev-namespace
 
 # 방법 2: kubeconfig Secret에서 직접 추출
 kubectl get secret dev-cluster-kubeconfig -n dev-namespace \
@@ -1034,7 +1121,7 @@ kubectl get secret dev-cluster-kubeconfig -n dev-namespace \
 export KUBECONFIG=dev-cluster.kubeconfig
 kubectl get nodes
 # NAME                                STATUS   ROLES           VERSION
-# dev-cluster-control-plane-xxxxx     Ready    control-plane   v1.31.0
+# dev-cluster-cp-xxxxx                Ready    control-plane   v1.31.0
 # dev-cluster-worker-pool-1-yyyyy-0   Ready    <none>          v1.31.0
 # dev-cluster-worker-pool-1-yyyyy-1   Ready    <none>          v1.31.0
 # dev-cluster-worker-pool-1-yyyyy-2   Ready    <none>          v1.31.0
@@ -1044,21 +1131,23 @@ kubectl get nodes
 
 ```bash
 # Worker 노드를 3개 → 5개로 스케일 아웃
-kubectl edit tkc dev-cluster -n dev-namespace
-# spec.topology.nodePools[0].replicas: 3 → 5 로 변경
+kubectl edit cluster dev-cluster -n dev-namespace
+# spec.topology.workers.machineDeployments[0].replicas: 3 → 5 로 변경
 
 # 또는 kubectl patch 사용
-kubectl patch tkc dev-cluster -n dev-namespace --type merge -p '
+kubectl patch cluster dev-cluster -n dev-namespace --type merge -p '
 spec:
   topology:
-    nodePools:
-    - name: worker-pool-1
-      replicas: 5
+    workers:
+      machineDeployments:
+      - class: node-pool
+        name: worker-pool-1
+        replicas: 5
 '
 
 # 스케일링 진행 확인
-kubectl get tkc dev-cluster -w
-# WORKER 열이 3/5 → 4/5 → 5/5 로 변경되는 것을 확인
+kubectl get machines -l cluster.x-k8s.io/cluster-name=dev-cluster -w
+# 새 Machine이 Provisioning → Running 으로 전이되는 것을 확인
 
 # vCenter에서 확인하면:
 # → 새 VM 2개가 자동으로 생성되고 클러스터에 조인됨!
@@ -1068,17 +1157,26 @@ kubectl get tkc dev-cluster -w
 
 ```bash
 # K8s 버전을 1.30.4 → 1.31.0 으로 업그레이드
-kubectl edit tkc dev-cluster -n dev-namespace
-# spec.topology.controlPlane.tkr.reference.name: v1.31.0---vmware.1-fips
-# spec.topology.nodePools[0].tkr.reference.name: v1.31.0---vmware.1-fips
+kubectl edit cluster dev-cluster -n dev-namespace
+# spec.topology.version: v1.31.0+vmware.1 로 변경
+
+# 또는 kubectl patch 사용
+kubectl patch cluster dev-cluster -n dev-namespace --type merge -p '
+spec:
+  topology:
+    version: v1.31.0+vmware.1
+'
 
 # 업그레이드 진행 확인
-kubectl get tkc dev-cluster -w
-# PHASE 가 updating → running 으로 변경
+kubectl get cluster dev-cluster -w
+# PHASE 가 Provisioned → Upgrading → Provisioned 으로 변경
+
+kubectl get machines -l cluster.x-k8s.io/cluster-name=dev-cluster -w
+# 기존 Machine이 삭제되고 새 버전의 Machine이 생성되는 것을 확인
 
 # 내부 동작:
-# 1. 새 버전의 Control Plane VM 생성 (1대씩)
-# 2. 이전 버전 Control Plane VM 삭제
+# 1. 새 버전의 Control Plane VM 생성 (1대씩 롤링)
+# 2. 이전 버전 Control Plane VM drain → 삭제
 # 3. 새 버전의 Worker VM 생성 (롤링)
 # 4. 이전 버전 Worker VM drain → 삭제
 # → 무중단 롤링 업그레이드!
@@ -1087,11 +1185,11 @@ kubectl get tkc dev-cluster -w
 ### 클러스터 삭제
 
 ```bash
-# TKC 리소스 삭제 → 모든 VM 자동 정리!
-kubectl delete tkc dev-cluster -n dev-namespace
+# Cluster 리소스 삭제 → 모든 VM 자동 정리!
+kubectl delete cluster dev-cluster -n dev-namespace
 
 # 확인
-kubectl get tkc -n dev-namespace
+kubectl get cluster -n dev-namespace
 # No resources found
 
 # vCenter에서 확인하면:
@@ -1099,16 +1197,20 @@ kubectl get tkc -n dev-namespace
 # → PVC, VMDK도 reclaimPolicy에 따라 정리됨
 ```
 
-### VKS에서 생성되는 리소스 계층
+### VKS에서 생성되는 리소스 계층 (VCF 9.0)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  kubectl apply -f dev-cluster.yaml 실행 시 자동 생성 리소스    │
 │                                                             │
-│  TanzuKubernetesCluster: dev-cluster                        │
+│  Cluster: dev-cluster                                       │
+│  │  (topology.class: tanzukubernetescluster)                │
 │  │                                                          │
-│  ├── Cluster (CAPI): dev-cluster                            │
-│  │   └── VSphereCluster: dev-cluster                        │
+│  ├── ClusterClass: tanzukubernetescluster (참조)            │
+│  │   └── 클러스터 템플릿 (인프라, 부트스트랩, CP 구성 포함)    │
+│  │                                                          │
+│  ├── VSphereCluster: dev-cluster (자동 생성)                 │
+│  │   └── vSphere 인프라 설정 (네트워크, 리소스 풀)            │
 │  │                                                          │
 │  ├── KubeadmControlPlane: dev-cluster-cp                    │
 │  │   ├── Machine: dev-cluster-cp-xxxxx                      │
@@ -1129,17 +1231,29 @@ kubectl get tkc -n dev-namespace
 │  ├── Secret: dev-cluster-ca                                 │
 │  └── Secret: dev-cluster-sa                                 │
 │                                                             │
-│  사용자는 TKC YAML만 관리하면 됨!                              │
-│  나머지는 모두 Controller가 자동 생성/관리                      │
+│  사용자는 Cluster YAML만 관리하면 됨!                          │
+│  ClusterClass + Cluster API Controller가 나머지 자동 생성     │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+### Tanzu → VCF 9.0 명령어 매핑
+
+| 이전 (Tanzu / vSphere 8.x) | 현재 (VCF 9.0) |
+|---------------------------|---------------|
+| `kubectl vsphere login --tanzu-kubernetes-cluster-*` | `kubectl vcf login --workload-cluster-*` |
+| `kubectl get tanzukubernetescluster` (`tkc`) | `kubectl get cluster` |
+| `kubectl get tanzukubernetesreleases` (`tkr`) | `kubectl get kubernetesreleases` (`vkr`) |
+| `TanzuKubernetesCluster` CRD | `Cluster` CRD (CAPI 표준) + ClusterClass |
+| `spec.topology.controlPlane.tkr.reference.name` | `spec.topology.version` |
+| `spec.topology.nodePools` | `spec.topology.workers.machineDeployments` |
+| `spec.settings.network.cni.name` | ClusterClass 변수 또는 기본값 (Antrea) |
 
 ### VM Class (가상머신 사양)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│              VM Class — vSphere에서 제공하는 VM 사양 프리셋     │
+│        VM Class — VCF에서 제공하는 VM 사양 프리셋               │
 │                                                             │
 │  ┌─── best-effort 계열 ───────────────────────────────┐     │
 │  │  리소스를 다른 VM과 공유 (오버커밋 가능)               │     │
