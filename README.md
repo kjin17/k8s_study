@@ -1,7 +1,7 @@
 # Kubernetes Study Scripts
 
 Kubernetes 클러스터 **자동 설치**, **오브젝트 학습**, **애드온 설치**를 위한 인터랙티브 쉘 스크립트 모음입니다.
-**컨테이너 기초 교육 자료**, **Kubernetes 마스터 노드 컴포넌트 교육 자료**, **Kubernetes 워커 노드 컴포넌트 교육 자료**, **Kubernetes 네트워킹 심화 교육 자료**, **Kubernetes 스토리지 심화 교육 자료**, **CRD와 Cluster API 교육 자료**, **Harbor & Trivy 프라이빗 레지스트리 교육 자료**, **Git & GitHub 기초 교육 자료**도 함께 제공합니다.
+**컨테이너 기초 교육 자료**, **Kubernetes 마스터 노드 컴포넌트 교육 자료**, **Kubernetes 워커 노드 컴포넌트 교육 자료**, **Kubernetes 네트워킹 심화 교육 자료**, **Kubernetes 스토리지 심화 교육 자료**, **CRD와 Cluster API 교육 자료**, **Harbor & Trivy 프라이빗 레지스트리 교육 자료**, **Git & GitHub 기초 교육 자료**, **CI/CD(Jenkins, ArgoCD, FluxCD) 교육 자료**도 함께 제공합니다.
 
 ---
 
@@ -17,6 +17,7 @@ Kubernetes 클러스터 **자동 설치**, **오브젝트 학습**, **애드온 
 | [`k8s-crd-clusterapi.md`](k8s-crd-clusterapi.md) | CRD, Cluster API, VKS(vSphere Kubernetes Service) 교육 |
 | [`harbor-registry.md`](harbor-registry.md) | Harbor & Trivy 프라이빗 레지스트리 교육 |
 | [`git-basics.md`](git-basics.md) | Git & GitHub 기초 교육 (입문자용) |
+| [`k8s-cicd.md`](k8s-cicd.md) | CI/CD 교육 (Jenkins, ArgoCD, FluxCD, GitOps) |
 | `k8s-install.sh` | 가상머신 3대에 K8s 클러스터 자동 설치 |
 | `k8s-learn.sh`   | K8s 오브젝트 인터랙티브 학습 (입문자용) |
 | `k8s-addon.sh`   | 자주 쓰는 오픈소스 애드온 인터랙티브 설치 |
