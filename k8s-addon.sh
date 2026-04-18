@@ -136,25 +136,24 @@ add_helm_repos() {
 }
 
 # =============================================================================
-# 1. Prometheus + Grafana (kube-prometheus-stack)
+# 1. Prometheus — 메트릭 수집 & 알림
 # =============================================================================
-addon_prometheus_grafana() {
+addon_prometheus() {
   clear
-  box "1. Prometheus + Grafana — 모니터링 & 시각화"
+  box "1. Prometheus — 메트릭 수집 & 알림"
 
   echo -e "
-${BOLD}구성 요소 (kube-prometheus-stack):${NC}
+${BOLD}구성 요소 (kube-prometheus-stack, Grafana 제외):${NC}
   ${DIM}┌──────────────────────────────────────────────────────────┐
   │  Prometheus Operator   — CRD로 Prometheus 인스턴스 관리  │
   │  Prometheus            — 메트릭 수집 및 저장 (TSDB)      │
   │  Alertmanager          — 알림 라우팅 (Slack, Email 등)   │
-  │  Grafana               — 대시보드 시각화                  │
   │  node-exporter         — 노드 시스템 메트릭 수집          │
   │  kube-state-metrics    — K8s 오브젝트 상태 메트릭         │
   └──────────────────────────────────────────────────────────┘${NC}
 
 ${BOLD}데이터 흐름:${NC}
-  ${DIM}K8s 컴포넌트 / 앱 → Prometheus (수집·저장) → Grafana (시각화)
+  ${DIM}K8s 컴포넌트 / 앱 → Prometheus (수집·저장) → Grafana (별도 설치)
                                           ↓
                                    Alertmanager (알림)${NC}
 
@@ -163,56 +162,130 @@ ${BOLD}Prometheus 쿼리 언어:${NC} PromQL
       ${CYAN}container_memory_usage_bytes${NC}  — 컨테이너 메모리 사용량
 "
   pause
-  if ! confirm "kube-prometheus-stack 을 설치하시겠습니까?"; then return; fi
+  if ! confirm "Prometheus (kube-prometheus-stack) 를 설치하시겠습니까?"; then return; fi
 
-  read_val "설치 Namespace"        PG_NS      "monitoring"
-  read_val "Helm Release 이름"     PG_RELEASE "kube-prom"
-  read_val "Grafana 관리자 비밀번호" PG_PASS    "admin123!"
-  read_val "Prometheus 데이터 보관 기간" PG_RETENTION "15d"
-  read_val "Prometheus PVC 크기"   PG_STORAGE "20Gi"
+  read_val "설치 Namespace"              PM_NS      "monitoring"
+  read_val "Helm Release 이름"           PM_RELEASE "kube-prom"
+  read_val "Prometheus 데이터 보관 기간"  PM_RETENTION "15d"
+  read_val "Prometheus PVC 크기"         PM_STORAGE "20Gi"
 
-  echo -e "\n  ${BOLD}Grafana Ingress 설정:${NC}"
-  local ingress_flag=""
-  if confirm "  Grafana Ingress 를 활성화하시겠습니까?"; then
-    read_val "  Grafana 도메인 (예: grafana.example.com)" PG_DOMAIN "grafana.local"
-    ingress_flag="--set grafana.ingress.enabled=true \
-      --set grafana.ingress.hosts[0]=${PG_DOMAIN} \
-      --set grafana.ingress.ingressClassName=nginx"
-  fi
+  kubectl create namespace "$PM_NS" --dry-run=client -o yaml | kubectl apply -f - &>/dev/null
 
-  kubectl create namespace "$PG_NS" --dry-run=client -o yaml | kubectl apply -f - &>/dev/null
-
-  step "kube-prometheus-stack 설치 중 (2~5분 소요)..."
-  # shellcheck disable=SC2086
-  helm upgrade --install "$PG_RELEASE" prometheus-community/kube-prometheus-stack \
-    --namespace "$PG_NS" \
-    --set grafana.adminPassword="$PG_PASS" \
-    --set prometheus.prometheusSpec.retention="$PG_RETENTION" \
-    --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage="$PG_STORAGE" \
+  step "kube-prometheus-stack 설치 중 (Grafana 비활성, 2~5분 소요)..."
+  helm upgrade --install "$PM_RELEASE" prometheus-community/kube-prometheus-stack \
+    --namespace "$PM_NS" \
+    --set grafana.enabled=false \
+    --set prometheus.prometheusSpec.retention="$PM_RETENTION" \
+    --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage="$PM_STORAGE" \
     --set alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.resources.requests.storage="5Gi" \
-    $ingress_flag \
     --wait --timeout 8m 2>&1 | tee -a "$LOG_FILE"
 
-  mark_installed "Prometheus+Grafana (ns: ${PG_NS})"
-  success "kube-prometheus-stack 설치 완료!"
-  show_result "$(kubectl get pods -n "$PG_NS" 2>&1)"
+  mark_installed "Prometheus (ns: ${PM_NS})"
+  success "Prometheus 설치 완료!"
+  show_result "$(kubectl get pods -n "$PM_NS" 2>&1)"
 
   echo -e "${BOLD}접속 방법:${NC}"
-  echo -e "  ${GREEN}kubectl port-forward svc/${PG_RELEASE}-grafana 3000:80 -n ${PG_NS}${NC}"
-  echo -e "  브라우저: http://localhost:3000  (admin / ${PG_PASS})"
-  echo ""
-  echo -e "  ${GREEN}kubectl port-forward svc/${PG_RELEASE}-kube-prom-prometheus 9090:9090 -n ${PG_NS}${NC}"
+  echo -e "  ${GREEN}kubectl port-forward svc/${PM_RELEASE}-kube-prom-prometheus 9090:9090 -n ${PM_NS}${NC}"
   echo -e "  브라우저: http://localhost:9090"
-  tip "kubectl get prometheusrule -n ${PG_NS}   # 알림 규칙 목록"
+  echo ""
+  echo -e "  ${GREEN}kubectl port-forward svc/${PM_RELEASE}-kube-prom-alertmanager 9093:9093 -n ${PM_NS}${NC}"
+  echo -e "  브라우저: http://localhost:9093"
+  tip "kubectl get prometheusrule -n ${PM_NS}   # 알림 규칙 목록"
+  tip "Grafana 를 연동하려면 메뉴 2번으로 별도 설치 후 데이터 소스를 추가하세요"
   pause
 }
 
 # =============================================================================
-# 2. Velero + MinIO — 백업 & 복구
+# 2. Grafana — 대시보드 시각화
+# =============================================================================
+addon_grafana() {
+  clear
+  box "2. Grafana — 대시보드 시각화"
+
+  echo -e "
+${BOLD}Grafana란?${NC}
+  ${CYAN}메트릭·로그·트레이스${NC}를 통합 시각화하는 오픈소스 대시보드 플랫폼입니다.
+  다양한 데이터 소스(Prometheus, Loki, Elasticsearch 등)를 연결할 수 있습니다.
+
+${BOLD}주요 기능:${NC}
+  • ${CYAN}Dashboard${NC}     — 드래그&드롭으로 패널 구성, 템플릿 변수
+  • ${CYAN}Alerting${NC}      — Grafana 알림 규칙 (Slack, Email, PagerDuty)
+  • ${CYAN}Explore${NC}       — Ad-hoc 쿼리 탐색 (PromQL, LogQL)
+  • ${CYAN}Provisioning${NC}  — 코드 기반 대시보드/데이터 소스 관리
+
+${BOLD}데이터 소스 연동:${NC}
+  ${DIM}Prometheus  → http://kube-prom-kube-prom-prometheus.monitoring:9090
+  Loki        → http://loki.logging:3100
+  Elasticsearch → https://elasticsearch-es-http.elastic-system:9200${NC}
+
+${BOLD}커뮤니티 대시보드:${NC}
+  ${CYAN}https://grafana.com/grafana/dashboards/${NC}
+  • K8s Cluster (ID: 6417)  • Node Exporter (ID: 1860)
+  • Pod Monitoring (ID: 15760)
+"
+  pause
+  if ! confirm "Grafana 를 설치하시겠습니까?"; then return; fi
+
+  read_val "설치 Namespace"        GF_NS      "monitoring"
+  read_val "Helm Release 이름"     GF_RELEASE "grafana"
+  read_val "관리자 비밀번호"        GF_PASS    "admin123!"
+  read_val "Grafana PVC 크기"      GF_STORAGE "5Gi"
+
+  echo -e "\n  ${BOLD}Grafana Ingress 설정:${NC}"
+  local ingress_flag=""
+  if confirm "  Grafana Ingress 를 활성화하시겠습니까?"; then
+    read_val "  Grafana 도메인 (예: grafana.example.com)" GF_DOMAIN "grafana.local"
+    ingress_flag="--set ingress.enabled=true \
+      --set ingress.hosts[0]=${GF_DOMAIN} \
+      --set ingress.ingressClassName=nginx"
+  fi
+
+  # Prometheus 자동 감지
+  local prom_ds_flag=""
+  if kubectl get svc -n "$GF_NS" 2>/dev/null | grep -q "kube-prom.*prometheus"; then
+    local prom_url="http://kube-prom-kube-prom-prometheus.${GF_NS}.svc.cluster.local:9090"
+    echo -e "\n  ${GREEN}Prometheus 감지됨${NC} — 데이터 소스로 자동 추가합니다."
+    prom_ds_flag="--set datasources.datasources\\.yaml.apiVersion=1 \
+      --set datasources.datasources\\.yaml.datasources[0].name=Prometheus \
+      --set datasources.datasources\\.yaml.datasources[0].type=prometheus \
+      --set datasources.datasources\\.yaml.datasources[0].url=${prom_url} \
+      --set datasources.datasources\\.yaml.datasources[0].access=proxy \
+      --set datasources.datasources\\.yaml.datasources[0].isDefault=true"
+  fi
+
+  kubectl create namespace "$GF_NS" --dry-run=client -o yaml | kubectl apply -f - &>/dev/null
+
+  step "Grafana 설치 중..."
+  # shellcheck disable=SC2086
+  helm upgrade --install "$GF_RELEASE" grafana/grafana \
+    --namespace "$GF_NS" \
+    --set adminPassword="$GF_PASS" \
+    --set persistence.enabled=true \
+    --set persistence.size="$GF_STORAGE" \
+    $ingress_flag \
+    $prom_ds_flag \
+    --wait --timeout 5m 2>&1 | tee -a "$LOG_FILE"
+
+  mark_installed "Grafana (ns: ${GF_NS})"
+  success "Grafana 설치 완료!"
+  show_result "$(kubectl get pods -n "$GF_NS" -l app.kubernetes.io/name=grafana 2>&1)"
+
+  echo -e "${BOLD}접속 방법:${NC}"
+  echo -e "  ${GREEN}kubectl port-forward svc/${GF_RELEASE} 3000:80 -n ${GF_NS}${NC}"
+  echo -e "  브라우저: http://localhost:3000  (admin / ${GF_PASS})"
+  echo ""
+  echo -e "${BOLD}데이터 소스 추가 (UI):${NC}"
+  echo -e "  Configuration → Data Sources → Add data source → Prometheus / Loki / ES"
+  tip "grafana-cli plugins install <plugin-id>   # 플러그인 설치"
+  pause
+}
+
+# =============================================================================
+# 3. Velero + MinIO — 백업 & 복구
 # =============================================================================
 addon_velero_minio() {
   clear
-  box "2. Velero + MinIO — 클러스터 백업 & 복구"
+  box "3. Velero + MinIO — 클러스터 백업 & 복구"
 
   echo -e "
 ${BOLD}Velero란?${NC}
@@ -316,11 +389,11 @@ EOF
 }
 
 # =============================================================================
-# 3. Istio — 서비스 메시
+# 4. Istio — 서비스 메시
 # =============================================================================
 addon_istio() {
   clear
-  box "3. Istio — 서비스 메시 (Service Mesh)"
+  box "4. Istio — 서비스 메시 (Service Mesh)"
 
   echo -e "
 ${BOLD}Istio란?${NC}
@@ -413,11 +486,11 @@ ${BOLD}구성 요소:${NC}
 }
 
 # =============================================================================
-# 4. Elasticsearch + Kibana (ECK Operator)
+# 5. Elasticsearch + Kibana (ECK Operator)
 # =============================================================================
 addon_elastic() {
   clear
-  box "4. Elasticsearch + Kibana — 로그 저장 & 검색 시각화"
+  box "5. Elasticsearch + Kibana — 로그 저장 & 검색 시각화"
 
   echo -e "
 ${BOLD}ECK (Elastic Cloud on Kubernetes)란?${NC}
@@ -535,11 +608,11 @@ EOF
 }
 
 # =============================================================================
-# 5. Fluent Bit — 경량 로그 수집
+# 6. Fluent Bit — 경량 로그 수집
 # =============================================================================
 addon_fluentbit() {
   clear
-  box "5. Fluent Bit — 경량 로그 수집 & 전달"
+  box "6. Fluent Bit — 경량 로그 수집 & 전달"
 
   echo -e "
 ${BOLD}Fluent Bit이란?${NC}
@@ -611,11 +684,11 @@ ${BOLD}DaemonSet 으로 배포:${NC}
 }
 
 # =============================================================================
-# 6. Kyverno — Kubernetes 정책 엔진
+# 7. Kyverno — Kubernetes 정책 엔진
 # =============================================================================
 addon_kyverno() {
   clear
-  box "6. Kyverno — Kubernetes-Native 정책 엔진"
+  box "7. Kyverno — Kubernetes-Native 정책 엔진"
 
   echo -e "
 ${BOLD}Kyverno란?${NC}
@@ -728,11 +801,11 @@ EOF
 }
 
 # =============================================================================
-# 7. OPA Gatekeeper — 정책 기반 접근 제어
+# 8. OPA Gatekeeper — 정책 기반 접근 제어
 # =============================================================================
 addon_opa_gatekeeper() {
   clear
-  box "7. OPA Gatekeeper — 정책 기반 접근 제어 (Rego)"
+  box "8. OPA Gatekeeper — 정책 기반 접근 제어 (Rego)"
 
   echo -e "
 ${BOLD}OPA Gatekeeper란?${NC}
@@ -849,11 +922,11 @@ EOF
 }
 
 # =============================================================================
-# 8. NGINX Ingress Controller
+# 9. NGINX Ingress Controller
 # =============================================================================
 addon_nginx_ingress() {
   clear
-  box "8. NGINX Ingress Controller — L7 HTTP(S) 라우팅"
+  box "9. NGINX Ingress Controller — L7 HTTP(S) 라우팅"
 
   echo -e "
 ${BOLD}NGINX Ingress Controller란?${NC}
@@ -933,11 +1006,11 @@ ${BOLD}주요 기능:${NC}
 }
 
 # =============================================================================
-# 9. Contour — Envoy 기반 Ingress Controller
+# 10. Contour — Envoy 기반 Ingress Controller
 # =============================================================================
 addon_contour() {
   clear
-  box "9. Contour — Envoy 기반 Ingress Controller"
+  box "10. Contour — Envoy 기반 Ingress Controller"
 
   echo -e "
 ${BOLD}Contour란?${NC}
@@ -1005,11 +1078,11 @@ ${BOLD}HTTPProxy vs Ingress:${NC}
 }
 
 # =============================================================================
-# 10. Loki — 로그 집계 시스템
+# 11. Loki — 로그 집계 시스템
 # =============================================================================
 addon_loki() {
   clear
-  box "10. Loki — 경량 로그 집계 시스템 (Grafana)"
+  box "11. Loki — 경량 로그 집계 시스템 (Grafana)"
 
   echo -e "
 ${BOLD}Loki란?${NC}
@@ -1095,11 +1168,11 @@ ${BOLD}LogQL 쿼리 예시:${NC}
 }
 
 # =============================================================================
-# 11. cert-manager — 인증서 자동 관리
+# 12. cert-manager — 인증서 자동 관리
 # =============================================================================
 addon_cert_manager() {
   clear
-  box "11. cert-manager — TLS 인증서 자동 발급·갱신"
+  box "12. cert-manager — TLS 인증서 자동 발급·갱신"
 
   echo -e "
 ${BOLD}cert-manager란?${NC}
@@ -1203,11 +1276,11 @@ EOF
 }
 
 # =============================================================================
-# 12. ArgoCD — GitOps CD 플랫폼
+# 13. ArgoCD — GitOps CD 플랫폼
 # =============================================================================
 addon_argocd() {
   clear
-  box "12. ArgoCD — GitOps 지속적 배포 (CD)"
+  box "13. ArgoCD — GitOps 지속적 배포 (CD)"
 
   echo -e "
 ${BOLD}ArgoCD란?${NC}
@@ -1293,11 +1366,11 @@ ${BOLD}핵심 CRD:${NC}
 }
 
 # =============================================================================
-# 13. FluxCD — GitOps Toolkit
+# 14. FluxCD — GitOps Toolkit
 # =============================================================================
 addon_fluxcd() {
   clear
-  box "13. FluxCD — GitOps Toolkit"
+  box "14. FluxCD — GitOps Toolkit"
 
   echo -e "
 ${BOLD}FluxCD란?${NC}
@@ -1409,11 +1482,11 @@ ${BOLD}동작 흐름:${NC}
 }
 
 # =============================================================================
-# 14. Jenkins — CI/CD 자동화
+# 15. Jenkins — CI/CD 자동화
 # =============================================================================
 addon_jenkins() {
   clear
-  box "14. Jenkins — CI/CD 자동화 서버"
+  box "15. Jenkins — CI/CD 자동화 서버"
 
   echo -e "
 ${BOLD}Jenkins란?${NC}
@@ -1505,20 +1578,21 @@ ${BOLD}Jenkinsfile (Declarative Pipeline):${NC}
 # =============================================================================
 # 형식: "번호|이름|Helm릴리즈|네임스페이스|카테고리|설명"
 ADDON_DEFS=(
-  "1|Prometheus + Grafana|kube-prom|monitoring|모니터링|kube-prometheus-stack"
-  "2|Velero + MinIO|velero,minio|velero|백업/복구|클러스터 백업 & 복구"
-  "3|Istio|istio-base,istiod|istio-system|서비스 메시|트래픽 관리, mTLS"
-  "4|Elasticsearch + Kibana|elastic-operator|elastic-system|로그 분석|ECK Operator"
-  "5|Fluent Bit|fluent-bit|logging|로그 수집|DaemonSet 로그 수집"
-  "6|Kyverno|kyverno|kyverno|정책 관리|K8s-Native 정책 엔진"
-  "7|OPA Gatekeeper|gatekeeper|gatekeeper-system|정책 관리|Rego 기반 정책"
-  "8|NGINX Ingress|ingress-nginx|ingress-nginx|인그레스|L7 HTTP(S) 라우팅"
-  "9|Contour|contour|projectcontour|인그레스|Envoy 기반 Ingress"
-  "10|Loki|loki|logging|로그 집계|Grafana 경량 로그"
-  "11|cert-manager|cert-manager|cert-manager|인증서|TLS 인증서 자동 관리"
-  "12|ArgoCD|argocd|argocd|GitOps CD|Git 기반 CD 플랫폼"
-  "13|FluxCD|flux-operator|flux-system|GitOps CD|GitOps Toolkit"
-  "14|Jenkins|jenkins|jenkins|CI/CD|CI/CD 자동화 서버"
+  "1|Prometheus|kube-prom|monitoring|모니터링|kube-prometheus-stack (Grafana 제외)"
+  "2|Grafana|grafana|monitoring|시각화|대시보드 시각화 플랫폼"
+  "3|Velero + MinIO|velero,minio|velero|백업/복구|클러스터 백업 & 복구"
+  "4|Istio|istio-base,istiod|istio-system|서비스 메시|트래픽 관리, mTLS"
+  "5|Elasticsearch + Kibana|elastic-operator|elastic-system|로그 분석|ECK Operator"
+  "6|Fluent Bit|fluent-bit|logging|로그 수집|DaemonSet 로그 수집"
+  "7|Kyverno|kyverno|kyverno|정책 관리|K8s-Native 정책 엔진"
+  "8|OPA Gatekeeper|gatekeeper|gatekeeper-system|정책 관리|Rego 기반 정책"
+  "9|NGINX Ingress|ingress-nginx|ingress-nginx|인그레스|L7 HTTP(S) 라우팅"
+  "10|Contour|contour|projectcontour|인그레스|Envoy 기반 Ingress"
+  "11|Loki|loki|logging|로그 집계|Grafana 경량 로그"
+  "12|cert-manager|cert-manager|cert-manager|인증서|TLS 인증서 자동 관리"
+  "13|ArgoCD|argocd|argocd|GitOps CD|Git 기반 CD 플랫폼"
+  "14|FluxCD|flux-operator|flux-system|GitOps CD|GitOps Toolkit"
+  "15|Jenkins|jenkins|jenkins|CI/CD|CI/CD 자동화 서버"
 )
 
 # Helm release 가 설치되어 있는지 확인 (첫 번째 릴리즈 기준)
@@ -1658,13 +1732,13 @@ uninstall_addon() {
 
       # 애드온별 특수 삭제 처리
       case "$num" in
-        2) # Velero + MinIO — 두 릴리즈 삭제
+        3) # Velero + MinIO — 두 릴리즈 삭제
           step "Velero 삭제 중..."
           helm uninstall velero -n "$ns" 2>&1 | tee -a "$LOG_FILE" || true
           step "MinIO 삭제 중..."
           helm uninstall minio -n "$ns" 2>&1 | tee -a "$LOG_FILE" || true
           ;;
-        3) # Istio — base + istiod + gateway
+        4) # Istio — base + istiod + gateway
           step "Istio Ingress Gateway 삭제 중..."
           helm uninstall istio-ingressgateway -n istio-ingress 2>&1 | tee -a "$LOG_FILE" || true
           step "istiod 삭제 중..."
@@ -1675,37 +1749,37 @@ uninstall_addon() {
           helm uninstall kiali-operator -n "$ns" 2>/dev/null || true
           kubectl delete namespace istio-ingress --ignore-not-found 2>/dev/null || true
           ;;
-        4) # Elasticsearch + Kibana — CR 먼저 삭제 후 Operator
+        5) # Elasticsearch + Kibana — CR 먼저 삭제 후 Operator
           step "Elasticsearch/Kibana CR 삭제 중..."
           kubectl delete kibana --all -n "$ns" 2>/dev/null || true
           kubectl delete elasticsearch --all -n "$ns" 2>/dev/null || true
           step "ECK Operator 삭제 중..."
           helm uninstall elastic-operator -n elastic-system 2>&1 | tee -a "$LOG_FILE" || true
           ;;
-        10) # Loki + Promtail
-          step "Promtail 삭제 중..."
-          helm uninstall promtail -n "$ns" 2>/dev/null || true
-          step "Loki 삭제 중..."
-          helm uninstall loki -n "$ns" 2>&1 | tee -a "$LOG_FILE" || true
-          ;;
-        11) # cert-manager — ClusterIssuer 먼저 삭제
-          step "ClusterIssuer 삭제 중..."
-          kubectl delete clusterissuer --all 2>/dev/null || true
-          step "cert-manager 삭제 중..."
-          helm uninstall cert-manager -n "$ns" 2>&1 | tee -a "$LOG_FILE" || true
-          ;;
-        6) # Kyverno — ClusterPolicy 삭제
+        7) # Kyverno — ClusterPolicy 삭제
           step "ClusterPolicy 삭제 중..."
           kubectl delete clusterpolicy --all 2>/dev/null || true
           step "Kyverno 삭제 중..."
           helm uninstall kyverno -n "$ns" 2>&1 | tee -a "$LOG_FILE" || true
           ;;
-        7) # OPA Gatekeeper — Constraint/ConstraintTemplate 삭제
+        8) # OPA Gatekeeper — Constraint/ConstraintTemplate 삭제
           step "Constraint / ConstraintTemplate 삭제 중..."
           kubectl delete constraints --all 2>/dev/null || true
           kubectl delete constrainttemplate --all 2>/dev/null || true
           step "OPA Gatekeeper 삭제 중..."
           helm uninstall gatekeeper -n "$ns" 2>&1 | tee -a "$LOG_FILE" || true
+          ;;
+        11) # Loki + Promtail
+          step "Promtail 삭제 중..."
+          helm uninstall promtail -n "$ns" 2>/dev/null || true
+          step "Loki 삭제 중..."
+          helm uninstall loki -n "$ns" 2>&1 | tee -a "$LOG_FILE" || true
+          ;;
+        12) # cert-manager — ClusterIssuer 먼저 삭제
+          step "ClusterIssuer 삭제 중..."
+          kubectl delete clusterissuer --all 2>/dev/null || true
+          step "cert-manager 삭제 중..."
+          helm uninstall cert-manager -n "$ns" 2>&1 | tee -a "$LOG_FILE" || true
           ;;
         *) # 일반적인 단일 릴리즈 삭제
           IFS=',' read -ra rel_array <<< "$releases"
@@ -1754,20 +1828,21 @@ main_menu() {
   while true; do
     print_banner
     echo -e "  ${BOLD}── 개별 애드온 설치 ──────────────────────────────────────${NC}"
-    echo -e "  ${CYAN}  1)${NC} Prometheus + Grafana   — 메트릭 수집 & 시각화 (kube-prometheus-stack)"
-    echo -e "  ${CYAN}  2)${NC} Velero + MinIO         — 클러스터 백업 & 복구"
-    echo -e "  ${CYAN}  3)${NC} Istio                  — 서비스 메시 (트래픽 관리, mTLS)"
-    echo -e "  ${CYAN}  4)${NC} Elasticsearch + Kibana — 로그 저장 & 검색 시각화 (ECK)"
-    echo -e "  ${CYAN}  5)${NC} Fluent Bit             — 경량 로그 수집 DaemonSet"
-    echo -e "  ${CYAN}  6)${NC} Kyverno               — K8s-Native 정책 엔진"
-    echo -e "  ${CYAN}  7)${NC} OPA Gatekeeper        — Rego 기반 정책 접근 제어"
-    echo -e "  ${CYAN}  8)${NC} NGINX Ingress         — L7 HTTP(S) 라우팅"
-    echo -e "  ${CYAN}  9)${NC} Contour               — Envoy 기반 Ingress Controller"
-    echo -e "  ${CYAN} 10)${NC} Loki                  — 경량 로그 집계 (Grafana)"
-    echo -e "  ${CYAN} 11)${NC} cert-manager          — TLS 인증서 자동 발급·갱신"
-    echo -e "  ${CYAN} 12)${NC} ArgoCD                — GitOps CD 플랫폼"
-    echo -e "  ${CYAN} 13)${NC} FluxCD                — GitOps Toolkit"
-    echo -e "  ${CYAN} 14)${NC} Jenkins               — CI/CD 자동화 서버"
+    echo -e "  ${CYAN}  1)${NC} Prometheus             — 메트릭 수집 & 알림 (kube-prometheus-stack)"
+    echo -e "  ${CYAN}  2)${NC} Grafana                — 대시보드 시각화"
+    echo -e "  ${CYAN}  3)${NC} Velero + MinIO         — 클러스터 백업 & 복구"
+    echo -e "  ${CYAN}  4)${NC} Istio                  — 서비스 메시 (트래픽 관리, mTLS)"
+    echo -e "  ${CYAN}  5)${NC} Elasticsearch + Kibana — 로그 저장 & 검색 시각화 (ECK)"
+    echo -e "  ${CYAN}  6)${NC} Fluent Bit             — 경량 로그 수집 DaemonSet"
+    echo -e "  ${CYAN}  7)${NC} Kyverno               — K8s-Native 정책 엔진"
+    echo -e "  ${CYAN}  8)${NC} OPA Gatekeeper        — Rego 기반 정책 접근 제어"
+    echo -e "  ${CYAN}  9)${NC} NGINX Ingress         — L7 HTTP(S) 라우팅"
+    echo -e "  ${CYAN} 10)${NC} Contour               — Envoy 기반 Ingress Controller"
+    echo -e "  ${CYAN} 11)${NC} Loki                  — 경량 로그 집계 (Grafana)"
+    echo -e "  ${CYAN} 12)${NC} cert-manager          — TLS 인증서 자동 발급·갱신"
+    echo -e "  ${CYAN} 13)${NC} ArgoCD                — GitOps CD 플랫폼"
+    echo -e "  ${CYAN} 14)${NC} FluxCD                — GitOps Toolkit"
+    echo -e "  ${CYAN} 15)${NC} Jenkins               — CI/CD 자동화 서버"
     echo ""
     echo -e "  ${BOLD}── 관리 ──────────────────────────────────────────────────${NC}"
     echo -e "  ${YELLOW}  s)${NC} 설치 현황 확인        — 전체 애드온 설치 상태 조회"
@@ -1782,20 +1857,21 @@ main_menu() {
     read -r choice
 
     case "$choice" in
-      1) addon_prometheus_grafana ;;
-      2) addon_velero_minio ;;
-      3) addon_istio ;;
-      4) addon_elastic ;;
-      5) addon_fluentbit ;;
-      6) addon_kyverno ;;
-      7) addon_opa_gatekeeper ;;
-      8) addon_nginx_ingress ;;
-      9) addon_contour ;;
-      10) addon_loki ;;
-      11) addon_cert_manager ;;
-      12) addon_argocd ;;
-      13) addon_fluxcd ;;
-      14) addon_jenkins ;;
+      1) addon_prometheus ;;
+      2) addon_grafana ;;
+      3) addon_velero_minio ;;
+      4) addon_istio ;;
+      5) addon_elastic ;;
+      6) addon_fluentbit ;;
+      7) addon_kyverno ;;
+      8) addon_opa_gatekeeper ;;
+      9) addon_nginx_ingress ;;
+      10) addon_contour ;;
+      11) addon_loki ;;
+      12) addon_cert_manager ;;
+      13) addon_argocd ;;
+      14) addon_fluxcd ;;
+      15) addon_jenkins ;;
       s|S) show_status ;;
       d|D) uninstall_addon ;;
       q|Q)

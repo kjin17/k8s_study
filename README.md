@@ -297,24 +297,25 @@ chmod +x k8s-addon.sh
 
 > **사전 요구사항**: `kubectl` + 클러스터 연결 필수. `helm`은 없으면 자동 설치를 제안합니다.
 
-### 포함 애드온 (14종)
+### 포함 애드온 (15종)
 
 | # | 애드온 | 카테고리 | 설명 |
 |---|--------|----------|------|
-| 1 | **Prometheus + Grafana** | 모니터링 | kube-prometheus-stack — Prometheus Operator, AlertManager, node-exporter, kube-state-metrics 포함 |
-| 2 | **Velero + MinIO** | 백업/복구 | 클러스터 리소스 & PV 백업, S3 호환 오브젝트 스토리지 |
-| 3 | **Istio** | 서비스 메시 | 트래픽 관리, mTLS, 분산 추적, Kiali 시각화 |
-| 4 | **Elasticsearch + Kibana** | 로그 분석 | ECK Operator 기반, 8.x 버전, 로그 저장·검색·시각화 |
-| 5 | **Fluent Bit** | 로그 수집 | DaemonSet 으로 전 노드 로그 수집, ES 출력 설정 포함 |
-| 6 | **Kyverno** | 정책 관리 | YAML 기반 K8s-Native 정책 엔진, 샘플 정책 포함 |
-| 7 | **OPA Gatekeeper** | 정책 관리 | Rego 언어 기반 정책 엔진, ConstraintTemplate 샘플 포함 |
-| 8 | **NGINX Ingress** | 인그레스 | L7 HTTP(S) 라우팅, TLS 종단, Rate Limiting, Canary |
-| 9 | **Contour** | 인그레스 | Envoy 기반 Ingress Controller, HTTPProxy CRD 지원 |
-| 10 | **Loki** | 로그 집계 | Grafana 라벨 기반 경량 로그 시스템, Promtail 옵션 포함 |
-| 11 | **cert-manager** | 인증서 | TLS 인증서 자동 발급·갱신, Let's Encrypt/Self-Signed 지원 |
-| 12 | **ArgoCD** | GitOps CD | Git 기반 선언적 CD, Application/ApplicationSet CRD |
-| 13 | **FluxCD** | GitOps CD | CNCF GitOps Toolkit, Helm 또는 flux bootstrap 설치 |
-| 14 | **Jenkins** | CI/CD | CI/CD 자동화 서버, K8s 동적 Agent, Declarative Pipeline |
+| 1 | **Prometheus** | 모니터링 | kube-prometheus-stack — Prometheus Operator, AlertManager, node-exporter, kube-state-metrics (Grafana 별도) |
+| 2 | **Grafana** | 시각화 | 대시보드 시각화 플랫폼, Prometheus 자동 감지·데이터 소스 연동 |
+| 3 | **Velero + MinIO** | 백업/복구 | 클러스터 리소스 & PV 백업, S3 호환 오브젝트 스토리지 |
+| 4 | **Istio** | 서비스 메시 | 트래픽 관리, mTLS, 분산 추적, Kiali 시각화 |
+| 5 | **Elasticsearch + Kibana** | 로그 분석 | ECK Operator 기반, 8.x 버전, 로그 저장·검색·시각화 |
+| 6 | **Fluent Bit** | 로그 수집 | DaemonSet 으로 전 노드 로그 수집, ES 출력 설정 포함 |
+| 7 | **Kyverno** | 정책 관리 | YAML 기반 K8s-Native 정책 엔진, 샘플 정책 포함 |
+| 8 | **OPA Gatekeeper** | 정책 관리 | Rego 언어 기반 정책 엔진, ConstraintTemplate 샘플 포함 |
+| 9 | **NGINX Ingress** | 인그레스 | L7 HTTP(S) 라우팅, TLS 종단, Rate Limiting, Canary |
+| 10 | **Contour** | 인그레스 | Envoy 기반 Ingress Controller, HTTPProxy CRD 지원 |
+| 11 | **Loki** | 로그 집계 | Grafana 라벨 기반 경량 로그 시스템, Promtail 옵션 포함 |
+| 12 | **cert-manager** | 인증서 | TLS 인증서 자동 발급·갱신, Let's Encrypt/Self-Signed 지원 |
+| 13 | **ArgoCD** | GitOps CD | Git 기반 선언적 CD, Application/ApplicationSet CRD |
+| 14 | **FluxCD** | GitOps CD | CNCF GitOps Toolkit, Helm 또는 flux bootstrap 설치 |
+| 15 | **Jenkins** | CI/CD | CI/CD 자동화 서버, K8s 동적 Agent, Declarative Pipeline |
 
 ### 관리 기능
 
