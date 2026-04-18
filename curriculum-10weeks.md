@@ -18,9 +18,9 @@
 - [Week 5 — 스토리지 (PV/PVC, CSI, StatefulSet)](#week-5--스토리지-pvpvc-csi-statefulset)
 - [Week 6 — 보안과 RBAC](#week-6--보안과-rbac)
 - [Week 7 — CRD, Operator, Cluster API](#week-7--crd-operator-cluster-api)
-- [Week 8 — 프라이빗 레지스트리 (Harbor + Trivy)](#week-8--프라이빗-레지스트리-harbor--trivy)
-- [Week 9 — CI 자동화 (Jenkins)](#week-9--ci-자동화-jenkins)
-- [Week 10 — GitOps (ArgoCD/FluxCD) + 종합 프로젝트](#week-10--gitops-argocdfluxcd--종합-프로젝트)
+- [Week 8 — DevOps 통합 (Harbor + Jenkins CI + GitOps)](#week-8--devops-통합-harbor--jenkins-ci--gitops)
+- [Week 9 — VCF Supervisor와 VPC 네트워킹](#week-9--vcf-supervisor와-vpc-네트워킹)
+- [Week 10 — VKS 클러스터 관리](#week-10--vks-클러스터-관리)
 - [최종 평가 기준](#최종-평가-기준)
 - [추천 학습 경로 (이수 후)](#추천-학습-경로-이수-후)
 
@@ -70,9 +70,9 @@
 | 5주 | `k8s-storage.md` | `k8s-learn.sh` (7, 8) |
 | 6주 | `k8s-rbac.md` | `k8s-rbac.sh` |
 | 7주 | `k8s-crd-clusterapi.md` | `k8s-addon.sh` (Operator) |
-| 8주 | `harbor-registry.md` | `harbor-registry.sh` |
-| 9주 | `k8s-cicd.md` (1~5장) | `k8s-addon.sh` (Jenkins) |
-| 10주 | `k8s-cicd.md` (6~13장) | 종합 프로젝트 |
+| 8주 | `harbor-registry.md`, `k8s-cicd.md` | `harbor-registry.sh`, `k8s-addon.sh` |
+| 9주 | `vcf-supervisor-vpc.md` | — |
+| 10주 | `vks-cluster-management.md` | — |
 
 ---
 
@@ -145,9 +145,11 @@
 │   Week 7  CRD + Operator + Cluster API ← K8s 확장               │
 │                                                                │
 │  [DevOps 통합]                                                  │
-│   Week 8  Harbor 레지스트리          ← 이미지 관리                │
-│   Week 9  Jenkins CI                 ← 빌드 자동화               │
-│   Week 10 ArgoCD/FluxCD GitOps       ← 종합 프로젝트             │
+│   Week 8  Harbor + Jenkins + GitOps  ← CI/CD 파이프라인           │
+│                                                                │
+│  [VCF/VKS 실무]                                                  │
+│   Week 9  VCF Supervisor + VPC       ← 인프라 네트워킹            │
+│   Week 10 VKS 클러스터 관리          ← 엔터프라이즈 K8s            │
 │                                                                │
 └────────────────────────────────────────────────────────────────┘
 ```
@@ -161,9 +163,9 @@
 | 5 | 스토리지 (PV/PVC, StatefulSet) | MySQL StatefulSet + 백업 |
 | 6 | RBAC 보안 | 팀별 권한 분리 + ServiceAccount |
 | 7 | CRD + Operator + Cluster API | 첫 Operator 배포 (Prometheus 등) |
-| 8 | Harbor + Trivy | 사내 레지스트리 + 이미지 스캔 |
-| 9 | Jenkins CI | Jenkinsfile 기반 자동 빌드 |
-| 10 | GitOps + 최종 프로젝트 | Jenkins + ArgoCD 통합 파이프라인 |
+| 8 | Harbor + Jenkins + GitOps | CI/CD 파이프라인 구축 + 종합 프로젝트 |
+| 9 | VCF Supervisor + VPC 네트워킹 | Supervisor 아키텍처, VPC 서브넷, 배포 절차 |
+| 10 | VKS 클러스터 관리 | 프로비저닝, 운영, 업데이트, 보안, 백업 |
 
 ---
 
@@ -692,98 +694,36 @@ kubectl get crd | grep cluster.x-k8s.io
 
 ---
 
-## Week 8 — 프라이빗 레지스트리 (Harbor + Trivy)
+## Week 8 — DevOps 통합 (Harbor + Jenkins CI + GitOps)
 
 ### 학습 목표
 
 - **컨테이너 레지스트리**의 필요성과 Harbor의 역할을 안다
-- Harbor에 **이미지를 push/pull**할 수 있다
 - **Trivy로 이미지 취약점 스캔**을 수행하고 결과를 해석한다
-- **imagePullSecret**으로 K8s에서 사설 레지스트리를 사용한다
+- **Jenkins Master/Agent** 구조를 이해하고 **Jenkinsfile(Declarative Pipeline)** 을 작성한다
+- **GitOps 4대 원칙**을 이해하고 **ArgoCD**로 Git → 클러스터 동기화를 구현한다
+- Jenkins(CI) + ArgoCD(CD) **하이브리드 파이프라인**을 종합 프로젝트로 구축한다
 
 ### 학습 자료
 
 - 📘 [`harbor-registry.md`](harbor-registry.md) — 전체
+- 📘 [`k8s-cicd.md`](k8s-cicd.md) — 전체 (Jenkins CI 1~5장 + GitOps 6~13장)
 
 ### 라이브 실습
 
 ```bash
-# 실습 1: 인터랙티브 Harbor 설치 + 실습 스크립트
+# ── Part A: Harbor + Trivy ──
 chmod +x harbor-registry.sh
 ./harbor-registry.sh
-# → 메뉴 1: Harbor 설치
-# → 메뉴 2: Project 생성
-# → 메뉴 3: Docker push/pull
-# → 메뉴 4: Trivy 스캔
-# → 메뉴 5: Helm Chart push
-# → 메뉴 6: 보안 정책 (자동 스캔, 차단)
+# → 메뉴 1~6 (Harbor 설치 → Trivy 스캔 → 보안 정책)
 
-# 실습 2: K8s에서 사설 레지스트리 사용
 kubectl create secret docker-registry harbor-cred \
   --docker-server=harbor.example.com \
   --docker-username=admin \
-  --docker-password=Harbor12345 \
-  -n default
-
-kubectl apply -f - <<EOF
-apiVersion: v1
-kind: Pod
-metadata:
-  name: from-harbor
-spec:
-  imagePullSecrets:
-  - name: harbor-cred
-  containers:
-  - name: app
-    image: harbor.example.com/myproject/myapp:v1
-EOF
-
-# 실습 3: Trivy CLI 직접 사용
-trivy image nginx:1.24
+  --docker-password=Harbor12345
 trivy image --severity HIGH,CRITICAL nginx:1.24
-trivy image --format json nginx:1.24 > scan.json
-```
 
-### 과제
-
-| 과제 | 산출물 |
-|------|--------|
-| **과제 1** | Week 1 과제의 Flask 앱 이미지를 Harbor에 push → CVE 1개 이상 발견 → Dockerfile 개선 후 재스캔 |
-| **과제 2** | Harbor의 Webhook을 Slack/Discord에 연동 → push 이벤트 알림 |
-| **과제 3** | Robot Account를 만들어 CI 도구용 토큰 발급 + 권한 최소화 검증 |
-
-### 토론 주제
-
-- DockerHub 같은 퍼블릭 레지스트리만 쓸 때의 보안/속도/비용 문제는?
-- Image Signing(Cosign/Notary)은 왜 필요한가?
-- Trivy의 SBOM(Software Bill of Materials) 이 공급망 보안에 어떻게 기여하는가?
-
-### 체크리스트
-
-- [ ] Harbor의 Project / Robot Account / Webhook을 활용할 수 있다
-- [ ] docker tag → push → pull의 전체 흐름을 안다
-- [ ] imagePullSecret을 K8s에서 사용할 수 있다
-- [ ] Trivy로 CVE를 식별하고 우선순위를 정할 수 있다
-
----
-
-## Week 9 — CI 자동화 (Jenkins)
-
-### 학습 목표
-
-- **CI와 CD의 차이**를 명확히 구분한다
-- **Jenkins Master/Agent** 구조를 이해하고 K8s 기반 동적 Agent를 활용한다
-- **Jenkinsfile (Declarative Pipeline)** 을 작성한다
-- 빌드 → 테스트 → 이미지 push → 배포 전 단계를 자동화한다
-
-### 학습 자료
-
-- 📘 [`k8s-cicd.md`](k8s-cicd.md) — **1~5장**
-
-### 라이브 실습
-
-```bash
-# 실습 1: Jenkins 설치 (Helm + kubernetes plugin)
+# ── Part B: Jenkins CI ──
 helm repo add jenkins https://charts.jenkins.io
 helm install jenkins jenkins/jenkins -n jenkins --create-namespace \
   --set controller.serviceType=NodePort \
@@ -791,102 +731,13 @@ helm install jenkins jenkins/jenkins -n jenkins --create-namespace \
   --set controller.adminPassword=admin1234 \
   --set agent.enabled=true
 
-# 실습 2: 첫 Jenkinsfile (App Repo)
-cat > Jenkinsfile <<'EOF'
-pipeline {
-    agent {
-        kubernetes {
-            yaml '''
-              apiVersion: v1
-              kind: Pod
-              spec:
-                containers:
-                - name: docker
-                  image: docker:24-dind
-                  securityContext: {privileged: true}
-            '''
-        }
-    }
-    stages {
-        stage('Checkout') { steps { checkout scm } }
-        stage('Build') {
-            steps {
-                container('docker') {
-                    sh 'docker build -t harbor.example.com/myproject/myapp:${BUILD_NUMBER} .'
-                }
-            }
-        }
-        stage('Push') {
-            steps {
-                container('docker') {
-                    withCredentials([usernamePassword(credentialsId: 'harbor', usernameVariable: 'U', passwordVariable: 'P')]) {
-                        sh 'docker login harbor.example.com -u $U -p $P'
-                        sh 'docker push harbor.example.com/myproject/myapp:${BUILD_NUMBER}'
-                    }
-                }
-            }
-        }
-    }
-}
-EOF
+# Jenkinsfile 작성 → GitHub Webhook 연동 → 자동 빌드 + Harbor push
 
-# 실습 3: GitHub Webhook → Jenkins 자동 트리거
-# Jenkins UI: Multibranch Pipeline → GitHub URL 입력 → 토큰 등록
-# GitHub: Settings → Webhooks → Add webhook → http://<jenkins-ip>/github-webhook/
-```
-
-### 과제
-
-| 과제 | 산출물 |
-|------|--------|
-| **과제 1** | Week 1 Flask 앱 저장소에 Jenkinsfile 추가 → push → 자동 빌드 + Harbor push 검증 |
-| **과제 2** | 단위 테스트 단계 추가 → 실패 시 빌드 실패 처리 |
-| **과제 3** | Slack 통보 단계 추가 (성공/실패 시 메시지) |
-
-### 토론 주제
-
-- Push 방식 CI/CD(Jenkins)가 멀티 클러스터 환경에서 어떤 문제를 가지는가?
-- Pipeline as Code의 장점은? Job UI 클릭 방식과 비교하면?
-- Jenkins Agent를 K8s Pod로 만드는 것의 자원/격리 측면 이점은?
-
-### 체크리스트
-
-- [ ] Declarative vs Scripted Pipeline의 차이를 안다
-- [ ] Jenkinsfile에 stages, steps, environment, post를 작성할 수 있다
-- [ ] Credentials Plugin으로 비밀 정보를 안전하게 사용할 수 있다
-- [ ] GitHub Webhook 트리거를 설정할 수 있다
-
----
-
-## Week 10 — GitOps (ArgoCD/FluxCD) + 종합 프로젝트
-
-### 학습 목표
-
-- **GitOps 4대 원칙**을 이해하고 Push 방식과의 차이를 명확히 안다
-- **ArgoCD**로 Git 저장소를 클러스터에 동기화한다
-- **FluxCD**의 GitOps Toolkit을 활용한다
-- Jenkins(CI) + ArgoCD(CD) **하이브리드 파이프라인**을 종합 프로젝트로 구축한다
-
-### 학습 자료
-
-- 📘 [`k8s-cicd.md`](k8s-cicd.md) — **6~13장**
-
-### 라이브 실습
-
-```bash
-# 실습 1: ArgoCD 설치
+# ── Part C: ArgoCD GitOps ──
 kubectl create namespace argocd
 kubectl apply -n argocd \
   -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
-kubectl patch svc argocd-server -n argocd \
-  -p '{"spec":{"type":"NodePort","ports":[{"port":443,"nodePort":30443}]}}'
-
-# 초기 비밀번호
-kubectl -n argocd get secret argocd-initial-admin-secret \
-  -o jsonpath="{.data.password}" | base64 -d
-
-# 실습 2: 첫 ArgoCD Application
 kubectl apply -f - <<EOF
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -907,13 +758,8 @@ spec:
     syncOptions: [CreateNamespace=true]
 EOF
 
-# 실습 3: FluxCD 부트스트랩
-brew install fluxcd/tap/flux   # macOS
-flux check --pre
-export GITHUB_TOKEN=ghp_xxx
-flux bootstrap github \
-  --owner=<user> --repository=fleet-infra \
-  --branch=main --path=./clusters/lab --personal
+# ── Part D: 종합 — Jenkins(CI) + ArgoCD(CD) 하이브리드 파이프라인 ──
+# App Repo push → Jenkins 빌드+스캔+Harbor push → Manifest Repo tag 업데이트 → ArgoCD 자동 sync
 ```
 
 ### 종합 프로젝트 — Final Capstone
@@ -937,22 +783,191 @@ flux bootstrap github \
 │  ④ Harbor의 image 목록 (tag별로 3개 이상)                     │
 │  ⑤ git revert로 롤백 데모 영상 또는 스크린샷                   │
 │  ⑥ 5분 발표 자료(슬라이드 10장 이내)                          │
-│                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
+### 과제
+
+| 과제 | 산출물 |
+|------|--------|
+| **과제 1** | Flask 앱 이미지를 Harbor push → Trivy 스캔 → CVE 수정 후 재스캔 |
+| **과제 2** | Jenkinsfile 작성 → push 시 자동 빌드 + Harbor push 검증 |
+| **과제 3** | ArgoCD Application 배포 → git revert로 롤백 시연 |
+
 ### 토론 주제
 
-- ArgoCD vs FluxCD: 본인 회사/팀에는 어떤 것이 더 적합한가? 왜?
-- App Repo와 Manifest Repo를 분리하는 이유와 단일 저장소(monorepo) 전략의 trade-off?
-- Jenkins(CI) + ArgoCD(CD) 분리 패턴이 단일 도구(GitLab Auto DevOps 등)보다 좋은 점/나쁜 점?
+- Push 방식 CI/CD(Jenkins)와 Pull 방식 GitOps(ArgoCD)의 차이와 적합한 상황은?
+- App Repo와 Manifest Repo를 분리하는 이유와 monorepo 전략의 trade-off?
+- Image Signing(Cosign/Notary)과 SBOM이 공급망 보안에 어떻게 기여하는가?
 
 ### 체크리스트
 
+- [ ] Harbor Project / Robot Account / Webhook을 활용할 수 있다
+- [ ] Trivy로 CVE를 식별하고 우선순위를 정할 수 있다
+- [ ] Jenkinsfile에 stages, steps, post를 작성할 수 있다
 - [ ] GitOps 4대 원칙을 설명할 수 있다
-- [ ] Application CRD의 source/destination/syncPolicy를 작성할 수 있다
-- [ ] flux bootstrap으로 새 클러스터에 GitOps를 시작할 수 있다
+- [ ] ArgoCD Application CRD의 source/destination/syncPolicy를 작성할 수 있다
 - [ ] git revert로 운영 롤백을 시연할 수 있다
+
+---
+
+## Week 9 — VCF Supervisor와 VPC 네트워킹
+
+### 학습 목표
+
+- **VCF 9.0 Supervisor**의 역할과 VPC 네트워킹 아키텍처를 이해한다
+- **NSX Project → VPC → vSphere Namespace** 매핑 구조를 안다
+- **VPC 서브넷 유형** (Private / External / Private TGW)의 차이를 구분한다
+- **Centralized Transit Gateway**를 통한 크로스 VPC 통신을 이해한다
+- Supervisor 배포 요구사항과 절차를 설명할 수 있다
+
+### 학습 자료
+
+- 📘 [`vcf-supervisor-vpc.md`](vcf-supervisor-vpc.md) — 전체
+
+### 라이브 실습
+
+```bash
+# 실습 1: Supervisor 환경 확인
+kubectl config get-contexts          # Supervisor context 확인
+kubectl get ns                       # vSphere Namespace 목록
+kubectl get cluster -A               # TKG 클러스터 확인
+
+# 실습 2: VPC 네트워킹 구조 탐색
+kubectl get networkconfig -A         # 네트워크 설정 확인
+kubectl describe networkconfig -n <namespace>
+
+# 실습 3: vSphere Namespace에서 워크로드 배포
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: Pod
+metadata:
+  name: vpc-test
+  namespace: <vpc-namespace>
+spec:
+  containers:
+  - name: nginx
+    image: nginx:1.24
+    ports:
+    - containerPort: 80
+EOF
+
+# 실습 4: 서비스 노출 (VPC 환경)
+kubectl expose pod vpc-test --type=LoadBalancer --port=80 -n <vpc-namespace>
+kubectl get svc -n <vpc-namespace>   # External IP 확인
+```
+
+### 과제
+
+| 과제 | 산출물 |
+|------|--------|
+| **과제 1** | VPC 아키텍처 다이어그램 작성 — NSX Project/VPC/Subnet 매핑을 직접 그리기 |
+| **과제 2** | Private vs External 서브넷에 각각 Pod 배포 → 접근성 차이 검증 문서화 |
+| **과제 3** | Centralized Transit Gateway 통신 흐름을 시퀀스 다이어그램으로 정리 |
+
+### 토론 주제
+
+- VPC 모델과 기존 VDS 네트워킹 모델의 장단점은?
+- 멀티 테넌트 환경에서 VPC 격리가 기존 RBAC+NetworkPolicy보다 우수한 점은?
+- Centralized Gateway vs Distributed Gateway의 사용 시나리오 차이는?
+
+### 체크리스트
+
+- [ ] Supervisor의 역할과 VPC 네트워킹 아키텍처를 설명할 수 있다
+- [ ] NSX Project → VPC → vSphere Namespace 매핑을 이해한다
+- [ ] 3가지 VPC 서브넷 유형의 차이를 구분할 수 있다
+- [ ] Centralized Transit Gateway의 동작 원리를 안다
+- [ ] Supervisor 배포 요구사항을 나열할 수 있다
+
+---
+
+## Week 10 — VKS 클러스터 관리
+
+### 학습 목표
+
+- **VKS(vSphere Kubernetes Service)** 클러스터의 프로비저닝 방법을 안다
+- **ClusterClass** 기반 선언적 클러스터 관리를 이해한다
+- **멀티 OS 노드 풀** (Photon, Ubuntu, Windows) 구성을 안다
+- 클러스터 **업데이트, 오토스케일링, 애드온 관리**를 수행할 수 있다
+- **pvCSI, PSA, Velero** 등 스토리지/보안/백업 운영을 이해한다
+
+### 학습 자료
+
+- 📘 [`vks-cluster-management.md`](vks-cluster-management.md) — 전체
+
+### 라이브 실습
+
+```bash
+# 실습 1: VKS 클러스터 프로비저닝
+kubectl apply -f - <<EOF
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: dev-cluster
+  namespace: dev-ns
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks: ["192.168.0.0/16"]
+    services:
+      cidrBlocks: ["10.96.0.0/12"]
+  topology:
+    class: tanzukubernetescluster
+    version: v1.28.4+vmware.1-fips.1-tkg.1
+    controlPlane:
+      replicas: 3
+    workers:
+      machineDeployments:
+      - class: node-pool
+        name: worker-pool
+        replicas: 3
+        variables:
+          overrides:
+          - name: vmClass
+            value: best-effort-medium
+EOF
+
+# 실습 2: 클러스터 상태 확인
+kubectl get cluster,machine -n dev-ns
+kubectl describe cluster dev-cluster -n dev-ns
+
+# 실습 3: 워크로드 클러스터 접근
+kubectl get secret dev-cluster-kubeconfig -n dev-ns \
+  -o jsonpath='{.data.value}' | base64 -d > dev-cluster.kubeconfig
+kubectl --kubeconfig=dev-cluster.kubeconfig get nodes
+
+# 실습 4: 노드 풀 스케일링
+kubectl patch cluster dev-cluster -n dev-ns --type merge -p '
+spec:
+  topology:
+    workers:
+      machineDeployments:
+      - class: node-pool
+        name: worker-pool
+        replicas: 5'
+```
+
+### 과제
+
+| 과제 | 산출물 |
+|------|--------|
+| **과제 1** | VKS 클러스터를 프로비저닝하고 kubectl로 노드 상태 확인 스크린샷 제출 |
+| **과제 2** | ClusterClass 매니페스트를 분석하여 수정 가능한 변수 목록 문서화 |
+| **과제 3** | Velero를 이용한 백업/복원 시나리오 작성 또는 시연 |
+
+### 토론 주제
+
+- VKS(Supervisor 관리) vs 독립 Cluster API(자체 Management Cluster) 운영의 장단점?
+- ClusterClass 기반 관리가 개별 클러스터 매니페스트 직접 관리보다 유리한 시나리오는?
+- 멀티 OS 노드 풀(Windows 포함)이 필요한 실무 사례는?
+
+### 체크리스트
+
+- [ ] VKS 클러스터 프로비저닝 YAML을 작성할 수 있다
+- [ ] ClusterClass의 역할과 버전 관리 방식을 안다
+- [ ] 노드 풀 스케일링과 롤링 업데이트를 수행할 수 있다
+- [ ] pvCSI 드라이버로 영구 볼륨을 프로비저닝할 수 있다
+- [ ] Velero를 이용한 클러스터 백업/복원 절차를 설명할 수 있다
 
 ---
 
