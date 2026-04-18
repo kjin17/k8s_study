@@ -1536,31 +1536,240 @@ bundle_policy() {
 }
 
 # =============================================================================
-# 설치 현황 및 정리
+# 애드온 정의 테이블 (이름, Helm Release, Namespace, 설명)
+# =============================================================================
+# 형식: "번호|이름|Helm릴리즈|네임스페이스|카테고리|설명"
+ADDON_DEFS=(
+  "1|Prometheus + Grafana|kube-prom|monitoring|모니터링|kube-prometheus-stack"
+  "2|Velero + MinIO|velero,minio|velero|백업/복구|클러스터 백업 & 복구"
+  "3|Istio|istio-base,istiod|istio-system|서비스 메시|트래픽 관리, mTLS"
+  "4|Elasticsearch + Kibana|elastic-operator|elastic-system|로그 분석|ECK Operator"
+  "5|Fluent Bit|fluent-bit|logging|로그 수집|DaemonSet 로그 수집"
+  "6|Kyverno|kyverno|kyverno|정책 관리|K8s-Native 정책 엔진"
+  "7|OPA Gatekeeper|gatekeeper|gatekeeper-system|정책 관리|Rego 기반 정책"
+  "8|NGINX Ingress|ingress-nginx|ingress-nginx|인그레스|L7 HTTP(S) 라우팅"
+  "9|Contour|contour|projectcontour|인그레스|Envoy 기반 Ingress"
+  "10|Loki|loki|logging|로그 집계|Grafana 경량 로그"
+  "11|cert-manager|cert-manager|cert-manager|인증서|TLS 인증서 자동 관리"
+  "12|ArgoCD|argocd|argocd|GitOps CD|Git 기반 CD 플랫폼"
+  "13|FluxCD|flux-operator|flux-system|GitOps CD|GitOps Toolkit"
+  "14|Jenkins|jenkins|jenkins|CI/CD|CI/CD 자동화 서버"
+)
+
+# Helm release 가 설치되어 있는지 확인 (첫 번째 릴리즈 기준)
+_is_helm_installed() {
+  local releases="$1" ns="$2"
+  local first_release="${releases%%,*}"
+  helm status "$first_release" -n "$ns" &>/dev/null
+}
+
+# =============================================================================
+# 설치 현황 확인
 # =============================================================================
 show_status() {
   clear
-  box "클러스터 애드온 현황"
+  box "클러스터 애드온 설치 현황"
   echo ""
-  echo -e "${BOLD}이번 세션 설치 목록:${NC}"
-  if [[ ${#INSTALLED[@]} -eq 0 ]]; then
-    echo "  아직 설치된 항목이 없습니다."
-  else
+
+  # 이번 세션 설치 목록
+  if [[ ${#INSTALLED[@]} -gt 0 ]]; then
+    echo -e "${BOLD}이번 세션 설치:${NC}"
     for item in "${INSTALLED[@]}"; do
       echo -e "  ${GREEN}✔${NC}  $item"
     done
+    echo ""
   fi
-  echo ""
-  echo -e "${BOLD}네임스페이스별 Pod 상태:${NC}"
-  for ns in monitoring logging elastic-system velero istio-system kyverno gatekeeper-system ingress-nginx projectcontour cert-manager argocd flux-system jenkins; do
-    local pods
-    pods=$(kubectl get pods -n "$ns" 2>/dev/null | grep -v "^NAME" | wc -l | tr -d ' ')
-    if (( pods > 0 )); then
-      echo -e "  ${CYAN}${ns}${NC}: ${pods} pods"
+
+  # 전체 애드온 설치 상태
+  echo -e "${BOLD}  #   애드온                  카테고리      상태         네임스페이스${NC}"
+  echo -e "  ${DIM}─── ──────────────────────── ──────────── ──────────── ──────────────${NC}"
+
+  for def in "${ADDON_DEFS[@]}"; do
+    IFS='|' read -r num name releases ns category desc <<< "$def"
+    local status_icon status_text pods_info=""
+
+    if _is_helm_installed "$releases" "$ns"; then
+      local total ready not_ready
+      total=$(kubectl get pods -n "$ns" --no-headers 2>/dev/null | wc -l | tr -d ' ')
+      ready=$(kubectl get pods -n "$ns" --no-headers 2>/dev/null | grep -c "Running\|Completed" || true)
+      not_ready=$((total - ready))
+
+      if (( not_ready > 0 )); then
+        status_icon="${YELLOW}⚠${NC}"
+        status_text="${YELLOW}부분 실행${NC}"
+        pods_info=" (${ready}/${total} pods)"
+      else
+        status_icon="${GREEN}✔${NC}"
+        status_text="${GREEN}설치됨${NC}"
+        pods_info=" (${total} pods)"
+      fi
+    else
+      # Helm 이 아닌 방식으로 설치되었을 수 있으므로 Pod 존재 여부도 확인
+      local pod_count
+      pod_count=$(kubectl get pods -n "$ns" --no-headers 2>/dev/null | wc -l | tr -d ' ')
+      if (( pod_count > 0 )); then
+        status_icon="${YELLOW}?${NC}"
+        status_text="${YELLOW}감지됨${NC}"
+        pods_info=" (${pod_count} pods)"
+      else
+        status_icon="${DIM}✗${NC}"
+        status_text="${DIM}미설치${NC}"
+      fi
     fi
+
+    printf "  %s %-2s  %-24s %-12s %b%-10s%b %s%s\n" \
+      "$status_icon" "$num" "$name" "$category" "" "$status_text" "" "$ns" "$pods_info"
   done
+
+  echo ""
+  echo -e "  ${DIM}범례: ${GREEN}✔${NC}${DIM} 설치됨  ${YELLOW}⚠${NC}${DIM} 부분 실행  ${YELLOW}?${NC}${DIM} 감지됨(비-Helm)  ✗ 미설치${NC}"
   echo ""
   pause
+}
+
+# =============================================================================
+# 애드온 삭제
+# =============================================================================
+uninstall_addon() {
+  clear
+  box "애드온 삭제 (Uninstall)"
+  echo ""
+
+  # 설치된 애드온만 목록 표시
+  local has_installed=false
+  echo -e "  ${BOLD}설치된 애드온 목록:${NC}"
+  echo ""
+
+  for def in "${ADDON_DEFS[@]}"; do
+    IFS='|' read -r num name releases ns category desc <<< "$def"
+    if _is_helm_installed "$releases" "$ns"; then
+      local pod_count
+      pod_count=$(kubectl get pods -n "$ns" --no-headers 2>/dev/null | wc -l | tr -d ' ')
+      echo -e "  ${CYAN}${num})${NC} ${name}  ${DIM}(ns: ${ns}, ${pod_count} pods)${NC}"
+      has_installed=true
+    fi
+  done
+
+  if [[ "$has_installed" == "false" ]]; then
+    echo -e "  ${DIM}Helm 으로 설치된 애드온이 없습니다.${NC}"
+    echo ""
+    pause
+    return
+  fi
+
+  echo ""
+  echo -e "  ${RED}${BOLD}주의: 삭제 시 관련 데이터(PVC)는 기본적으로 유지됩니다.${NC}"
+  echo -e "  ${DIM}PVC 까지 삭제하려면 삭제 후 별도로 kubectl delete pvc -n <ns> --all${NC}"
+  echo ""
+  echo -ne "  ${BOLD}삭제할 애드온 번호 (취소: Enter):${NC} "
+  read -r del_choice
+
+  [[ -z "$del_choice" ]] && return
+
+  # 선택된 번호의 애드온 정보 찾기
+  local found=false
+  for def in "${ADDON_DEFS[@]}"; do
+    IFS='|' read -r num name releases ns category desc <<< "$def"
+    if [[ "$num" == "$del_choice" ]]; then
+      found=true
+
+      if ! _is_helm_installed "$releases" "$ns"; then
+        warn "${name} 은(는) Helm 으로 설치되어 있지 않습니다."
+        pause
+        return
+      fi
+
+      echo ""
+      echo -e "  ${RED}${BOLD}삭제 대상:${NC} ${name}"
+      echo -e "  ${RED}${BOLD}네임스페이스:${NC} ${ns}"
+      echo -e "  ${RED}${BOLD}Helm Release:${NC} ${releases}"
+      echo ""
+
+      if ! confirm "  정말 ${name} 을(를) 삭제하시겠습니까?"; then
+        log "삭제 취소: ${name}"
+        pause
+        return
+      fi
+
+      # 애드온별 특수 삭제 처리
+      case "$num" in
+        2) # Velero + MinIO — 두 릴리즈 삭제
+          step "Velero 삭제 중..."
+          helm uninstall velero -n "$ns" 2>&1 | tee -a "$LOG_FILE" || true
+          step "MinIO 삭제 중..."
+          helm uninstall minio -n "$ns" 2>&1 | tee -a "$LOG_FILE" || true
+          ;;
+        3) # Istio — base + istiod + gateway
+          step "Istio Ingress Gateway 삭제 중..."
+          helm uninstall istio-ingressgateway -n istio-ingress 2>&1 | tee -a "$LOG_FILE" || true
+          step "istiod 삭제 중..."
+          helm uninstall istiod -n "$ns" 2>&1 | tee -a "$LOG_FILE" || true
+          step "Istio base 삭제 중..."
+          helm uninstall istio-base -n "$ns" 2>&1 | tee -a "$LOG_FILE" || true
+          # Kiali 삭제 시도
+          helm uninstall kiali-operator -n "$ns" 2>/dev/null || true
+          kubectl delete namespace istio-ingress --ignore-not-found 2>/dev/null || true
+          ;;
+        4) # Elasticsearch + Kibana — CR 먼저 삭제 후 Operator
+          step "Elasticsearch/Kibana CR 삭제 중..."
+          kubectl delete kibana --all -n "$ns" 2>/dev/null || true
+          kubectl delete elasticsearch --all -n "$ns" 2>/dev/null || true
+          step "ECK Operator 삭제 중..."
+          helm uninstall elastic-operator -n elastic-system 2>&1 | tee -a "$LOG_FILE" || true
+          ;;
+        10) # Loki + Promtail
+          step "Promtail 삭제 중..."
+          helm uninstall promtail -n "$ns" 2>/dev/null || true
+          step "Loki 삭제 중..."
+          helm uninstall loki -n "$ns" 2>&1 | tee -a "$LOG_FILE" || true
+          ;;
+        11) # cert-manager — ClusterIssuer 먼저 삭제
+          step "ClusterIssuer 삭제 중..."
+          kubectl delete clusterissuer --all 2>/dev/null || true
+          step "cert-manager 삭제 중..."
+          helm uninstall cert-manager -n "$ns" 2>&1 | tee -a "$LOG_FILE" || true
+          ;;
+        6) # Kyverno — ClusterPolicy 삭제
+          step "ClusterPolicy 삭제 중..."
+          kubectl delete clusterpolicy --all 2>/dev/null || true
+          step "Kyverno 삭제 중..."
+          helm uninstall kyverno -n "$ns" 2>&1 | tee -a "$LOG_FILE" || true
+          ;;
+        7) # OPA Gatekeeper — Constraint/ConstraintTemplate 삭제
+          step "Constraint / ConstraintTemplate 삭제 중..."
+          kubectl delete constraints --all 2>/dev/null || true
+          kubectl delete constrainttemplate --all 2>/dev/null || true
+          step "OPA Gatekeeper 삭제 중..."
+          helm uninstall gatekeeper -n "$ns" 2>&1 | tee -a "$LOG_FILE" || true
+          ;;
+        *) # 일반적인 단일 릴리즈 삭제
+          IFS=',' read -ra rel_array <<< "$releases"
+          for rel in "${rel_array[@]}"; do
+            step "${rel} 삭제 중..."
+            helm uninstall "$rel" -n "$ns" 2>&1 | tee -a "$LOG_FILE" || true
+          done
+          ;;
+      esac
+
+      # 네임스페이스 삭제 여부
+      echo ""
+      if confirm "  네임스페이스 '${ns}' 도 함께 삭제하시겠습니까?"; then
+        step "네임스페이스 ${ns} 삭제 중..."
+        kubectl delete namespace "$ns" --timeout=60s 2>&1 | tee -a "$LOG_FILE" || \
+          warn "네임스페이스 삭제 시간 초과. 수동으로 확인하세요: kubectl delete ns ${ns}"
+      fi
+
+      success "${name} 삭제 완료!"
+      show_result "$(kubectl get pods -n "$ns" 2>&1)"
+      pause
+      return
+    fi
+  done
+
+  if [[ "$found" == "false" ]]; then
+    warn "잘못된 번호입니다: ${del_choice}"
+    pause
+  fi
 }
 
 # =============================================================================
@@ -1599,8 +1808,9 @@ main_menu() {
     echo -e "  ${YELLOW} b1)${NC} Observability Stack   — Prometheus + Grafana + ES + Fluent Bit"
     echo -e "  ${YELLOW} b2)${NC} Policy Stack          — Kyverno + OPA Gatekeeper"
     echo ""
-    echo -e "  ${BOLD}── 기타 ──────────────────────────────────────────────────${NC}"
-    echo -e "  ${YELLOW}  s)${NC} 설치 현황 확인"
+    echo -e "  ${BOLD}── 관리 ──────────────────────────────────────────────────${NC}"
+    echo -e "  ${YELLOW}  s)${NC} 설치 현황 확인        — 전체 애드온 설치 상태 조회"
+    echo -e "  ${RED}   d)${NC} 애드온 삭제            — 설치된 애드온 선택 삭제"
     echo -e "  ${RED}   q)${NC} 종료"
     echo ""
     if [[ ${#INSTALLED[@]} -gt 0 ]]; then
@@ -1628,6 +1838,7 @@ main_menu() {
       b1|B1) bundle_observability ;;
       b2|B2) bundle_policy ;;
       s|S) show_status ;;
+      d|D) uninstall_addon ;;
       q|Q)
         echo ""
         show_status
