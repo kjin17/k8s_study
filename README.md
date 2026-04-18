@@ -283,9 +283,9 @@ chmod +x k8s-learn.sh
 
 ---
 
-## k8s-addon.sh — 오픈소스 애드온 설치
+## k8s-addon.sh — 오픈소스 애드온 설치·관리
 
-Kubernetes 환경에서 자주 사용하는 오픈소스를 **Helm 3** 기반으로 인터랙티브하게 설치합니다.
+Kubernetes 환경에서 자주 사용하는 오픈소스를 **Helm 3** 기반으로 인터랙티브하게 설치·조회·삭제합니다.
 각 애드온의 개념 설명과 함께 옵션을 입력받아 설치하며, 접속 방법과 활용 팁을 안내합니다.
 
 ### 실행
@@ -316,14 +316,12 @@ chmod +x k8s-addon.sh
 | 13 | **FluxCD** | GitOps CD | CNCF GitOps Toolkit, Helm 또는 flux bootstrap 설치 |
 | 14 | **Jenkins** | CI/CD | CI/CD 자동화 서버, K8s 동적 Agent, Declarative Pipeline |
 
-### 번들 설치
+### 관리 기능
 
-개별 애드온 외에 묶음 설치도 지원합니다.
-
-| 번들 | 포함 애드온 |
-|------|------------|
-| **Observability Stack** | Prometheus + Grafana + Elasticsearch + Kibana + Fluent Bit |
-| **Policy Stack** | Kyverno + OPA Gatekeeper |
+| 메뉴 | 설명 |
+|------|------|
+| **`s` — 설치 현황 확인** | 14종 전체 애드온의 설치 상태를 테이블로 조회 (✔ 설치됨 / ⚠ 부분 실행 / ✗ 미설치) |
+| **`d` — 애드온 삭제** | 설치된 애드온 목록에서 선택하여 Helm uninstall + 네임스페이스 삭제 (애드온별 종속 리소스 정리 포함) |
 
 ### 애드온별 접속 방법 (port-forward)
 

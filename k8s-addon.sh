@@ -1499,41 +1499,6 @@ ${BOLD}Jenkinsfile (Declarative Pipeline):${NC}
   pause
 }
 
-# =============================================================================
-# 번들: Observability Stack
-# =============================================================================
-bundle_observability() {
-  clear
-  box "번들: Observability Stack (모니터링 + 로깅)"
-  echo -e "
-  ${BOLD}포함 컴포넌트:${NC}
-    ${CYAN}1)${NC} kube-prometheus-stack  — Prometheus + Grafana + AlertManager
-    ${CYAN}2)${NC} Fluent Bit             — 로그 수집 (DaemonSet)
-    ${CYAN}3)${NC} Elasticsearch + Kibana — 로그 저장 + 시각화
-
-  ${DIM}모든 컴포넌트를 순서대로 설치합니다.${NC}
-"
-  if ! confirm "Observability Stack 을 설치하시겠습니까?"; then return; fi
-  addon_prometheus_grafana
-  addon_elastic
-  addon_fluentbit
-}
-
-# =============================================================================
-# 번들: Policy & Governance Stack
-# =============================================================================
-bundle_policy() {
-  clear
-  box "번들: Policy & Governance Stack"
-  echo -e "
-  ${BOLD}포함 컴포넌트:${NC}
-    ${CYAN}1)${NC} Kyverno        — K8s-Native 정책 엔진 (YAML 기반)
-    ${CYAN}2)${NC} OPA Gatekeeper — Rego 기반 강력한 정책 엔진
-"
-  if ! confirm "Policy Stack 을 설치하시겠습니까?"; then return; fi
-  addon_kyverno
-  addon_opa_gatekeeper
-}
 
 # =============================================================================
 # 애드온 정의 테이블 (이름, Helm Release, Namespace, 설명)
@@ -1804,10 +1769,6 @@ main_menu() {
     echo -e "  ${CYAN} 13)${NC} FluxCD                — GitOps Toolkit"
     echo -e "  ${CYAN} 14)${NC} Jenkins               — CI/CD 자동화 서버"
     echo ""
-    echo -e "  ${BOLD}── 번들 설치 (여러 컴포넌트 한 번에) ──────────────────────${NC}"
-    echo -e "  ${YELLOW} b1)${NC} Observability Stack   — Prometheus + Grafana + ES + Fluent Bit"
-    echo -e "  ${YELLOW} b2)${NC} Policy Stack          — Kyverno + OPA Gatekeeper"
-    echo ""
     echo -e "  ${BOLD}── 관리 ──────────────────────────────────────────────────${NC}"
     echo -e "  ${YELLOW}  s)${NC} 설치 현황 확인        — 전체 애드온 설치 상태 조회"
     echo -e "  ${RED}   d)${NC} 애드온 삭제            — 설치된 애드온 선택 삭제"
@@ -1835,8 +1796,6 @@ main_menu() {
       12) addon_argocd ;;
       13) addon_fluxcd ;;
       14) addon_jenkins ;;
-      b1|B1) bundle_observability ;;
-      b2|B2) bundle_policy ;;
       s|S) show_status ;;
       d|D) uninstall_addon ;;
       q|Q)
