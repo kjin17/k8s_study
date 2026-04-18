@@ -1,7 +1,7 @@
 # Kubernetes Study Scripts
 
 Kubernetes 클러스터 **자동 설치**, **오브젝트 학습**, **애드온 설치**를 위한 인터랙티브 쉘 스크립트 모음입니다.
-**컨테이너 기초 교육 자료**, **Kubernetes 마스터 노드 컴포넌트 교육 자료**, **Kubernetes 워커 노드 컴포넌트 교육 자료**, **Kubernetes 네트워킹 심화 교육 자료**, **Kubernetes 스토리지 심화 교육 자료**, **CRD와 Cluster API 교육 자료**, **Harbor & Trivy 프라이빗 레지스트리 교육 자료**, **Git & GitHub 기초 교육 자료**, **CI/CD(Jenkins, ArgoCD, FluxCD) 교육 자료**, **K8s RBAC 교육 자료**, **10주 교육 커리큘럼**도 함께 제공합니다.
+**컨테이너 기초 교육 자료**, **Kubernetes 마스터 노드 컴포넌트 교육 자료**, **Kubernetes 워커 노드 컴포넌트 교육 자료**, **Kubernetes 네트워킹 심화 교육 자료**, **Kubernetes 스토리지 심화 교육 자료**, **CRD와 Cluster API 교육 자료**, **Harbor & Trivy 프라이빗 레지스트리 교육 자료**, **Git & GitHub 기초 교육 자료**, **CI/CD(Jenkins, ArgoCD, FluxCD) 교육 자료**, **K8s RBAC 교육 자료**, **VCF Supervisor VPC 네트워킹 교육 자료**, **VKS 클러스터 관리 교육 자료**, **10주 교육 커리큘럼**도 함께 제공합니다.
 
 ---
 
@@ -19,6 +19,8 @@ Kubernetes 클러스터 **자동 설치**, **오브젝트 학습**, **애드온 
 | [`git-basics.md`](git-basics.md) | Git & GitHub 기초 교육 (입문자용) |
 | [`k8s-cicd.md`](k8s-cicd.md) | CI/CD 교육 (Jenkins, ArgoCD, FluxCD, GitOps) |
 | [`k8s-rbac.md`](k8s-rbac.md) | K8s RBAC 교육 (인증/인가, Role, RoleBinding, ServiceAccount) |
+| [`vcf-supervisor-vpc.md`](vcf-supervisor-vpc.md) | VCF 9.0 Supervisor VPC 네트워킹 교육 (아키텍처, 서브넷, Gateway, 배포 절차) |
+| [`vks-cluster-management.md`](vks-cluster-management.md) | VKS 클러스터 관리 교육 (프로비저닝, 운영, 업데이트, 오토스케일링, 보안, 백업) |
 | [`curriculum-10weeks.md`](curriculum-10weeks.md) | 10주 교육 커리큘럼 (위 자료 기반 학습 로드맵 + 과제 + 종합 프로젝트) |
 | `k8s-install.sh` | 가상머신 3대에 K8s 클러스터 자동 설치 |
 | `k8s-learn.sh`   | K8s 오브젝트 인터랙티브 학습 (입문자용) |
