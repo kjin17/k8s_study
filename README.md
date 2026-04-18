@@ -297,7 +297,7 @@ chmod +x k8s-addon.sh
 
 > **사전 요구사항**: `kubectl` + 클러스터 연결 필수. `helm`은 없으면 자동 설치를 제안합니다.
 
-### 포함 애드온 (7종)
+### 포함 애드온 (14종)
 
 | # | 애드온 | 카테고리 | 설명 |
 |---|--------|----------|------|
@@ -308,6 +308,13 @@ chmod +x k8s-addon.sh
 | 5 | **Fluent Bit** | 로그 수집 | DaemonSet 으로 전 노드 로그 수집, ES 출력 설정 포함 |
 | 6 | **Kyverno** | 정책 관리 | YAML 기반 K8s-Native 정책 엔진, 샘플 정책 포함 |
 | 7 | **OPA Gatekeeper** | 정책 관리 | Rego 언어 기반 정책 엔진, ConstraintTemplate 샘플 포함 |
+| 8 | **NGINX Ingress** | 인그레스 | L7 HTTP(S) 라우팅, TLS 종단, Rate Limiting, Canary |
+| 9 | **Contour** | 인그레스 | Envoy 기반 Ingress Controller, HTTPProxy CRD 지원 |
+| 10 | **Loki** | 로그 집계 | Grafana 라벨 기반 경량 로그 시스템, Promtail 옵션 포함 |
+| 11 | **cert-manager** | 인증서 | TLS 인증서 자동 발급·갱신, Let's Encrypt/Self-Signed 지원 |
+| 12 | **ArgoCD** | GitOps CD | Git 기반 선언적 CD, Application/ApplicationSet CRD |
+| 13 | **FluxCD** | GitOps CD | CNCF GitOps Toolkit, Helm 또는 flux bootstrap 설치 |
+| 14 | **Jenkins** | CI/CD | CI/CD 자동화 서버, K8s 동적 Agent, Declarative Pipeline |
 
 ### 번들 설치
 
@@ -336,6 +343,14 @@ kubectl port-forward svc/kibana-kb-http 5601:5601 -n elastic-system
 # MinIO 콘솔
 kubectl port-forward svc/minio 9001:9001 -n velero
 # → http://localhost:9001
+
+# ArgoCD
+kubectl port-forward svc/argocd-server 8080:80 -n argocd
+# → http://localhost:8080  (admin / 초기 비밀번호)
+
+# Jenkins
+kubectl port-forward svc/jenkins 8080:8080 -n jenkins
+# → http://localhost:8080  (admin / 설정한 비밀번호)
 ```
 
 ### 로그

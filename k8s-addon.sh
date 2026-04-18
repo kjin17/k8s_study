@@ -2,7 +2,9 @@
 # =============================================================================
 # Kubernetes Addon Installer — 자주 쓰는 오픈소스 인터랙티브 설치 스크립트
 # 포함 애드온: Prometheus·Grafana, Velero+MinIO, Istio,
-#             Elasticsearch+Kibana, Fluent Bit, Kyverno, OPA Gatekeeper
+#             Elasticsearch+Kibana, Fluent Bit, Kyverno, OPA Gatekeeper,
+#             NGINX Ingress, Contour, Loki, cert-manager,
+#             ArgoCD, FluxCD, Jenkins
 # 설치 방식  : Helm 3 (일부 kubectl apply 병용)
 # =============================================================================
 
@@ -115,6 +117,12 @@ add_helm_repos() {
     "kyverno              https://kyverno.github.io/kyverno"
     "gatekeeper           https://open-policy-agent.github.io/gatekeeper/charts"
     "istio                https://istio-release.storage.googleapis.com/charts"
+    "ingress-nginx        https://kubernetes.github.io/ingress-nginx"
+    "projectcontour       https://projectcontour.github.io/contour"
+    "jetstack             https://charts.jetstack.io"
+    "argo                 https://argoproj.github.io/argo-helm"
+    "fluxcd-community     https://fluxcd-community.github.io/helm-charts"
+    "jenkins              https://charts.jenkins.io"
   )
   for entry in "${repos[@]}"; do
     local name url
@@ -841,6 +849,657 @@ EOF
 }
 
 # =============================================================================
+# 8. NGINX Ingress Controller
+# =============================================================================
+addon_nginx_ingress() {
+  clear
+  box "8. NGINX Ingress Controller — L7 HTTP(S) 라우팅"
+
+  echo -e "
+${BOLD}NGINX Ingress Controller란?${NC}
+  Kubernetes ${CYAN}Ingress 리소스${NC}를 읽어 NGINX 리버스 프록시로 변환하는
+  가장 널리 쓰이는 Ingress Controller 입니다.
+
+${BOLD}동작 방식:${NC}
+  ${DIM}Client → LoadBalancer/NodePort → NGINX Pod
+            ↓  (Ingress 규칙에 따라)
+         svc-a (host: a.example.com)
+         svc-b (host: b.example.com, path: /api)${NC}
+
+${BOLD}주요 기능:${NC}
+  • ${CYAN}Host / Path 기반 라우팅${NC}
+  • ${CYAN}TLS 종단 (cert-manager 연동)${NC}
+  • ${CYAN}Rate Limiting, Canary, CORS${NC}
+  • ${CYAN}Prometheus 메트릭 내장${NC}
+"
+  pause
+  if ! confirm "NGINX Ingress Controller 를 설치하시겠습니까?"; then return; fi
+
+  read_val "설치 Namespace"        NI_NS      "ingress-nginx"
+  read_val "Helm Release 이름"     NI_RELEASE "ingress-nginx"
+
+  echo -e "\n  ${BOLD}Service 타입 선택:${NC}"
+  echo -e "    ${CYAN}1)${NC} LoadBalancer (클라우드/MetalLB 환경, 권장)"
+  echo -e "    ${CYAN}2)${NC} NodePort     (베어메탈/학습용)"
+  echo -ne "    선택 [1-2]: "
+  read -r ni_svc_choice
+  local ni_svc_type="LoadBalancer"
+  local ni_extra=""
+  if [[ "$ni_svc_choice" == "2" ]]; then
+    ni_svc_type="NodePort"
+    read_val "  HTTP NodePort"  NI_HTTP_NP  "30080"
+    read_val "  HTTPS NodePort" NI_HTTPS_NP "30443"
+    ni_extra="--set controller.service.nodePorts.http=${NI_HTTP_NP} --set controller.service.nodePorts.https=${NI_HTTPS_NP}"
+  fi
+
+  kubectl create namespace "$NI_NS" --dry-run=client -o yaml | kubectl apply -f - &>/dev/null
+
+  step "NGINX Ingress Controller 설치 중..."
+  # shellcheck disable=SC2086
+  helm upgrade --install "$NI_RELEASE" ingress-nginx/ingress-nginx \
+    --namespace "$NI_NS" \
+    --set controller.service.type="$ni_svc_type" \
+    --set controller.metrics.enabled=true \
+    --set controller.admissionWebhooks.enabled=true \
+    $ni_extra \
+    --wait --timeout 5m 2>&1 | tee -a "$LOG_FILE"
+
+  mark_installed "NGINX Ingress (ns: ${NI_NS})"
+  success "NGINX Ingress Controller 설치 완료!"
+  show_result "$(kubectl get pods,svc -n "$NI_NS" 2>&1)"
+
+  echo -e "${BOLD}Ingress 리소스 예시:${NC}"
+  echo -e "  ${DIM}apiVersion: networking.k8s.io/v1"
+  echo -e "  kind: Ingress"
+  echo -e "  metadata:"
+  echo -e "    name: demo"
+  echo -e "    annotations:"
+  echo -e "      nginx.ingress.kubernetes.io/rewrite-target: /"
+  echo -e "  spec:"
+  echo -e "    ingressClassName: nginx"
+  echo -e "    rules:"
+  echo -e "    - host: demo.example.com"
+  echo -e "      http:"
+  echo -e "        paths:"
+  echo -e "        - path: /"
+  echo -e "          pathType: Prefix"
+  echo -e "          backend:"
+  echo -e "            service:"
+  echo -e "              name: demo-svc"
+  echo -e "              port:"
+  echo -e "                number: 80${NC}"
+  tip "kubectl get ingressclass   # 사용 가능한 IngressClass 확인"
+  pause
+}
+
+# =============================================================================
+# 9. Contour — Envoy 기반 Ingress Controller
+# =============================================================================
+addon_contour() {
+  clear
+  box "9. Contour — Envoy 기반 Ingress Controller"
+
+  echo -e "
+${BOLD}Contour란?${NC}
+  ${CYAN}Envoy 프록시${NC}를 데이터 플레인으로 사용하는 Ingress Controller 입니다.
+  CNCF Graduated 프로젝트로, 표준 Ingress 및 자체 ${CYAN}HTTPProxy CRD${NC}를 지원합니다.
+
+${BOLD}아키텍처:${NC}
+  ${DIM}┌───────────────────────────────────────────┐
+  │  Contour (컨트롤 플레인)                    │
+  │    • Ingress / HTTPProxy 감시               │
+  │    • Envoy 설정(xDS) 생성·배포               │
+  └──────────────┬──────────────────────────────┘
+                 ↓ xDS
+  ┌──────────────────────────────────────────────┐
+  │  Envoy (데이터 플레인)                         │
+  │    • L7 라우팅, TLS, Rate Limit, Retry       │
+  └──────────────────────────────────────────────┘${NC}
+
+${BOLD}HTTPProxy vs Ingress:${NC}
+  • ${CYAN}HTTPProxy${NC}: 멀티 팀 위임(delegation), 가중치 라우팅, 상세 TLS 설정
+  • ${CYAN}Ingress${NC}: 표준 K8s 리소스, 제한적 기능
+"
+  pause
+  if ! confirm "Contour 를 설치하시겠습니까?"; then return; fi
+
+  read_val "설치 Namespace"        CT_NS      "projectcontour"
+  read_val "Helm Release 이름"     CT_RELEASE "contour"
+
+  echo -e "\n  ${BOLD}Envoy Service 타입 선택:${NC}"
+  echo -e "    ${CYAN}1)${NC} LoadBalancer (권장)"
+  echo -e "    ${CYAN}2)${NC} NodePort"
+  echo -ne "    선택 [1-2]: "
+  read -r ct_svc_choice
+  local ct_svc_type="LoadBalancer"
+  [[ "$ct_svc_choice" == "2" ]] && ct_svc_type="NodePort"
+
+  kubectl create namespace "$CT_NS" --dry-run=client -o yaml | kubectl apply -f - &>/dev/null
+
+  step "Contour + Envoy 설치 중..."
+  helm upgrade --install "$CT_RELEASE" projectcontour/contour \
+    --namespace "$CT_NS" \
+    --set envoy.service.type="$ct_svc_type" \
+    --wait --timeout 5m 2>&1 | tee -a "$LOG_FILE"
+
+  mark_installed "Contour (ns: ${CT_NS})"
+  success "Contour 설치 완료!"
+  show_result "$(kubectl get pods,svc -n "$CT_NS" 2>&1)"
+
+  echo -e "${BOLD}HTTPProxy 리소스 예시:${NC}"
+  echo -e "  ${DIM}apiVersion: projectcontour.io/v1"
+  echo -e "  kind: HTTPProxy"
+  echo -e "  metadata:"
+  echo -e "    name: demo"
+  echo -e "  spec:"
+  echo -e "    virtualhost:"
+  echo -e "      fqdn: demo.example.com"
+  echo -e "    routes:"
+  echo -e "    - conditions:"
+  echo -e "      - prefix: /"
+  echo -e "      services:"
+  echo -e "      - name: demo-svc"
+  echo -e "        port: 80${NC}"
+  tip "kubectl get httpproxy -A   # HTTPProxy 리소스 목록"
+  pause
+}
+
+# =============================================================================
+# 10. Loki — 로그 집계 시스템
+# =============================================================================
+addon_loki() {
+  clear
+  box "10. Loki — 경량 로그 집계 시스템 (Grafana)"
+
+  echo -e "
+${BOLD}Loki란?${NC}
+  Grafana Labs 에서 만든 ${CYAN}로그 집계 시스템${NC}으로,
+  Prometheus 의 라벨 기반 접근 방식을 로그에 적용합니다.
+  Elasticsearch 대비 ${CYAN}인덱싱 비용이 매우 낮습니다.${NC}
+
+${BOLD}아키텍처:${NC}
+  ${DIM}컨테이너 로그
+       ↓
+  Promtail / Fluent Bit (수집 에이전트)
+       ↓
+  Loki (라벨 인덱싱 + 청크 저장)
+       ↓
+  Grafana (LogQL 쿼리 + 시각화)${NC}
+
+${BOLD}Elasticsearch vs Loki:${NC}
+  ${DIM}┌─────────────────┬──────────────────────────────────────────────┐
+  │ Elasticsearch   │ 풀텍스트 인덱싱, 풍부한 검색, 높은 리소스 비용  │
+  │ Loki            │ 라벨만 인덱싱, 경량, Grafana 통합, 저비용      │
+  └─────────────────┴──────────────────────────────────────────────┘${NC}
+
+${BOLD}LogQL 쿼리 예시:${NC}
+  ${CYAN}{namespace=\"default\"} |= \"error\"${NC}    — default NS에서 error 포함 로그
+  ${CYAN}rate({app=\"nginx\"}[5m])${NC}             — nginx 앱 로그 발생률
+"
+  pause
+  if ! confirm "Loki 를 설치하시겠습니까?"; then return; fi
+
+  read_val "설치 Namespace"        LK_NS      "logging"
+  read_val "Helm Release 이름"     LK_RELEASE "loki"
+  read_val "Loki PVC 크기"         LK_STORAGE "10Gi"
+
+  echo -e "\n  ${BOLD}배포 모드 선택:${NC}"
+  echo -e "    ${CYAN}1)${NC} SingleBinary (학습/소규모, 권장)"
+  echo -e "    ${CYAN}2)${NC} SimpleScalable (운영 환경)"
+  echo -ne "    선택 [1-2]: "
+  read -r lk_mode_choice
+  local lk_mode="SingleBinary"
+  [[ "$lk_mode_choice" == "2" ]] && lk_mode="SimpleScalable"
+
+  local install_promtail="false"
+  if confirm "  Promtail (로그 수집 에이전트) 도 함께 설치하시겠습니까?"; then
+    install_promtail="true"
+  fi
+
+  kubectl create namespace "$LK_NS" --dry-run=client -o yaml | kubectl apply -f - &>/dev/null
+
+  step "Loki 설치 중..."
+  helm upgrade --install "$LK_RELEASE" grafana/loki \
+    --namespace "$LK_NS" \
+    --set deploymentMode="$lk_mode" \
+    --set loki.auth_enabled=false \
+    --set loki.commonConfig.replication_factor=1 \
+    --set loki.storage.type=filesystem \
+    --set singleBinary.replicas=1 \
+    --set singleBinary.persistence.size="$LK_STORAGE" \
+    --set read.replicas=0 \
+    --set write.replicas=0 \
+    --set backend.replicas=0 \
+    --set gateway.enabled=false \
+    --set chunksCache.enabled=false \
+    --set resultsCache.enabled=false \
+    --wait --timeout 5m 2>&1 | tee -a "$LOG_FILE"
+
+  if [[ "$install_promtail" == "true" ]]; then
+    step "Promtail 설치 중..."
+    helm upgrade --install promtail grafana/promtail \
+      --namespace "$LK_NS" \
+      --set config.clients[0].url="http://${LK_RELEASE}.${LK_NS}.svc.cluster.local:3100/loki/api/v1/push" \
+      --wait --timeout 3m 2>&1 | tee -a "$LOG_FILE"
+  fi
+
+  mark_installed "Loki (ns: ${LK_NS})"
+  success "Loki 설치 완료!"
+  show_result "$(kubectl get pods -n "$LK_NS" 2>&1)"
+
+  echo -e "${BOLD}Grafana 연동:${NC}"
+  echo -e "  Grafana → Configuration → Data Sources → Add → Loki"
+  echo -e "  URL: ${GREEN}http://${LK_RELEASE}.${LK_NS}.svc.cluster.local:3100${NC}"
+  tip "logcli query '{namespace=\"default\"}' --addr=http://localhost:3100   # CLI 테스트"
+  pause
+}
+
+# =============================================================================
+# 11. cert-manager — 인증서 자동 관리
+# =============================================================================
+addon_cert_manager() {
+  clear
+  box "11. cert-manager — TLS 인증서 자동 발급·갱신"
+
+  echo -e "
+${BOLD}cert-manager란?${NC}
+  Kubernetes 에서 ${CYAN}TLS 인증서를 자동으로 발급·갱신${NC}하는 컨트롤러입니다.
+  Let's Encrypt, Vault, Venafi 등 다양한 CA와 연동됩니다.
+
+${BOLD}핵심 CRD:${NC}
+  ${DIM}┌──────────────────────────────────────────────────────────┐
+  │  Issuer / ClusterIssuer  — 인증서 발급 기관 설정          │
+  │  Certificate             — 인증서 요청 (자동 갱신)         │
+  │  CertificateRequest      — 내부 발급 요청 오브젝트         │
+  │  Order / Challenge       — ACME(Let's Encrypt) 검증 흐름  │
+  └──────────────────────────────────────────────────────────┘${NC}
+
+${BOLD}동작 흐름:${NC}
+  ${DIM}Certificate CR 생성
+       ↓
+  cert-manager → ClusterIssuer (Let's Encrypt 등) 에 인증서 요청
+       ↓
+  ACME Challenge (HTTP-01 / DNS-01) 검증
+       ↓
+  TLS Secret 자동 생성 → Ingress 에서 참조
+       ↓
+  만료 30일 전 자동 갱신${NC}
+
+${BOLD}Ingress 연동:${NC}
+  Ingress annotation 으로 자동 인증서 발급:
+  ${CYAN}cert-manager.io/cluster-issuer: letsencrypt-prod${NC}
+"
+  pause
+  if ! confirm "cert-manager 를 설치하시겠습니까?"; then return; fi
+
+  read_val "설치 Namespace"        CM_NS      "cert-manager"
+  read_val "Helm Release 이름"     CM_RELEASE "cert-manager"
+
+  kubectl create namespace "$CM_NS" --dry-run=client -o yaml | kubectl apply -f - &>/dev/null
+
+  step "cert-manager 설치 중 (CRD 포함)..."
+  helm upgrade --install "$CM_RELEASE" jetstack/cert-manager \
+    --namespace "$CM_NS" \
+    --set crds.enabled=true \
+    --set prometheus.enabled=true \
+    --wait --timeout 5m 2>&1 | tee -a "$LOG_FILE"
+
+  success "cert-manager 설치 완료!"
+
+  # 셀프 사인드 ClusterIssuer 생성 (학습용)
+  if confirm "  Self-Signed ClusterIssuer 를 생성하시겠습니까? (학습/테스트용)"; then
+    step "Self-Signed ClusterIssuer 생성 중..."
+    kubectl apply -f - <<'EOF'
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned-issuer
+spec:
+  selfSigned: {}
+EOF
+    success "ClusterIssuer 'selfsigned-issuer' 생성 완료"
+  fi
+
+  # Let's Encrypt Staging Issuer (선택)
+  if confirm "  Let's Encrypt Staging ClusterIssuer 도 생성하시겠습니까?"; then
+    read_val "  이메일 주소 (Let's Encrypt 알림용)" CM_EMAIL "admin@example.com"
+    kubectl apply -f - <<EOF
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: ${CM_EMAIL}
+    privateKeySecretRef:
+      name: letsencrypt-staging
+    solvers:
+    - http01:
+        ingress:
+          ingressClassName: nginx
+EOF
+    success "ClusterIssuer 'letsencrypt-staging' 생성 완료"
+  fi
+
+  mark_installed "cert-manager (ns: ${CM_NS})"
+  show_result "$(kubectl get pods -n "$CM_NS" 2>&1)"
+
+  echo -e "${BOLD}인증서 발급 예시:${NC}"
+  echo -e "  ${DIM}apiVersion: cert-manager.io/v1"
+  echo -e "  kind: Certificate"
+  echo -e "  metadata:"
+  echo -e "    name: demo-tls"
+  echo -e "  spec:"
+  echo -e "    secretName: demo-tls-secret"
+  echo -e "    issuerRef:"
+  echo -e "      name: selfsigned-issuer"
+  echo -e "      kind: ClusterIssuer"
+  echo -e "    dnsNames:"
+  echo -e "    - demo.example.com${NC}"
+  tip "kubectl get certificate,clusterissuer -A   # 인증서 상태 확인"
+  tip "cmctl status certificate <name>            # 상세 상태 (cmctl CLI)"
+  pause
+}
+
+# =============================================================================
+# 12. ArgoCD — GitOps CD 플랫폼
+# =============================================================================
+addon_argocd() {
+  clear
+  box "12. ArgoCD — GitOps 지속적 배포 (CD)"
+
+  echo -e "
+${BOLD}ArgoCD란?${NC}
+  ${CYAN}Git 저장소를 단일 소스 오브 트루스(SSOT)${NC}로 사용하여
+  Kubernetes 클러스터를 선언적으로 동기화하는 GitOps CD 플랫폼입니다.
+
+${BOLD}GitOps 4대 원칙:${NC}
+  ${DIM}1. 선언적 기술 (Declarative)
+  2. 버전 관리 (Git = 단일 진실의 원천)
+  3. 자동 적용 (Approved changes are applied automatically)
+  4. 자동 복구 (Software agents ensure correctness)${NC}
+
+${BOLD}아키텍처:${NC}
+  ${DIM}Developer → Git push → Git Repository
+                                  ↓ (3분 폴링 또는 Webhook)
+                           ArgoCD Server
+                           ├── Application Controller (동기화)
+                           ├── Repo Server (매니페스트 렌더링)
+                           └── Redis (캐시)
+                                  ↓
+                           Kubernetes Cluster (desired state 적용)${NC}
+
+${BOLD}핵심 CRD:${NC}
+  • ${CYAN}Application${NC}     — Git 소스 ↔ K8s 대상 매핑
+  • ${CYAN}ApplicationSet${NC}  — 여러 Application 템플릿 생성 (멀티 환경)
+  • ${CYAN}AppProject${NC}      — RBAC 및 소스/대상 제한
+"
+  pause
+  if ! confirm "ArgoCD 를 설치하시겠습니까?"; then return; fi
+
+  read_val "설치 Namespace"        ARGO_NS      "argocd"
+  read_val "Helm Release 이름"     ARGO_RELEASE "argocd"
+
+  echo -e "\n  ${BOLD}HA 모드 선택:${NC}"
+  echo -e "    ${CYAN}1)${NC} 단일 인스턴스 (학습/개발, 권장)"
+  echo -e "    ${CYAN}2)${NC} HA 모드 (운영 환경)"
+  echo -ne "    선택 [1-2]: "
+  read -r argo_ha_choice
+  local argo_ha_flags=""
+  if [[ "$argo_ha_choice" == "2" ]]; then
+    argo_ha_flags="--set controller.replicas=2 --set server.replicas=2 --set repoServer.replicas=2"
+  fi
+
+  echo -e "\n  ${BOLD}ArgoCD Server 노출 방식:${NC}"
+  echo -e "    ${CYAN}1)${NC} ClusterIP (port-forward 사용, 기본)"
+  echo -e "    ${CYAN}2)${NC} NodePort"
+  echo -e "    ${CYAN}3)${NC} LoadBalancer"
+  echo -ne "    선택 [1-3]: "
+  read -r argo_svc_choice
+  local argo_svc_type="ClusterIP"
+  case "$argo_svc_choice" in
+    2) argo_svc_type="NodePort" ;;
+    3) argo_svc_type="LoadBalancer" ;;
+  esac
+
+  kubectl create namespace "$ARGO_NS" --dry-run=client -o yaml | kubectl apply -f - &>/dev/null
+
+  step "ArgoCD 설치 중..."
+  # shellcheck disable=SC2086
+  helm upgrade --install "$ARGO_RELEASE" argo/argo-cd \
+    --namespace "$ARGO_NS" \
+    --set server.service.type="$argo_svc_type" \
+    --set configs.params."server\.insecure"=true \
+    $argo_ha_flags \
+    --wait --timeout 5m 2>&1 | tee -a "$LOG_FILE"
+
+  mark_installed "ArgoCD (ns: ${ARGO_NS})"
+  success "ArgoCD 설치 완료!"
+  show_result "$(kubectl get pods -n "$ARGO_NS" 2>&1)"
+
+  echo -e "${BOLD}초기 비밀번호 확인:${NC}"
+  echo -e "  ${GREEN}kubectl -n ${ARGO_NS} get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d${NC}"
+  echo ""
+  echo -e "${BOLD}접속 방법:${NC}"
+  echo -e "  ${GREEN}kubectl port-forward svc/${ARGO_RELEASE}-server 8080:80 -n ${ARGO_NS}${NC}"
+  echo -e "  브라우저: http://localhost:8080  (admin / <위 비밀번호>)"
+  echo ""
+  echo -e "${BOLD}CLI 로그인:${NC}"
+  echo -e "  ${GREEN}argocd login localhost:8080 --username admin --password <비밀번호> --insecure${NC}"
+  tip "argocd app list   # 등록된 Application 목록"
+  tip "argocd app sync <app-name>   # 수동 동기화"
+  pause
+}
+
+# =============================================================================
+# 13. FluxCD — GitOps Toolkit
+# =============================================================================
+addon_fluxcd() {
+  clear
+  box "13. FluxCD — GitOps Toolkit"
+
+  echo -e "
+${BOLD}FluxCD란?${NC}
+  CNCF Graduated 프로젝트로, ${CYAN}Git 저장소와 Kubernetes 클러스터를
+  자동으로 동기화${NC}하는 GitOps 도구입니다.
+
+${BOLD}ArgoCD와의 차이:${NC}
+  ${DIM}┌───────────────┬──────────────────────────────────────────────┐
+  │ ArgoCD        │ 풍부한 UI, Application CRD, 중앙 집중 관리    │
+  │ FluxCD        │ CLI 중심, 분산형, 작은 구성 요소 조합          │
+  └───────────────┴──────────────────────────────────────────────┘${NC}
+
+${BOLD}핵심 컴포넌트:${NC}
+  ${DIM}Source Controller     — Git/Helm/OCI 소스 감시
+  Kustomize Controller — Kustomization 적용
+  Helm Controller      — HelmRelease CRD 처리
+  Notification Controller — 이벤트 알림${NC}
+
+${BOLD}동작 흐름:${NC}
+  ${DIM}GitRepository CR → Source Controller (폴링/Webhook)
+       ↓
+  Kustomization CR → Kustomize Controller → kubectl apply
+       또는
+  HelmRelease CR → Helm Controller → helm upgrade --install${NC}
+"
+  pause
+  if ! confirm "FluxCD 를 설치하시겠습니까?"; then return; fi
+
+  read_val "설치 Namespace" FLUX_NS "flux-system"
+
+  echo -e "\n  ${BOLD}설치 방법 선택:${NC}"
+  echo -e "    ${CYAN}1)${NC} Helm Chart (권장)"
+  echo -e "    ${CYAN}2)${NC} flux CLI bootstrap (Git 저장소 필요)"
+  echo -ne "    선택 [1-2]: "
+  read -r flux_method
+
+  kubectl create namespace "$FLUX_NS" --dry-run=client -o yaml | kubectl apply -f - &>/dev/null
+
+  if [[ "$flux_method" == "2" ]]; then
+    # flux CLI 확인
+    if ! command -v flux &>/dev/null; then
+      warn "flux CLI 가 설치되어 있지 않습니다."
+      echo -e "  설치 방법: ${GREEN}brew install fluxcd/tap/flux${NC}  (macOS)"
+      echo -e "            ${GREEN}curl -s https://fluxcd.io/install.sh | sudo bash${NC}  (Linux)"
+      if ! confirm "  Helm 방식으로 대체 설치하시겠습니까?"; then
+        pause
+        return
+      fi
+      # Helm 방식으로 폴백
+    else
+      step "flux 사전 검사..."
+      flux check --pre 2>&1 | tee -a "$LOG_FILE"
+
+      read_val "  GitHub Owner (user/org)"  FLUX_OWNER  ""
+      read_val "  Repository 이름"           FLUX_REPO   "fleet-infra"
+      read_val "  Branch"                    FLUX_BRANCH "main"
+      read_val "  Path (클러스터 매니페스트 경로)" FLUX_PATH "clusters/lab"
+
+      echo -e "\n  ${YELLOW}GITHUB_TOKEN 환경변수가 설정되어 있어야 합니다.${NC}"
+      if [[ -z "${GITHUB_TOKEN:-}" ]]; then
+        warn "GITHUB_TOKEN 이 설정되지 않았습니다."
+        echo -ne "  GitHub Personal Access Token 입력: "
+        read -rs GITHUB_TOKEN
+        echo ""
+        export GITHUB_TOKEN
+      fi
+
+      step "flux bootstrap 실행 중..."
+      flux bootstrap github \
+        --owner="$FLUX_OWNER" \
+        --repository="$FLUX_REPO" \
+        --branch="$FLUX_BRANCH" \
+        --path="$FLUX_PATH" \
+        --personal 2>&1 | tee -a "$LOG_FILE"
+
+      mark_installed "FluxCD (ns: ${FLUX_NS}, repo: ${FLUX_OWNER}/${FLUX_REPO})"
+      success "FluxCD bootstrap 완료!"
+      show_result "$(kubectl get pods -n "$FLUX_NS" 2>&1)"
+      tip "flux get all -A   # 모든 Flux 리소스 상태"
+      pause
+      return
+    fi
+  fi
+
+  # Helm 방식 설치
+  step "FluxCD Helm Chart 설치 중..."
+  helm upgrade --install flux-operator fluxcd-community/flux2 \
+    --namespace "$FLUX_NS" \
+    --wait --timeout 5m 2>&1 | tee -a "$LOG_FILE"
+
+  mark_installed "FluxCD (ns: ${FLUX_NS})"
+  success "FluxCD 설치 완료!"
+  show_result "$(kubectl get pods -n "$FLUX_NS" 2>&1)"
+
+  echo -e "${BOLD}GitRepository 소스 예시:${NC}"
+  echo -e "  ${DIM}apiVersion: source.toolkit.fluxcd.io/v1"
+  echo -e "  kind: GitRepository"
+  echo -e "  metadata:"
+  echo -e "    name: my-app"
+  echo -e "    namespace: ${FLUX_NS}"
+  echo -e "  spec:"
+  echo -e "    interval: 1m"
+  echo -e "    url: https://github.com/<owner>/<repo>"
+  echo -e "    ref:"
+  echo -e "      branch: main${NC}"
+  tip "flux get source git -A   # Git 소스 목록"
+  tip "flux reconcile source git <name>   # 수동 동기화"
+  pause
+}
+
+# =============================================================================
+# 14. Jenkins — CI/CD 자동화
+# =============================================================================
+addon_jenkins() {
+  clear
+  box "14. Jenkins — CI/CD 자동화 서버"
+
+  echo -e "
+${BOLD}Jenkins란?${NC}
+  오픈소스 ${CYAN}CI/CD 자동화 서버${NC}로, 빌드·테스트·배포를
+  Pipeline as Code(Jenkinsfile) 로 정의합니다.
+
+${BOLD}K8s 기반 Jenkins 아키텍처:${NC}
+  ${DIM}┌─────────────────────────────────────────────┐
+  │  Jenkins Controller (Master)                │
+  │    • Pipeline 관리, UI, 스케줄링              │
+  │    • StatefulSet (영구 데이터)                │
+  └──────────────┬──────────────────────────────┘
+                 ↓ 동적 Agent 생성
+  ┌──────────────────────────────────────────────┐
+  │  Jenkins Agent Pods (동적 생성/삭제)           │
+  │    • 빌드마다 새 Pod 생성                      │
+  │    • 빌드 후 자동 삭제 (리소스 효율)            │
+  │    • kubernetes plugin 사용                   │
+  └──────────────────────────────────────────────┘${NC}
+
+${BOLD}Jenkinsfile (Declarative Pipeline):${NC}
+  ${DIM}pipeline {
+    agent { kubernetes { ... } }
+    stages {
+      stage('Build')  { steps { sh 'make build' } }
+      stage('Test')   { steps { sh 'make test' } }
+      stage('Deploy') { steps { sh 'kubectl apply -f ...' } }
+    }
+  }${NC}
+"
+  pause
+  if ! confirm "Jenkins 를 설치하시겠습니까?"; then return; fi
+
+  read_val "설치 Namespace"        JK_NS      "jenkins"
+  read_val "Helm Release 이름"     JK_RELEASE "jenkins"
+  read_val "관리자 비밀번호"        JK_PASS    "admin1234"
+  read_val "Controller PVC 크기"   JK_STORAGE "10Gi"
+
+  echo -e "\n  ${BOLD}Jenkins Service 타입 선택:${NC}"
+  echo -e "    ${CYAN}1)${NC} ClusterIP (port-forward 사용, 기본)"
+  echo -e "    ${CYAN}2)${NC} NodePort"
+  echo -e "    ${CYAN}3)${NC} LoadBalancer"
+  echo -ne "    선택 [1-3]: "
+  read -r jk_svc_choice
+  local jk_svc_type="ClusterIP"
+  local jk_extra=""
+  case "$jk_svc_choice" in
+    2)
+      jk_svc_type="NodePort"
+      read_val "  NodePort 번호" JK_NP "32080"
+      jk_extra="--set controller.servicePort=8080 --set controller.nodePort=${JK_NP}"
+      ;;
+    3) jk_svc_type="LoadBalancer" ;;
+  esac
+
+  kubectl create namespace "$JK_NS" --dry-run=client -o yaml | kubectl apply -f - &>/dev/null
+
+  step "Jenkins 설치 중 (3~5분 소요)..."
+  # shellcheck disable=SC2086
+  helm upgrade --install "$JK_RELEASE" jenkins/jenkins \
+    --namespace "$JK_NS" \
+    --set controller.adminUser=admin \
+    --set controller.adminPassword="$JK_PASS" \
+    --set controller.serviceType="$jk_svc_type" \
+    --set persistence.size="$JK_STORAGE" \
+    --set agent.enabled=true \
+    --set controller.installPlugins="{kubernetes:latest,workflow-aggregator:latest,git:latest,configuration-as-code:latest}" \
+    $jk_extra \
+    --wait --timeout 8m 2>&1 | tee -a "$LOG_FILE"
+
+  mark_installed "Jenkins (ns: ${JK_NS})"
+  success "Jenkins 설치 완료!"
+  show_result "$(kubectl get pods,svc -n "$JK_NS" 2>&1)"
+
+  echo -e "${BOLD}접속 방법:${NC}"
+  echo -e "  ${GREEN}kubectl port-forward svc/${JK_RELEASE} 8080:8080 -n ${JK_NS}${NC}"
+  echo -e "  브라우저: http://localhost:8080  (admin / ${JK_PASS})"
+  echo ""
+  echo -e "${BOLD}관리자 비밀번호 확인 (분실 시):${NC}"
+  echo -e "  ${GREEN}kubectl exec -n ${JK_NS} svc/${JK_RELEASE} -- cat /run/secrets/additional/chart-admin-password${NC}"
+  tip "Jenkins 설정 → Manage Jenkins → Cloud → Kubernetes 연동 확인"
+  tip "Jenkinsfile 을 Git 에 넣고 Multibranch Pipeline 으로 자동 트리거"
+  pause
+}
+
+# =============================================================================
 # 번들: Observability Stack
 # =============================================================================
 bundle_observability() {
@@ -893,7 +1552,7 @@ show_status() {
   fi
   echo ""
   echo -e "${BOLD}네임스페이스별 Pod 상태:${NC}"
-  for ns in monitoring logging elastic-system velero istio-system kyverno gatekeeper-system; do
+  for ns in monitoring logging elastic-system velero istio-system kyverno gatekeeper-system ingress-nginx projectcontour cert-manager argocd flux-system jenkins; do
     local pods
     pods=$(kubectl get pods -n "$ns" 2>/dev/null | grep -v "^NAME" | wc -l | tr -d ' ')
     if (( pods > 0 )); then
@@ -921,21 +1580,28 @@ main_menu() {
   while true; do
     print_banner
     echo -e "  ${BOLD}── 개별 애드온 설치 ──────────────────────────────────────${NC}"
-    echo -e "  ${CYAN} 1)${NC} Prometheus + Grafana   — 메트릭 수집 & 시각화 (kube-prometheus-stack)"
-    echo -e "  ${CYAN} 2)${NC} Velero + MinIO         — 클러스터 백업 & 복구"
-    echo -e "  ${CYAN} 3)${NC} Istio                  — 서비스 메시 (트래픽 관리, mTLS)"
-    echo -e "  ${CYAN} 4)${NC} Elasticsearch + Kibana — 로그 저장 & 검색 시각화 (ECK)"
-    echo -e "  ${CYAN} 5)${NC} Fluent Bit             — 경량 로그 수집 DaemonSet"
-    echo -e "  ${CYAN} 6)${NC} Kyverno               — K8s-Native 정책 엔진"
-    echo -e "  ${CYAN} 7)${NC} OPA Gatekeeper        — Rego 기반 정책 접근 제어"
+    echo -e "  ${CYAN}  1)${NC} Prometheus + Grafana   — 메트릭 수집 & 시각화 (kube-prometheus-stack)"
+    echo -e "  ${CYAN}  2)${NC} Velero + MinIO         — 클러스터 백업 & 복구"
+    echo -e "  ${CYAN}  3)${NC} Istio                  — 서비스 메시 (트래픽 관리, mTLS)"
+    echo -e "  ${CYAN}  4)${NC} Elasticsearch + Kibana — 로그 저장 & 검색 시각화 (ECK)"
+    echo -e "  ${CYAN}  5)${NC} Fluent Bit             — 경량 로그 수집 DaemonSet"
+    echo -e "  ${CYAN}  6)${NC} Kyverno               — K8s-Native 정책 엔진"
+    echo -e "  ${CYAN}  7)${NC} OPA Gatekeeper        — Rego 기반 정책 접근 제어"
+    echo -e "  ${CYAN}  8)${NC} NGINX Ingress         — L7 HTTP(S) 라우팅"
+    echo -e "  ${CYAN}  9)${NC} Contour               — Envoy 기반 Ingress Controller"
+    echo -e "  ${CYAN} 10)${NC} Loki                  — 경량 로그 집계 (Grafana)"
+    echo -e "  ${CYAN} 11)${NC} cert-manager          — TLS 인증서 자동 발급·갱신"
+    echo -e "  ${CYAN} 12)${NC} ArgoCD                — GitOps CD 플랫폼"
+    echo -e "  ${CYAN} 13)${NC} FluxCD                — GitOps Toolkit"
+    echo -e "  ${CYAN} 14)${NC} Jenkins               — CI/CD 자동화 서버"
     echo ""
     echo -e "  ${BOLD}── 번들 설치 (여러 컴포넌트 한 번에) ──────────────────────${NC}"
-    echo -e "  ${YELLOW} 8)${NC} Observability Stack   — Prometheus + Grafana + ES + Fluent Bit"
-    echo -e "  ${YELLOW} 9)${NC} Policy Stack          — Kyverno + OPA Gatekeeper"
+    echo -e "  ${YELLOW} b1)${NC} Observability Stack   — Prometheus + Grafana + ES + Fluent Bit"
+    echo -e "  ${YELLOW} b2)${NC} Policy Stack          — Kyverno + OPA Gatekeeper"
     echo ""
     echo -e "  ${BOLD}── 기타 ──────────────────────────────────────────────────${NC}"
-    echo -e "  ${YELLOW} s)${NC} 설치 현황 확인"
-    echo -e "  ${RED}  q)${NC} 종료"
+    echo -e "  ${YELLOW}  s)${NC} 설치 현황 확인"
+    echo -e "  ${RED}   q)${NC} 종료"
     echo ""
     if [[ ${#INSTALLED[@]} -gt 0 ]]; then
       echo -e "  ${DIM}설치 완료: ${INSTALLED[*]}${NC}"
@@ -952,8 +1618,15 @@ main_menu() {
       5) addon_fluentbit ;;
       6) addon_kyverno ;;
       7) addon_opa_gatekeeper ;;
-      8) bundle_observability ;;
-      9) bundle_policy ;;
+      8) addon_nginx_ingress ;;
+      9) addon_contour ;;
+      10) addon_loki ;;
+      11) addon_cert_manager ;;
+      12) addon_argocd ;;
+      13) addon_fluxcd ;;
+      14) addon_jenkins ;;
+      b1|B1) bundle_observability ;;
+      b2|B2) bundle_policy ;;
       s|S) show_status ;;
       q|Q)
         echo ""
