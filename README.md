@@ -40,11 +40,6 @@ Kubernetes 클러스터 **자동 설치**, **오브젝트 학습**, **애드온 
 | `k8s-addon.sh` | 자주 쓰는 오픈소스 애드온 인터랙티브 설치 |
 | `harbor-registry.sh` | Harbor & Trivy 인터랙티브 설치/실습 |
 | `k8s-rbac.sh` | K8s RBAC 인터랙티브 실습 (Role/Binding/SA/User 생성 + 권한 테스트) |
-| `k8s-install.sh` | 가상머신 3대에 K8s 클러스터 자동 설치 |
-| `k8s-learn.sh`   | K8s 오브젝트 인터랙티브 학습 (입문자용) |
-| `k8s-addon.sh`   | 자주 쓰는 오픈소스 애드온 인터랙티브 설치 |
-| `harbor-registry.sh` | Harbor & Trivy 인터랙티브 설치/실습 |
-| `k8s-rbac.sh`    | K8s RBAC 인터랙티브 실습 (Role/Binding/SA/User 생성 + 권한 테스트) |
 
 ---
 
