@@ -22,6 +22,14 @@ Kubernetes 클러스터 **자동 설치**, **오브젝트 학습**, **애드온 
 | [`vcf-supervisor-vpc.md`](vcf-supervisor-vpc.md) | VCF 9.0 Supervisor VPC 네트워킹 교육 (아키텍처, 서브넷, Gateway, 배포 절차) |
 | [`vks-cluster-management.md`](vks-cluster-management.md) | VKS 클러스터 관리 교육 (프로비저닝, 운영, 업데이트, 오토스케일링, 보안, 백업) |
 | [`curriculum-10weeks.md`](curriculum-10weeks.md) | 10주 교육 커리큘럼 (위 자료 기반 학습 로드맵 + 과제 + 종합 프로젝트) |
+
+### 심화 학습 자료
+
+| 폴더 | 내용 |
+|------|------|
+| [`container_pid/`](container_pid/) | 리눅스 컨테이너 PID 관리 심화 (PID 네임스페이스, 좀비 프로세스, tini/dumb-init, Docker PID 옵션) |
+| [`cgroup_namespace/`](cgroup_namespace/) | 리눅스 cgroup & namespace 심화 (자원 격리/제한 원리, CPU/Memory/I/O 제한, Docker·K8s 연동) |
+| [`cni-comparison/`](cni-comparison/) | CNI 비교 심화 (Antrea vs Calico vs Cilium — 아키텍처, NetworkPolicy, 성능, 선택 가이드) |
 | `k8s-install.sh` | 가상머신 3대에 K8s 클러스터 자동 설치 |
 | `k8s-learn.sh`   | K8s 오브젝트 인터랙티브 학습 (입문자용) |
 | `k8s-addon.sh`   | 자주 쓰는 오픈소스 애드온 인터랙티브 설치 |
