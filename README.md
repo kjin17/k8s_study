@@ -30,6 +30,7 @@ Kubernetes 클러스터 **자동 설치**, **오브젝트 학습**, **애드온 
 | [`container_pid/`](container_pid/) | 컨테이너 PID 관리 (PID 네임스페이스, 좀비 프로세스, tini/dumb-init, Docker PID 옵션) |
 | [`cgroup_namespace/`](cgroup_namespace/) | 리눅스 cgroup & namespace (자원 격리/제한 원리, CPU/Memory/I/O 제한, Docker·K8s 연동) |
 | [`cni-comparison/`](cni-comparison/) | CNI 비교 (Antrea vs Calico vs Cilium — 아키텍처, NetworkPolicy, 성능, 선택 가이드) |
+| [`containerd/`](containerd/) | containerd & containerd-shim 심화 (CRI 아키텍처, shim 동작 원리, ctr/crictl/nerdctl 실습) |
 
 ## 🛠️ 실습 파일 (Shell Script)
 
