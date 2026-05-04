@@ -523,7 +523,7 @@ ${BOLD}NodePort 동작:${NC}
     2)
       SVC_TYPE="NodePort"
       read_val "NodePort 번호 (30000-32767)" NP_PORT "30080"
-      nodeport_section="      nodePort: ${NP_PORT}"
+      nodeport_section="    nodePort: ${NP_PORT}"
       ;;
     3) SVC_TYPE="LoadBalancer" ;;
     *) SVC_TYPE="ClusterIP" ;;
