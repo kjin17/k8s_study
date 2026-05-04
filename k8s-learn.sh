@@ -210,10 +210,17 @@ check_kubectl() {
     echo "클러스터 상태 및 kubeconfig를 확인하세요."
     exit 1
   fi
+
+  # 기본 Namespace(study) 없으면 자동 생성
+  if ! kubectl get namespace "$CURRENT_NS" &>/dev/null; then
+    echo -e "${YELLOW}[INFO]${NC}  Namespace '${CURRENT_NS}' 가 없어 자동 생성합니다..."
+    kubectl create namespace "$CURRENT_NS"
+    echo -e "${GREEN}[INFO]${NC}  Namespace '${CURRENT_NS}' 생성 완료"
+  fi
 }
 
 # 기본 Namespace 변수 (전역)
-CURRENT_NS="default"
+CURRENT_NS="study"
 
 # =============================================================================
 # 1. Namespace
