@@ -105,7 +105,7 @@ _delete_one() {
 prompt_delete_after_create() {
   local entry="$1"   # KIND/NS/NAME 형식
   echo ""
-  echo -ne "  ${DIM}[이 오브젝트를 이지우 삭제하려면 'del' 입력, 계속하려면 Enter]:${NC} "
+  echo -ne "  ${DIM}[이 오브젝트를 이어서 삭제하려면 'del' 입력, 계속하려면 Enter]:${NC} "
   read -r _pd_choice
   if [[ "$_pd_choice" == "del" ]]; then
     _delete_one "$entry"
