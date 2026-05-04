@@ -82,6 +82,117 @@ SESSION_LOG=()
 log_created() { SESSION_LOG+=("$1"); }
 
 # -----------------------------------------------------------------------------
+# 오브젝트 삭제 헬퍼
+# -----------------------------------------------------------------------------
+# 단일 오브젝트 삭제: KIND/NAMESPACE/NAME 형식
+_delete_one() {
+  local entry="$1"   # 예: Pod/default/my-pod
+  local kind ns name
+  IFS='/' read -r kind ns name <<< "$entry"
+  case "$kind" in
+    Namespace)
+      warn "Namespace '${name}' 를 삭제합니다 (내부 리소스 전체 삭제)..."
+      kubectl delete namespace "$name" --ignore-not-found 2>&1 && success "Namespace '${name}' 삭제 완료" || true
+      ;;
+    *)
+      kubectl delete "$(echo "$kind" | tr '[:upper:]' '[:lower:]')" "$name" \
+        -n "$ns" --ignore-not-found 2>&1 && success "${kind}/${name} 삭제 완료" || true
+      ;;
+  esac
+}
+
+# 생성 직후 단일 오브젝트 삭제 제안
+prompt_delete_after_create() {
+  local entry="$1"   # KIND/NS/NAME 형식
+  echo ""
+  echo -ne "  ${DIM}[이 오브젝트를 이지우 삭제하려면 'del' 입력, 계속하려면 Enter]:${NC} "
+  read -r _pd_choice
+  if [[ "$_pd_choice" == "del" ]]; then
+    _delete_one "$entry"
+    # SESSION_LOG 에서도 제거
+    local new_log=()
+    for item in "${SESSION_LOG[@]}"; do
+      [[ "$item" != "$entry" ]] && new_log+=("$item")
+    done
+    SESSION_LOG=("${new_log[@]}")
+  fi
+}
+
+# 세션 로그 기반 삭제 메뉴
+delete_objects() {
+  echo ""
+
+  if [[ ${#SESSION_LOG[@]} -eq 0 ]]; then
+    echo -e "  ${YELLOW}이번 세션에서 생성된 오브젝트가 없습니다.${NC}"
+    echo ""
+    pause
+    return
+  fi
+
+  echo -e "  ${BOLD}이번 세션에서 생성된 오브젝트:${NC}"
+  echo ""
+  local i=1
+  for item in "${SESSION_LOG[@]}"; do
+    echo -e "  ${CYAN}${i})${NC}  $item"
+    (( i++ ))
+  done
+  echo ""
+  echo -e "  ${YELLOW}a)${NC}  전체 삭제"
+  echo -e "  ${YELLOW}n)${NC}  Namespace 전체 정리 (kubectl delete all --all)"
+  echo -e "  ${RED}q)${NC}  취소"
+  echo ""
+  echo -ne "  ${BOLD}삭제할 항목 번호 또는 옵션 선택:${NC} "
+  read -r del_choice
+
+  case "$del_choice" in
+    a|A)
+      warn "세션에서 생성한 모든 오브젝트를 삭제합니다..."
+      for item in "${SESSION_LOG[@]}"; do
+        _delete_one "$item"
+      done
+      SESSION_LOG=()
+      success "전체 삭제 완료"
+      ;;
+    n|N)
+      warn "Namespace '${CURRENT_NS}' 의 전체 리소스를 정리합니다..."
+      kubectl delete all --all -n "$CURRENT_NS" 2>/dev/null || true
+      kubectl delete pvc --all  -n "$CURRENT_NS" 2>/dev/null || true
+      kubectl delete configmap --all -n "$CURRENT_NS" 2>/dev/null || true
+      kubectl delete secret --all    -n "$CURRENT_NS" 2>/dev/null || true
+      kubectl delete ingress --all   -n "$CURRENT_NS" 2>/dev/null || true
+      kubectl delete hpa --all       -n "$CURRENT_NS" 2>/dev/null || true
+      # 삭제된 항목을 SESSION_LOG에서 제거 (Namespace 제외)
+      local new_log=()
+      for item in "${SESSION_LOG[@]}"; do
+        [[ "$item" == Namespace/* ]] && new_log+=("$item")
+      done
+      SESSION_LOG=("${new_log[@]}")
+      success "Namespace '${CURRENT_NS}' 리소스 정리 완료"
+      ;;
+    q|Q|'')
+      return
+      ;;
+    *)
+      # 번호 선택
+      if [[ "$del_choice" =~ ^[0-9]+$ ]] && \
+         (( del_choice >= 1 && del_choice <= ${#SESSION_LOG[@]} )); then
+        local idx=$(( del_choice - 1 ))
+        local target="${SESSION_LOG[$idx]}"
+        warn "'${target}' 를 삭제합니다..."
+        _delete_one "$target"
+        # SESSION_LOG 에서 제거
+        SESSION_LOG=("${SESSION_LOG[@]:0:$idx}" "${SESSION_LOG[@]:$(( idx+1 ))}")
+      else
+        warn "잘못된 입력입니다."
+        sleep 1
+      fi
+      ;;
+  esac
+  echo ""
+  pause
+}
+
+# -----------------------------------------------------------------------------
 # kubectl 확인
 # -----------------------------------------------------------------------------
 check_kubectl() {
@@ -160,6 +271,7 @@ EOF
     echo "$yaml" | kubectl apply -f -
     CURRENT_NS="$NS_NAME"
     log_created "Namespace/${NS_NAME}"
+    prompt_delete_after_create "Namespace/${NS_NAME}"
     success "Namespace '${NS_NAME}' 생성 완료! (이후 실습은 이 Namespace에서 진행)"
     kube_result "$(kubectl get namespace "$NS_NAME" -o wide 2>&1)"
     tip "kubectl get ns   # 생성된 Namespace 확인"
@@ -249,6 +361,7 @@ EOF
   if confirm "위 Pod를 생성하시겠습니까?"; then
     echo "$yaml" | kubectl apply -f -
     log_created "Pod/${CURRENT_NS}/${POD_NAME}"
+    prompt_delete_after_create "Pod/${CURRENT_NS}/${POD_NAME}"
     success "Pod '${POD_NAME}' 생성 완료!"
     echo ""
     info "Pod가 Running 상태가 될 때까지 대기 중..."
@@ -349,6 +462,7 @@ EOF
   if confirm "위 Deployment를 생성하시겠습니까?"; then
     echo "$yaml" | kubectl apply -f -
     log_created "Deployment/${CURRENT_NS}/${DEPLOY_NAME}"
+    prompt_delete_after_create "Deployment/${CURRENT_NS}/${DEPLOY_NAME}"
     success "Deployment '${DEPLOY_NAME}' 생성 완료!"
     info "Pod 기동 대기 중..."
     kubectl rollout status deployment/"$DEPLOY_NAME" \
@@ -440,6 +554,7 @@ EOF
   if confirm "위 Service를 생성하시겠습니까?"; then
     echo "$yaml" | kubectl apply -f -
     log_created "Service/${CURRENT_NS}/${SVC_NAME}"
+    prompt_delete_after_create "Service/${CURRENT_NS}/${SVC_NAME}"
     success "Service '${SVC_NAME}' (${SVC_TYPE}) 생성 완료!"
     kube_result "$(kubectl get service "$SVC_NAME" -n "$CURRENT_NS" -o wide 2>&1)"
     if [[ "$SVC_TYPE" == "NodePort" ]]; then
@@ -510,6 +625,7 @@ EOF
   if confirm "위 ConfigMap을 생성하시겠습니까?"; then
     echo "$yaml" | kubectl apply -f -
     log_created "ConfigMap/${CURRENT_NS}/${CM_NAME}"
+    prompt_delete_after_create "ConfigMap/${CURRENT_NS}/${CM_NAME}"
     success "ConfigMap '${CM_NAME}' 생성 완료!"
     kube_result "$(kubectl get configmap "$CM_NAME" -n "$CURRENT_NS" -o yaml 2>&1)"
     tip "ConfigMap을 Pod에서 사용하려면 Deployment의 envFrom.configMapRef 또는 volumes.configMap 사용"
@@ -581,6 +697,7 @@ EOF
   if confirm "위 Secret을 생성하시겠습니까?"; then
     echo "$yaml" | kubectl apply -f -
     log_created "Secret/${CURRENT_NS}/${SEC_NAME}"
+    prompt_delete_after_create "Secret/${CURRENT_NS}/${SEC_NAME}"
     success "Secret '${SEC_NAME}' 생성 완료!"
     kube_result "$(kubectl get secret "$SEC_NAME" -n "$CURRENT_NS" 2>&1)"
     tip "kubectl get secret ${SEC_NAME} -n ${CURRENT_NS} -o jsonpath='{.data.db-password}' | base64 -d"
@@ -662,6 +779,7 @@ EOF
   if confirm "위 PVC를 생성하시겠습니까?"; then
     echo "$yaml" | kubectl apply -f -
     log_created "PVC/${CURRENT_NS}/${PVC_NAME}"
+    prompt_delete_after_create "PVC/${CURRENT_NS}/${PVC_NAME}"
     success "PVC '${PVC_NAME}' 생성 완료!"
     kube_result "$(kubectl get pvc "$PVC_NAME" -n "$CURRENT_NS" 2>&1)"
     tip "STATUS가 'Bound'이면 스토리지 할당 완료, 'Pending'이면 PV 또는 StorageClass 확인 필요"
@@ -760,6 +878,7 @@ EOF
   if confirm "위 StatefulSet을 생성하시겠습니까?"; then
     echo "$yaml" | kubectl apply -f -
     log_created "StatefulSet/${CURRENT_NS}/${SS_NAME}"
+    prompt_delete_after_create "StatefulSet/${CURRENT_NS}/${SS_NAME}"
     success "StatefulSet '${SS_NAME}' 생성 완료!"
     sleep 3
     kube_result "$(kubectl get statefulset "$SS_NAME" -n "$CURRENT_NS" 2>&1)
@@ -851,6 +970,7 @@ EOF
   if confirm "위 DaemonSet을 생성하시겠습니까?"; then
     echo "$yaml" | kubectl apply -f -
     log_created "DaemonSet/${CURRENT_NS}/${DS_NAME}"
+    prompt_delete_after_create "DaemonSet/${CURRENT_NS}/${DS_NAME}"
     success "DaemonSet '${DS_NAME}' 생성 완료!"
     sleep 3
     kube_result "$(kubectl get daemonset "$DS_NAME" -n "$CURRENT_NS" 2>&1)
@@ -937,6 +1057,7 @@ EOF
     if confirm "위 Job을 실행하시겠습니까?"; then
       echo "$yaml" | kubectl apply -f -
       log_created "Job/${CURRENT_NS}/${JOB_NAME}"
+      prompt_delete_after_create "Job/${CURRENT_NS}/${JOB_NAME}"
       success "Job '${JOB_NAME}' 시작!"
       info "Job 완료 대기 중..."
       kubectl wait --for=condition=complete job/"$JOB_NAME" \
@@ -984,6 +1105,7 @@ EOF
     if confirm "위 CronJob을 생성하시겠습니까?"; then
       echo "$yaml" | kubectl apply -f -
       log_created "CronJob/${CURRENT_NS}/${CJ_NAME}"
+      prompt_delete_after_create "CronJob/${CURRENT_NS}/${CJ_NAME}"
       success "CronJob '${CJ_NAME}' 생성 완료!"
       kube_result "$(kubectl get cronjob "$CJ_NAME" -n "$CURRENT_NS" 2>&1)"
       tip "kubectl get jobs -n ${CURRENT_NS} --watch   # 스케줄에 따라 Job 생성 확인"
@@ -1082,6 +1204,7 @@ EOF
     echo "$yaml" | kubectl apply -f - 2>/dev/null || \
       warn "HPA 생성 실패. 대상 Deployment '${HPA_TARGET}'이 존재하는지 확인하세요."
     log_created "HPA/${CURRENT_NS}/${HPA_TARGET}-hpa"
+    prompt_delete_after_create "HPA/${CURRENT_NS}/${HPA_TARGET}-hpa"
     kube_result "$(kubectl get hpa -n "$CURRENT_NS" 2>&1)"
     tip "kubectl get hpa -n ${CURRENT_NS} --watch   # 실시간 스케일링 모니터링"
   fi
@@ -1171,6 +1294,7 @@ EOF
     echo "$yaml" | kubectl apply -f - 2>/dev/null || \
       warn "Ingress 생성 실패. Ingress Controller 또는 API 버전을 확인하세요."
     log_created "Ingress/${CURRENT_NS}/${ING_NAME}"
+    prompt_delete_after_create "Ingress/${CURRENT_NS}/${ING_NAME}"
     kube_result "$(kubectl get ingress -n "$CURRENT_NS" 2>&1)"
     tip "/etc/hosts 에 '< 노드IP >  ${ING_HOST}' 추가 후 curl http://${ING_HOST}${ING_PATH1} 로 테스트"
   fi
@@ -1260,6 +1384,7 @@ main_menu() {
     echo ""
     echo -e "  ${BOLD}── 기타 ──────────────────────────────────────────────${NC}"
     echo -e "  ${YELLOW}s)${NC} 클러스터 현재 상태 확인"
+    echo -e "  ${YELLOW}d)${NC} 생성한 오브젝트 삭제  ${DIM}(세션 로그: ${#SESSION_LOG[@]}개)${NC}"
     echo -e "  ${YELLOW}r)${NC} 이번 세션 요약 / 리소스 정리"
     echo -e "  ${RED}q)${NC} 종료"
     echo ""
@@ -1280,6 +1405,7 @@ main_menu() {
       11) module_hpa ;;
       12) module_ingress ;;
       s|S) show_cluster_status ;;
+      d|D) delete_objects ;;
       r|R) show_session_summary ;;
       q|Q)
         echo ""
