@@ -218,8 +218,8 @@ ${BOLD}Pod 생명주기:${NC}
 
   local port_section=""
   [[ -n "$POD_PORT" ]] && port_section="
-        ports:
-        - containerPort: ${POD_PORT}"
+    ports:
+    - containerPort: ${POD_PORT}"
 
   local yaml
   yaml=$(cat <<EOF
