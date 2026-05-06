@@ -9,6 +9,7 @@ Kubernetes 클러스터 **자동 설치**, **오브젝트 학습**, **애드온 
 
 | 파일 | 내용 |
 |------|------|
+| [`k8s-cheatsheet.md`](k8s-cheatsheet.md) | **K8s 주요 컴포넌트 & kubectl 치트시트** (Pod/Deployment/Service/ConfigMap/HPA/Ingress 등 13종 + 패턴 모음) |
 | [`container-basics.md`](container-basics.md) | 리눅스 컨테이너 기초 교육 (입문자용) |
 | [`k8s-master-components.md`](k8s-master-components.md) | K8s 마스터 노드(Control Plane) 핵심 컴포넌트 교육 |
 | [`k8s-worker-components.md`](k8s-worker-components.md) | K8s 워커 노드 컴포넌트 교육 (kubelet, containerd, DaemonSet, crictl) |
