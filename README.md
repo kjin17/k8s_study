@@ -23,6 +23,8 @@ Kubernetes 클러스터 **자동 설치**, **오브젝트 학습**, **애드온 
 | [`vcf-supervisor-vpc.md`](vcf-supervisor-vpc.md) | VCF 9.0 Supervisor VPC 네트워킹 교육 (아키텍처, 서브넷, Gateway, 배포 절차) |
 | [`vks-cluster-management.md`](vks-cluster-management.md) | VKS 클러스터 관리 교육 (프로비저닝, 운영, 업데이트, 오토스케일링, 보안, 백업) |
 | [`curriculum-10weeks.md`](curriculum-10weeks.md) | 10주 교육 커리큘럼 (학습 로드맵 + 과제 + 종합 프로젝트) |
+| [`helm.md`](helm.md) | Helm 교육 (Chart/Repository/Release/Values, Helm 3 vs 2, 주요 명령어 전체, values 오버라이드, nginx-ingress/cert-manager 설치, Chart 직접 만들기, Helmfile) |
+| [`carvel-kapp.md`](carvel-kapp.md) | Carvel 툴킷 & kapp 교육 (ytt/kbld/kapp/imgpkg/vendir 각 역할, kapp 주요 명령어, GitOps kapp-controller, Carvel vs Helm 비교) |
 
 ## 🔬 심화 학습 자료
 
