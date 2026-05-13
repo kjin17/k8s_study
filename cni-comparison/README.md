@@ -15,6 +15,7 @@
 | `04_cilium.md` | Cilium 아키텍처 및 특징 (eBPF) |
 | `05_comparison.md` | 3대 CNI 상세 비교표 및 선택 가이드 |
 | `06_hands_on.md` | 실습 예제 (설치, NetworkPolicy, 모니터링) |
+| `07_inter_node_pod_communication.md` | 노드 간 파드 통신 다이어그램 비교 (Antrea/Calico/Cilium) |
 
 ---
 
@@ -24,6 +25,7 @@
 2. Antrea(OVS 기반), Calico(BGP/iptables), Cilium(eBPF)의 핵심 차이를 파악한다
 3. 각 CNI의 NetworkPolicy 구현 방식을 비교한다
 4. 운영 환경 특성에 맞는 CNI 선택 기준을 갖는다
+5. 각 CNI의 노드 간 파드 통신 경로와 패킷 캡슐화 방식을 이해한다
 
 ---
 
