@@ -35,6 +35,7 @@ Kubernetes 클러스터 **자동 설치**, **오브젝트 학습**, **애드온 
 | [`cni-comparison/`](cni-comparison/) | CNI 비교 (Antrea vs Calico vs Cilium — 아키텍처, NetworkPolicy, 성능, 선택 가이드) |
 | [`kube-proxy/`](kube-proxy/) | kube-proxy 모드 비교 및 운영 가이드 (iptables, IPVS, nftables) |
 | [`containerd/`](containerd/) | containerd & containerd-shim 심화 (CRI 아키텍처, shim 동작 원리, ctr/crictl/nerdctl 실습) |
+| [`csi-comparison/`](csi-comparison/) | CSI 비교 (vSphere CSI / NetApp Trident / AWS EBS / Rook-Ceph / NFS 등 — 아키텍처, 설치, StorageClass, VolumeSnapshot, 선택 가이드 + 실습 YAML) |
 
 ## 🛠️ 실습 파일 (Shell Script)
 
