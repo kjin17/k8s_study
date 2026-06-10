@@ -1,7 +1,10 @@
 # Kubernetes Study Scripts
 
-Kubernetes 클러스터 **자동 설치**, **오브젝트 학습**, **애드온 설치**를 위한 인터랙티브 쉘 스크립트 모음입니다.
-**컨테이너 기초 교육 자료**, **Kubernetes 마스터 노드 컴포넌트 교육 자료**, **Kubernetes 워커 노드 컴포넌트 교육 자료**, **Kubernetes 네트워킹 심화 교육 자료**, **Kubernetes 스토리지 심화 교육 자료**, **CRD와 Cluster API 교육 자료**, **Harbor & Trivy 프라이빗 레지스트리 교육 자료**, **Git & GitHub 기초 교육 자료**, **CI/CD(Jenkins, ArgoCD, FluxCD) 교육 자료**, **K8s RBAC 교육 자료**, **VCF Supervisor VPC 네트워킹 교육 자료**, **VKS 클러스터 관리 교육 자료**, **10주 교육 커리큘럼**도 함께 제공합니다.
+Kubernetes 클러스터 **자동 설치**, **오브젝트 학습**, **애드온 설치**, **RBAC 실습**, **Harbor 레지스트리 실습**을 위한 인터랙티브 쉘 스크립트 모음입니다.
+
+**입문~중급**을 위한 17종의 교육 자료(컨테이너 기초 / Master·Worker 컴포넌트 / 네트워킹 / 스토리지 / CRD·Cluster API / Harbor·Trivy / Git·GitHub / CI/CD / RBAC / Pod Security Admission / VCF Supervisor VPC / VKS 클러스터 관리 / Helm / Carvel·kapp / kubectl 치트시트), **6종의 심화 폴더**(컨테이너 PID, cgroup·namespace, containerd, CNI 비교, kube-proxy 모드 비교, CSI 비교), 그리고 이 모든 자료를 묶은 **10주 교육 커리큘럼**을 함께 제공합니다.
+
+> 📅 **10주 커리큘럼**: [`curriculum-10weeks.md`](curriculum-10weeks.md) — 입문(컨테이너/Git)부터 GitOps 기반 CI/CD까지, 매주 *이론 → 실습 → 과제 → 토론*으로 진행되는 60시간 학습 로드맵.
 
 ---
 

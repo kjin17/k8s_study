@@ -61,18 +61,20 @@
 
 ### 학습 자료 매핑
 
-| 주차 | 교육 자료(MD) | 실습 스크립트 |
-|------|---------------|----------------|
-| 1주 | `container-basics.md`, `git-basics.md` | — |
-| 2주 | `k8s-master-components.md` | `k8s-install.sh` |
-| 3주 | `k8s-worker-components.md` | `k8s-learn.sh` (1~6) |
-| 4주 | `k8s-networking.md` | `k8s-learn.sh` (4, 12), `k8s-addon.sh` |
-| 5주 | `k8s-storage.md` | `k8s-learn.sh` (7, 8) |
-| 6주 | `k8s-rbac.md` | `k8s-rbac.sh` |
-| 7주 | `k8s-crd-clusterapi.md` | `k8s-addon.sh` (Operator) |
-| 8주 | `harbor-registry.md`, `k8s-cicd.md` | `harbor-registry.sh`, `k8s-addon.sh` |
-| 9주 | `vcf-supervisor-vpc.md` | — |
-| 10주 | `vks-cluster-management.md` | — |
+| 주차 | 교육 자료(MD) | 심화 자료 (폴더) | 실습 스크립트 |
+|------|---------------|-----------------|----------------|
+| 1주 | `container-basics.md`, `git-basics.md` | `container_pid/`, `cgroup_namespace/` | — |
+| 2주 | `k8s-master-components.md` | — | `k8s-install.sh` |
+| 3주 | `k8s-worker-components.md` | `containerd/` | `k8s-learn.sh` (1~6) |
+| 4주 | `k8s-networking.md` | `cni-comparison/`, `kube-proxy/` | `k8s-learn.sh` (4, 12), `k8s-addon.sh` |
+| 5주 | `k8s-storage.md` | `csi-comparison/` | `k8s-learn.sh` (7, 8) |
+| 6주 | `k8s-rbac.md`, `podsecurity_admission.md` | — | `k8s-rbac.sh` |
+| 7주 | `k8s-crd-clusterapi.md`, `helm.md`, `carvel-kapp.md` | — | `k8s-addon.sh` (Operator) |
+| 8주 | `harbor-registry.md`, `k8s-cicd.md` | — | `harbor-registry.sh`, `k8s-addon.sh` |
+| 9주 | `vcf-supervisor-vpc.md` | — | — |
+| 10주 | `vks-cluster-management.md` | — | — |
+
+> 💡 **전 주차 공통 레퍼런스**: [`k8s-cheatsheet.md`](k8s-cheatsheet.md) — Pod/Deployment/Service/ConfigMap/HPA/Ingress 등 13종 + 자주 쓰는 kubectl 패턴 모음. 모든 주차의 실습/과제에서 참고하세요.
 
 ---
 
@@ -141,8 +143,9 @@
 │   Week 5  스토리지 (PV/CSI/STS)       ← 영속 데이터               │
 │                                                                │
 │  [운영과 확장]                                                  │
-│   Week 6  RBAC 보안                  ← 권한 관리                │
-│   Week 7  CRD + Operator + Cluster API ← K8s 확장               │
+│   Week 6  RBAC + PSA                 ← 권한 관리 + Pod 보안     │
+│   Week 7  CRD/Operator/Cluster API   ← K8s 확장 + 패키지 관리   │
+│           + Helm + Carvel(kapp)                                │
 │                                                                │
 │  [DevOps 통합]                                                  │
 │   Week 8  Harbor + Jenkins + GitOps  ← CI/CD 파이프라인           │
@@ -161,8 +164,8 @@
 | 3 | Worker Node + Pod/Deployment | 3-tier 앱(Frontend/Backend/Cache) 배포 |
 | 4 | 네트워킹 (Service, Ingress) | 도메인 기반 라우팅 구현 |
 | 5 | 스토리지 (PV/PVC, StatefulSet) | MySQL StatefulSet + 백업 |
-| 6 | RBAC 보안 | 팀별 권한 분리 + ServiceAccount |
-| 7 | CRD + Operator + Cluster API | 첫 Operator 배포 (Prometheus 등) |
+| 6 | RBAC 보안 + Pod Security Admission | 팀별 권한 분리 + ServiceAccount + PSA 적용 |
+| 7 | CRD + Operator + Cluster API + 패키지 관리(Helm/Carvel) | 첫 Operator 배포 + Helm Chart 직접 작성 |
 | 8 | Harbor + Jenkins + GitOps | CI/CD 파이프라인 구축 + 종합 프로젝트 |
 | 9 | VCF Supervisor + VPC 네트워킹 | Supervisor 아키텍처, VPC 서브넷, 배포 절차 |
 | 10 | VKS 클러스터 관리 | 프로비저닝, 운영, 업데이트, 보안, 백업 |
@@ -182,6 +185,8 @@
 
 - 📘 [`container-basics.md`](container-basics.md) — 전체
 - 📘 [`git-basics.md`](git-basics.md) — 전체
+- 🔬 **심화** [`container_pid/`](container_pid/) — 컨테이너 PID 관리 (PID 네임스페이스, 좀비 프로세스, tini/dumb-init, Docker `--init` 옵션)
+- 🔬 **심화** [`cgroup_namespace/`](cgroup_namespace/) — 리눅스 cgroup & namespace (자원 격리/제한 원리, CPU/Memory/I/O 제한, Docker·K8s 연동)
 
 ### 라이브 실습
 
@@ -307,6 +312,7 @@ sudo journalctl -u kubelet -n 100
 ### 학습 자료
 
 - 📘 [`k8s-worker-components.md`](k8s-worker-components.md) — 전체
+- 🔬 **심화** [`containerd/`](containerd/) — containerd & containerd-shim 심화 (CRI 아키텍처, shim 동작 원리, ctr/crictl/nerdctl 실습)
 
 ### 라이브 실습
 
@@ -387,6 +393,8 @@ EOF
 ### 학습 자료
 
 - 📘 [`k8s-networking.md`](k8s-networking.md) — 전체
+- 🔬 **심화** [`cni-comparison/`](cni-comparison/) — CNI 비교 (Antrea vs Calico vs Cilium — 아키텍처, NetworkPolicy, 성능, 노드 간 Pod 통신 다이어그램, 선택 가이드)
+- 🔬 **심화** [`kube-proxy/`](kube-proxy/) — kube-proxy 모드 비교 (iptables, IPVS, nftables) 및 운영 가이드
 
 ### 라이브 실습
 
@@ -438,6 +446,8 @@ nslookup my-svc.my-namespace.svc.cluster.local
 | **과제 1** | NetworkPolicy로 dev 네임스페이스의 Pod가 prod 네임스페이스에 접근하지 못하도록 차단 |
 | **과제 2** | LoadBalancer 타입 Service를 MetalLB로 구현 (베어메탈 환경) |
 | **과제 3** | TLS 인증서를 Secret으로 등록 → Ingress에 HTTPS 적용 (cert-manager 활용 가능) |
+| **과제 4 (심화)** | `cni-comparison/` 참고하여 동일 워크로드를 Antrea/Calico/Cilium 각각에 배포 → 노드 간 Pod 패킷 경로(터널 vs BGP vs eBPF) 비교 보고서 |
+| **과제 5 (심화)** | `kube-proxy/` 참고하여 iptables 모드와 IPVS 모드를 전환 → Service 분산 알고리즘(rr, lc) 차이 검증 |
 
 ### 토론 주제
 
@@ -466,6 +476,7 @@ nslookup my-svc.my-namespace.svc.cluster.local
 ### 학습 자료
 
 - 📘 [`k8s-storage.md`](k8s-storage.md) — 전체
+- 🔬 **심화** [`csi-comparison/`](csi-comparison/) — CSI 비교 (vSphere CSI / NetApp Trident / AWS EBS / Rook-Ceph / NFS — 아키텍처, 설치, StorageClass, VolumeSnapshot, 선택 가이드 + 실습 YAML)
 
 ### 라이브 실습
 
@@ -530,6 +541,7 @@ kubectl get pods -n vmware-system-csi
 | **과제 1** | StatefulSet으로 PostgreSQL을 배포하고 Pod 삭제 후 재생성 시 데이터가 유지됨을 검증 |
 | **과제 2** | VolumeSnapshot CRD로 PVC 스냅샷 생성 → 새 PVC로 복원 |
 | **과제 3** | Storage Quota를 ResourceQuota로 적용 → 제한 초과 시 PVC 생성 실패 확인 |
+| **과제 4 (심화)** | `csi-comparison/` 참고하여 2개 이상의 CSI 드라이버(예: vSphere CSI + NFS Subdir)를 설치 → 동일 워크로드에 대한 성능/기능 비교 표 작성 |
 
 ### 토론 주제
 
@@ -554,10 +566,12 @@ kubectl get pods -n vmware-system-csi
 - **RBAC 4대 리소스(Role/ClusterRole/RoleBinding/ClusterRoleBinding)** 를 자유롭게 작성한다
 - **ServiceAccount**로 Pod 워크로드의 권한을 분리한다
 - **X.509 / OIDC** 사용자 인증 흐름을 이해하고 직접 사용자를 만들어본다
+- **Pod Security Admission(PSA)** 으로 네임스페이스 단위 Pod 보안 정책을 적용한다
 
 ### 학습 자료
 
 - 📘 [`k8s-rbac.md`](k8s-rbac.md) — 전체
+- 📘 [`podsecurity_admission.md`](podsecurity_admission.md) — Pod Security Admission(PSA) — 네임스페이스 단위 Pod 보안 정책 (privileged/baseline/restricted) 적용 방법 및 실습 가이드
 
 ### 라이브 실습
 
@@ -582,6 +596,7 @@ kubectl auth can-i create deployments -n dev --as=alice   # yes
 | **과제 1** | 가상의 회사 시나리오: dev팀(dev/test NS edit), ops팀(전체 view), security팀(audit 전용)의 RBAC 설계서 + 적용 |
 | **과제 2** | Jenkins SA가 `ci` NS에서만 동작하고 `prod` NS는 read-only인 RoleBinding 작성 |
 | **과제 3** | Forbidden 에러 메시지를 분석하여 정확한 권한만 추가하는 워크플로우 문서화 |
+| **과제 4** | `restricted` 레벨의 PSA가 적용된 네임스페이스에 권한 부족 Pod를 배포 → 차단 로그 분석 → 워크로드 수정 (runAsNonRoot, drop ALL capabilities 등) |
 
 ### 토론 주제
 
@@ -595,10 +610,11 @@ kubectl auth can-i create deployments -n dev --as=alice   # yes
 - [ ] Role/ClusterRole/RoleBinding/ClusterRoleBinding 4가지 조합을 그릴 수 있다
 - [ ] X.509 CSR로 사용자를 만들고 kubeconfig를 발급할 수 있다
 - [ ] Pod에 ServiceAccount를 할당하고 token을 검증할 수 있다
+- [ ] PSA 3가지 레벨(privileged/baseline/restricted)의 차이와 `enforce`/`audit`/`warn` 모드를 설명할 수 있다
 
 ---
 
-## Week 7 — CRD, Operator, Cluster API
+## Week 7 — CRD, Operator, Cluster API + 패키지 관리(Helm/Carvel)
 
 ### 학습 목표
 
@@ -606,10 +622,14 @@ kubectl auth can-i create deployments -n dev --as=alice   # yes
 - **Operator 패턴**(Watch + Reconcile)을 이해하고 기존 Operator를 활용한다
 - **Cluster API**가 클러스터 자체를 CRD로 관리하는 방식을 학습한다
 - **VKS(VCF 9.0)** 같은 실무 사례를 분석할 수 있다
+- **Helm 3 / Carvel(kapp)** 으로 K8s 패키지/설정을 선언적으로 관리한다
+- Operator vs Helm vs Carvel/kapp 의 사용 시나리오를 구분한다
 
 ### 학습 자료
 
 - 📘 [`k8s-crd-clusterapi.md`](k8s-crd-clusterapi.md) — 전체
+- 📘 [`helm.md`](helm.md) — Helm (Chart/Repository/Release/Values, Helm 3 vs 2, 주요 명령어 전체, values 오버라이드, nginx-ingress/cert-manager 설치, Chart 직접 만들기, Helmfile)
+- 📘 [`carvel-kapp.md`](carvel-kapp.md) — Carvel 툴킷 & kapp (ytt/kbld/kapp/imgpkg/vendir 각 역할, kapp 주요 명령어, GitOps kapp-controller, Carvel vs Helm 비교)
 
 ### 라이브 실습
 
@@ -669,6 +689,19 @@ kubectl logs -n monitoring -l app.kubernetes.io/name=kube-prometheus-stack-opera
 # 실습 3: Cluster API 컨셉 이해 (실제 배포는 선택)
 # - vSphere 환경이면 VKS의 Cluster CRD 직접 조회 가능
 kubectl get crd | grep cluster.x-k8s.io
+
+# 실습 4: Helm Chart 직접 만들고 배포
+helm create mychart
+helm install demo ./mychart -n demo --create-namespace
+helm upgrade demo ./mychart --set replicaCount=3
+helm history demo -n demo
+helm rollback demo 1 -n demo
+
+# 실습 5: Carvel/kapp으로 매니페스트 묶음 배포
+# (kapp / ytt / kbld 설치는 carvel-kapp.md 참고)
+kapp deploy -a my-app -f manifests/
+kapp inspect -a my-app
+kapp delete -a my-app
 ```
 
 ### 과제
@@ -678,12 +711,16 @@ kubectl get crd | grep cluster.x-k8s.io
 | **과제 1** | 본인이 정의한 CRD(예: `WebApp`) 스키마 작성 + validation 규칙 추가 |
 | **과제 2** | Cert-Manager Operator를 설치하고 CRD(`Issuer`, `Certificate`) 동작 분석 |
 | **과제 3** | Operator vs Helm Chart의 차이점을 5가지 비교 표로 정리 |
+| **과제 4** | Nginx Deployment + Service + ConfigMap을 묶은 **Helm Chart 직접 작성** → 값(`values.yaml`)을 환경별로 분리(`-f values-dev.yaml`, `-f values-prod.yaml`) |
+| **과제 5** | 동일한 워크로드를 **Carvel(kapp + ytt)** 으로 재구성 → Helm 대비 차이점(state-aware diff, ytt overlay)을 비교 보고서로 정리 |
 
 ### 토론 주제
 
 - 일반 Controller와 Operator의 차이는?
 - CRD가 Kubernetes API를 확장하는 것이 왜 강력한가?
 - Cluster API가 멀티 클러스터 관리에 어떤 가치를 주는가?
+- Helm 의 templating(Go template) vs Carvel ytt 의 overlay 방식: 각각의 장단점?
+- kapp 의 `App` CR(GroupedRecord)이 `helm release`와 다른 점은?
 
 ### 체크리스트
 
@@ -691,6 +728,8 @@ kubectl get crd | grep cluster.x-k8s.io
 - [ ] Operator가 Reconcile loop로 동작함을 안다
 - [ ] kubectl로 CRD 인스턴스를 생성하고 status를 관찰할 수 있다
 - [ ] Cluster API의 Management/Workload Cluster 개념을 안다
+- [ ] `helm install/upgrade/rollback/history`와 values 오버라이드를 자유롭게 사용할 수 있다
+- [ ] Carvel 툴킷 5종(ytt, kbld, kapp, imgpkg, vendir)의 역할을 구분할 수 있다
 
 ---
 
