@@ -40,6 +40,8 @@ Kubernetes 클러스터 **자동 설치**, **오브젝트 학습**, **애드온 
 | [`kube-proxy/`](kube-proxy/) | kube-proxy 모드 비교 및 운영 가이드 (iptables, IPVS, nftables) |
 | [`containerd/`](containerd/) | containerd & containerd-shim 심화 (CRI 아키텍처, shim 동작 원리, ctr/crictl/nerdctl 실습) |
 | [`csi-comparison/`](csi-comparison/) | CSI 비교 (vSphere CSI / NetApp Trident / AWS EBS / Rook-Ceph / NFS 등 — 아키텍처, 설치, StorageClass, VolumeSnapshot, 선택 가이드 + 실습 YAML) |
+| [`k8s-logging-monitoring/`](k8s-logging-monitoring/) | Kubernetes 로깅/모니터링/알림 Best Practice (Observability, Prometheus, Grafana, Alertmanager) |
+| [`velero-csi-backup/`](velero-csi-backup/) | Kubernetes 백업/복구 (Velero, vSphere CSI Snapshot, 복구 시나리오, 운영 Best Practice) |
 
 ## 🛠️ 실습 파일 (Shell Script)
 
