@@ -2,7 +2,7 @@
 
 Kubernetes 클러스터 **자동 설치**, **오브젝트 학습**, **애드온 설치**, **RBAC 실습**, **Harbor 레지스트리 실습**을 위한 인터랙티브 쉘 스크립트 모음입니다.
 
-**입문~중급**을 위한 17종의 교육 자료(컨테이너 기초 / Master·Worker 컴포넌트 / 네트워킹 / 스토리지 / CRD·Cluster API / Harbor·Trivy / Git·GitHub / CI/CD / RBAC / Pod Security Admission / VCF Supervisor VPC / VKS 클러스터 관리 / Helm / Carvel·kapp / kubectl 치트시트), **6종의 심화 폴더**(컨테이너 PID, cgroup·namespace, containerd, CNI 비교, kube-proxy 모드 비교, CSI 비교), 그리고 이 모든 자료를 묶은 **10주 교육 커리큘럼**을 함께 제공합니다.
+**입문~중급**을 위한 18종의 교육 자료(컨테이너 기초 / Master·Worker 컴포넌트 / 네트워킹 / 스토리지 / CRD·Cluster API / Harbor·Trivy / Git·GitHub / CI/CD / RBAC / Pod Security Admission / VCF Supervisor VPC / VKS 클러스터 관리 / Helm / Carvel·kapp / kubectl 치트시트 / DNS 트러블슈팅), **6종의 심화 폴더**(컨테이너 PID, cgroup·namespace, containerd, CNI 비교, kube-proxy 모드 비교, CSI 비교), 그리고 이 모든 자료를 묶은 **10주 교육 커리큘럼**을 함께 제공합니다.
 
 > 📅 **10주 커리큘럼**: [`curriculum-10weeks.md`](curriculum-10weeks.md) — 입문(컨테이너/Git)부터 GitOps 기반 CI/CD까지, 매주 *이론 → 실습 → 과제 → 토론*으로 진행되는 60시간 학습 로드맵.
 
@@ -29,6 +29,7 @@ Kubernetes 클러스터 **자동 설치**, **오브젝트 학습**, **애드온 
 | [`curriculum-10weeks.md`](curriculum-10weeks.md) | 10주 교육 커리큘럼 (학습 로드맵 + 과제 + 종합 프로젝트) |
 | [`helm.md`](helm.md) | Helm 교육 (Chart/Repository/Release/Values, Helm 3 vs 2, 주요 명령어 전체, values 오버라이드, nginx-ingress/cert-manager 설치, Chart 직접 만들기, Helmfile) |
 | [`carvel-kapp.md`](carvel-kapp.md) | Carvel 툴킷 & kapp 교육 (ytt/kbld/kapp/imgpkg/vendir 각 역할, kapp 주요 명령어, GitOps kapp-controller, Carvel vs Helm 비교) |
+| [`k8s-dns-troubleshooting.md`](k8s-dns-troubleshooting.md) | K8s 클러스터 내부 DNS 장애 트러블슈팅 (CoreDNS 진단 7단계, NetworkPolicy/CNI 점검, L1 플로우, 면접 답변 예시) |
 
 ## 🔬 심화 학습 자료
 
