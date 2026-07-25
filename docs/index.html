@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kubernetes 10주 교육 커리큘럼 · 슬라이드</title>
+<style>
+  :root{
+    --navy:#1B1E35; --teal:#007A86; --blue:#005B84; --sky:#0193C2;
+    --green:#61A00A; --plum:#6C4B8F; --gold:#EDB516; --gray:#F2F2F2; --ink:#2c3047; --sub:#6a6e80;
+    --grad-leaf:linear-gradient(135deg,#61A00A 0%,#007A86 100%);
+    --font:Arial,"Helvetica Neue",Helvetica,Roboto,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:var(--font);color:var(--ink);background:#f6f7f9;line-height:1.5}
+  a{text-decoration:none;color:inherit}
+  .hero{position:relative;background:var(--navy);color:#fff;overflow:hidden;padding:64px 40px 72px}
+  .hero .swoosh{position:absolute;right:-80px;top:-40px;opacity:.5}
+  .hero .wrap{max-width:1120px;margin:0 auto;position:relative}
+  .eyebrow{display:inline-block;font-size:13px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#7dd0d8;margin-bottom:16px}
+  .hero h1{font-size:44px;line-height:1.15;font-weight:700;letter-spacing:-.02em}
+  .hero p{font-size:18px;color:#c7cbe0;margin-top:16px;max-width:760px}
+  .hero .meta{margin-top:24px;font-size:13px;color:#9ba0b8}
+  .brand{position:absolute;right:40px;bottom:24px;font-size:14px;font-weight:700}
+  .brand span{font-weight:400;color:#9ba0b8}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 40px}
+  .phase{margin:48px auto 0;max-width:1120px;padding:0 40px}
+  .phase-h{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+  .phase-h .tag{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#fff;padding:6px 14px;border-radius:999px}
+  .phase-h h2{font-size:20px;font-weight:700;color:var(--navy)}
+  .p1 .tag{background:var(--grad-leaf)} .p2 .tag{background:linear-gradient(135deg,#0193C2,#005B84)}
+  .p3 .tag{background:linear-gradient(135deg,#6C4B8F,#005B84)} .p4 .tag{background:linear-gradient(135deg,#EDB516,#E18629)}
+  .p5 .tag{background:linear-gradient(135deg,#007A86,#1B1E35)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:18px}
+  .card{display:block;background:#fff;border:1px solid #e3e5ec;border-radius:14px;padding:22px 24px;transition:.16s;position:relative}
+  .card:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(27,30,53,.12);border-color:#cfd2dc}
+  .card .wk{font-size:13px;font-weight:700;color:var(--teal);letter-spacing:.08em}
+  .card h3{font-size:19px;font-weight:700;margin:6px 0 10px;color:var(--navy)}
+  .card p{font-size:14px;color:var(--sub);line-height:1.5}
+  .card .badge{position:absolute;top:20px;right:20px;font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px}
+  .badge.done{background:#e0f0e0;color:#3d7a00}
+  .badge.wip{background:#fdf6e3;color:#9a7a00}
+  .card.pending{opacity:.62}
+  .card.pending:hover{transform:none;box-shadow:none;cursor:default}
+  footer{max-width:1120px;margin:56px auto 40px;padding:24px 40px 0;border-top:1px solid #e3e5ec;color:var(--sub);font-size:13px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+  footer b{color:var(--navy)}
+  @media(max-width:640px){.hero h1{font-size:32px}.hero{padding:44px 24px 56px}.wrap,.phase{padding:0 20px}}
+</style>
+</head>
+<body>
+  <header class="hero">
+    <svg class="swoosh" width="520" height="420" viewBox="0 0 520 420" fill="none">
+      <defs><linearGradient id="g" x1="0" y1="420" x2="520" y2="0" gradientUnits="userSpaceOnUse"><stop stop-color="#61A00A"/><stop offset="1" stop-color="#007A86"/></linearGradient></defs>
+      <path d="M520 0 C 360 40 300 150 300 300 C 300 400 240 420 120 420 L520 420 Z" fill="url(#g)" opacity=".55"/>
+    </svg>
+    <div class="wrap">
+      <div class="eyebrow">Hands-on Training · Slides</div>
+      <h1>Kubernetes 10주 교육 커리큘럼</h1>
+      <p>컨테이너 기초부터 K8s 아키텍처·네트워킹·스토리지·보안·확장, 그리고 VCF/VKS 엔터프라이즈 실무까지 — 주차별 슬라이드로 정리한 실습 중심 로드맵.</p>
+      <div class="meta">기초 다지기 → 핵심 오브젝트 → 운영과 확장 → DevOps 통합 → VCF/VKS 실무 · 총 10주</div>
+    </div>
+    <div class="brand">VMware <span>by Broadcom</span></div>
+  </header>
+
+  <section class="phase p1">
+    <div class="phase-h"><span class="tag">Phase 1 · 기초 다지기</span><h2>컨테이너와 클러스터의 시작</h2></div>
+    <div class="grid">
+      <a class="card" href="week1.html"><span class="badge done">✅ 완료</span><div class="wk">WEEK 1</div><h3>컨테이너 기초 + Git/GitHub</h3><p>namespace·cgroup 원리, Docker 이미지 빌드, Git 3-Stage & PR 워크플로우 · 산출물: 첫 Dockerfile + GitHub PR</p></a>
+      <div class="card pending"><span class="badge wip">⏳ 준비중</span><div class="wk">WEEK 2</div><h3>K8s 아키텍처 + 클러스터 설치</h3><p>Control Plane 컴포넌트, 1 Master + 2 Worker 직접 구축 · 산출물: 동작하는 클러스터</p></div>
+    </div>
+  </section>
+
+  <section class="phase p2">
+    <div class="phase-h"><span class="tag">Phase 2 · 핵심 오브젝트</span><h2>워크로드 · 네트워킹 · 스토리지</h2></div>
+    <div class="grid">
+      <div class="card pending"><span class="badge wip">⏳ 준비중</span><div class="wk">WEEK 3</div><h3>Worker Node + Pod/Deployment</h3><p>핵심 오브젝트, 3-tier 앱 배포, 롤링 업데이트·Probe · 산출물: 3-tier 앱</p></div>
+      <div class="card pending"><span class="badge wip">⏳ 준비중</span><div class="wk">WEEK 4</div><h3>네트워킹 (Service · Ingress · CNI)</h3><p>Service 타입, Ingress 라우팅, CoreDNS, CNI 비교 · 산출물: 도메인 라우팅</p></div>
+      <div class="card pending"><span class="badge wip">⏳ 준비중</span><div class="wk">WEEK 5</div><h3>스토리지 (PV/PVC · CSI · StatefulSet)</h3><p>영속 볼륨, CSI, StatefulSet · 산출물: MySQL StatefulSet + 백업</p></div>
+    </div>
+  </section>
+
+  <section class="phase p3">
+    <div class="phase-h"><span class="tag">Phase 3 · 운영과 확장</span><h2>보안 · CRD/Operator · 패키지</h2></div>
+    <div class="grid">
+      <div class="card pending"><span class="badge wip">⏳ 준비중</span><div class="wk">WEEK 6</div><h3>RBAC 보안 + Pod Security Admission</h3><p>팀별 권한 분리, ServiceAccount, PSA 적용 · 산출물: 권한 분리 체계</p></div>
+      <div class="card pending"><span class="badge wip">⏳ 준비중</span><div class="wk">WEEK 7</div><h3>CRD · Operator · Cluster API + Helm/Carvel</h3><p>K8s 확장, 첫 Operator, Helm Chart 작성 · 산출물: Operator + Chart</p></div>
+    </div>
+  </section>
+
+  <section class="phase p4">
+    <div class="phase-h"><span class="tag">Phase 4 · DevOps 통합</span><h2>CI/CD 파이프라인</h2></div>
+    <div class="grid">
+      <div class="card pending"><span class="badge wip">⏳ 준비중</span><div class="wk">WEEK 8</div><h3>Harbor + Jenkins + GitOps</h3><p>레지스트리, CI/CD, GitOps · 산출물: 종합 파이프라인 프로젝트</p></div>
+    </div>
+  </section>
+
+  <section class="phase p5">
+    <div class="phase-h"><span class="tag">Phase 5 · VCF/VKS 실무</span><h2>엔터프라이즈 Kubernetes</h2></div>
+    <div class="grid">
+      <div class="card pending"><span class="badge wip">⏳ 준비중</span><div class="wk">WEEK 9</div><h3>VCF Supervisor + VPC 네트워킹</h3><p>Supervisor 아키텍처, VPC 서브넷, 배포 절차</p></div>
+      <div class="card pending"><span class="badge wip">⏳ 준비중</span><div class="wk">WEEK 10</div><h3>VKS 클러스터 관리</h3><p>프로비저닝·운영·업데이트·보안·백업 (엔터프라이즈 K8s)</p></div>
+    </div>
+  </section>
+
+  <footer>
+    <div>출처: <b>github.com/kjin17/k8s_study</b> · 10주 커리큘럼 기반 슬라이드</div>
+    <div><b>VMware</b> by Broadcom 템플릿</div>
+  </footer>
+</body>
+</html>

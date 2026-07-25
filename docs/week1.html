@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 1 — 컨테이너 기초와 Git/GitHub · K8s 10주</title>
+<link rel="stylesheet" href="deck.css">
+<style>.home{position:fixed;top:16px;left:18px;z-index:60;background:rgba(27,30,53,.82);color:#fff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:999px;backdrop-filter:blur(6px)}</style>
+</head>
+<body>
+<a class="home" href="index.html">← 목차</a>
+<div class="stage">
+  <div class="deck" id="deck">
+
+    <!-- 1 Title -->
+    <section class="slide l-title active">
+      <svg class="swoosh" style="left:0;top:0" width="560" height="720" viewBox="0 0 560 720" fill="none">
+        <defs><linearGradient id="gLeaf" x1="0" y1="720" x2="560" y2="0" gradientUnits="userSpaceOnUse"><stop stop-color="#61A00A"/><stop offset="1" stop-color="#007A86"/></linearGradient></defs>
+        <path d="M0 0 H560 C 380 60 300 180 300 380 C 300 560 220 680 0 720 Z" fill="url(#gLeaf)"/>
+        <path d="M560 14 C 388 76 316 192 316 380 C 316 556 240 672 40 720" stroke="#0193C2" stroke-width="3" fill="none"/>
+      </svg>
+      <div class="title-block">
+        <div class="eyebrow">Week 1 · Phase 1 기초 다지기</div>
+        <h1>컨테이너 기초와<br>Git / GitHub</h1>
+        <div class="rule"></div>
+        <div class="subtitle">"왜 K8s인가?" — 컨테이너의 본질(namespace·cgroup)과 이미지, 그리고 협업의 기반 Git 워크플로우</div>
+      </div>
+      <div class="meta"><b>학습 자료</b> · container-basics · git-basics · (심화) container_pid · cgroup_namespace<br>산출물 · 첫 Dockerfile + GitHub PR</div>
+      <div class="footer"><div>Kubernetes 10주 교육 커리큘럼 · github.com/kjin17/k8s_study</div><div class="brand-mark">VMware <span>by Broadcom</span></div></div>
+    </section>
+
+    <!-- 2 학습 목표 -->
+    <section class="slide l-content">
+      <div class="head"><h2>학습 목표</h2><div class="sub">이번 주에 반드시 체득할 4가지</div></div>
+      <div class="body">
+        <ul>
+          <li><b>컨테이너의 본질</b> — namespace(격리) + cgroup(자원 제한)의 결합으로 이해한다</li>
+          <li><b>이미지 빌드·실행</b> — Docker로 이미지를 만들고 컨테이너로 실행할 수 있다</li>
+          <li><b>Git 3-Stage 모델</b> — Working → Staging → Repository의 흐름을 이해한다</li>
+          <li><b>PR 워크플로우</b> — GitHub Pull Request로 협업 흐름을 경험한다</li>
+        </ul>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">2</div></div>
+    </section>
+
+    <!-- 3 컨테이너의 본질 -->
+    <section class="slide l-two">
+      <div class="head"><h2>컨테이너의 본질 — 격리 + 제한</h2><div class="sub">컨테이너는 마법이 아니라 리눅스 커널 기능의 조합이다</div></div>
+      <div class="cols">
+        <div class="card leaf">
+          <span class="card-tag">Namespace</span>
+          <h3>무엇을 볼 수 있나 (격리)</h3>
+          <ul>
+            <li><b>PID</b> — 프로세스 트리 격리 (컨테이너 내 PID 1)</li>
+            <li><b>NET</b> — 독립 네트워크 스택·인터페이스</li>
+            <li><b>MNT · UTS · IPC · USER</b> — 파일시스템·호스트명·통신·UID</li>
+            <li>→ "나만의 세상"처럼 보이게 함</li>
+          </ul>
+        </div>
+        <div class="card aqua">
+          <span class="card-tag">cgroup</span>
+          <h3>얼마나 쓸 수 있나 (제한)</h3>
+          <ul>
+            <li><b>CPU</b> — 코어·쿼터 제한</li>
+            <li><b>Memory</b> — 상한·OOM 제어</li>
+            <li><b>I/O · PIDs</b> — 디스크 대역·프로세스 수 제한</li>
+            <li>→ 자원을 나눠 쓰며 폭주 방지</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">3</div></div>
+    </section>
+
+    <!-- 4 VM vs 컨테이너 -->
+    <section class="slide l-content">
+      <div class="head"><h2>가상머신 vs 컨테이너</h2><div class="sub">왜 컨테이너가 가볍고 빠른가</div></div>
+      <div class="body diagram">
+        <svg class="slidesvg" viewBox="0 0 1120 420">
+          <style>.t{fill:#1B1E35;font:700 17px Arial}.s{fill:#6a6e80;font:600 12.5px Arial}.h{fill:#6a6e80;font:700 12px Arial;letter-spacing:1px}</style>
+          <text x="20" y="24" class="h">VIRTUAL MACHINE</text>
+          <rect x="20" y="36" width="500" height="60" rx="8" fill="#f2f2f2" stroke="#cfd2dc"/><text x="40" y="72" class="t">Hardware</text>
+          <rect x="20" y="104" width="500" height="50" rx="8" fill="#f2f2f2" stroke="#cfd2dc"/><text x="40" y="135" class="t">Host OS + Hypervisor</text>
+          <rect x="20" y="162" width="160" height="150" rx="8" fill="#fdf6e3" stroke="#EDB516"/><text x="36" y="188" class="s">Guest OS</text><text x="36" y="230" class="t">App A</text>
+          <rect x="190" y="162" width="160" height="150" rx="8" fill="#fdf6e3" stroke="#EDB516"/><text x="206" y="188" class="s">Guest OS</text><text x="206" y="230" class="t">App B</text>
+          <text x="20" y="344" class="s">각 VM이 무거운 Guest OS 포함 → 부팅 느림·용량 큼</text>
+
+          <line x1="575" y1="20" x2="575" y2="330" stroke="#e3e5ec" stroke-width="2"/>
+
+          <text x="620" y="24" class="h" fill="#007A86">CONTAINER</text>
+          <rect x="620" y="36" width="480" height="60" rx="8" fill="#f2f2f2" stroke="#cfd2dc"/><text x="640" y="72" class="t">Hardware</text>
+          <rect x="620" y="104" width="480" height="50" rx="8" fill="#eef6f7" stroke="#007A86"/><text x="640" y="135" class="t" fill="#007A86">Host OS + Container Runtime</text>
+          <rect x="620" y="162" width="150" height="90" rx="8" fill="#e0f0e0" stroke="#61A00A"/><text x="636" y="212" class="t">App A</text>
+          <rect x="780" y="162" width="150" height="90" rx="8" fill="#e0f0e0" stroke="#61A00A"/><text x="796" y="212" class="t">App B</text>
+          <rect x="940" y="162" width="150" height="90" rx="8" fill="#e0f0e0" stroke="#61A00A"/><text x="956" y="212" class="t">App C</text>
+          <text x="620" y="284" class="s" fill="#007A86">커널 공유 · OS 없음 → 즉시 시작·경량·고밀도</text>
+        </svg>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">4</div></div>
+    </section>
+
+    <!-- 5 Docker 이미지 & 빌드 -->
+    <section class="slide l-content">
+      <div class="head"><h2>Docker 이미지 & 레이어</h2><div class="sub">Dockerfile로 불변 이미지를 만들고 레이어로 재사용한다</div></div>
+      <div class="body">
+        <div class="code" style="margin-bottom:16px">
+<span class="c"># Dockerfile — 각 명령이 하나의 레이어</span>
+<span class="cmd">FROM</span> <span class="str">nginx:alpine</span>          <span class="c"># 베이스 이미지 레이어</span>
+<span class="cmd">COPY</span> index.html <span class="arg">/usr/share/nginx/html/</span>
+<span class="cmd">EXPOSE</span> <span class="str">80</span>
+        </div>
+        <ul>
+          <li><b>레이어 캐시</b> — 바뀐 레이어만 다시 빌드/전송 → 빠른 빌드·배포</li>
+          <li><b>불변성(Immutable)</b> — 이미지는 태그로 버전 고정, 어디서나 동일 실행</li>
+          <li><b>핵심 명령</b> — <b>FROM · COPY · RUN · CMD · EXPOSE</b></li>
+        </ul>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">5</div></div>
+    </section>
+
+    <!-- 6 Git 3-Stage -->
+    <section class="slide l-content">
+      <div class="head"><h2>Git 3-Stage 모델</h2><div class="sub">변경이 저장소에 반영되는 3단계</div></div>
+      <div class="body diagram">
+        <svg class="slidesvg" viewBox="0 0 1120 300">
+          <style>.gt{fill:#1B1E35;font:700 18px Arial}.gd{fill:#6a6e80;font:600 13px Arial}.gc{fill:#8ad35a;font:700 14px "SF Mono",monospace}</style>
+          <rect x="30" y="70" width="300" height="120" rx="12" fill="#f2f2f2" stroke="#cfd2dc"/><text x="50" y="112" class="gt">Working Dir</text><text x="50" y="140" class="gd">작업 중인 파일 (수정)</text>
+          <rect x="410" y="70" width="300" height="120" rx="12" fill="#fdf6e3" stroke="#EDB516"/><text x="430" y="112" class="gt">Staging</text><text x="430" y="140" class="gd">커밋 예정 스냅샷</text>
+          <rect x="790" y="70" width="300" height="120" rx="12" fill="#eef6f7" stroke="#007A86"/><text x="810" y="112" class="gt">Repository</text><text x="810" y="140" class="gd">이력에 영구 기록</text>
+          <text x="340" y="118" class="gc" text-anchor="middle">git add →</text>
+          <text x="720" y="118" class="gc" text-anchor="middle">git commit →</text>
+          <text x="560" y="250" class="gd" text-anchor="middle">git push → 원격(GitHub) 저장소로 · 분산 버전관리(모두가 전체 이력 보유)</text>
+        </svg>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">6</div></div>
+    </section>
+
+    <!-- 7 라이브 실습 Docker -->
+    <section class="slide l-content">
+      <div class="head"><h2>라이브 실습 — 컨테이너 & 이미지</h2><div class="sub">직접 실행하며 감을 잡는다</div></div>
+      <div class="body">
+        <div class="code">
+<span class="c"># 실습 1: 첫 컨테이너 실행</span>
+<span class="pr">$</span> <span class="cmd">docker</span> run -d -p <span class="str">8080:80</span> --name web <span class="str">nginx</span>
+<span class="pr">$</span> <span class="cmd">docker</span> exec -it web bash      <span class="c"># 안으로 진입</span>
+<span class="pr">$</span> <span class="cmd">docker</span> logs web              <span class="c"># 로그 확인</span>
+
+<span class="c"># 실습 2: 첫 이미지 빌드 & 실행</span>
+<span class="pr">$</span> <span class="cmd">docker</span> build -t <span class="str">myapp:v1</span> .
+<span class="pr">$</span> <span class="cmd">docker</span> run -d -p <span class="str">8080:80</span> <span class="str">myapp:v1</span>
+        </div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">7</div></div>
+    </section>
+
+    <!-- 8 실습 Git + 과제 -->
+    <section class="slide l-two">
+      <div class="head"><h2>Git 실습 & 과제</h2><div class="sub">워크플로우를 손에 익히고 과제로 마무리</div></div>
+      <div class="cols">
+        <div class="card leaf">
+          <span class="card-tag">Live</span>
+          <h3>Git 워크플로우</h3>
+          <div class="code" style="margin-top:8px;font-size:12px">
+<span class="pr">$</span> <span class="cmd">git</span> init
+<span class="pr">$</span> <span class="cmd">git</span> add . && <span class="cmd">git</span> commit -m <span class="str">"feat: init"</span>
+<span class="pr">$</span> <span class="cmd">git</span> remote add origin &lt;repo&gt;
+<span class="pr">$</span> <span class="cmd">git</span> push -u origin main
+          </div>
+        </div>
+        <div class="card plum">
+          <span class="card-tag">과제</span>
+          <h3>제출 산출물</h3>
+          <ul>
+            <li>Flask "Hello World" + Dockerfile → <b>DockerHub push</b></li>
+            <li>GitHub 저장소 → 브랜치 → <b>PR 생성·리뷰·머지</b></li>
+            <li><b>.gitignore · README · Dockerfile</b>를 PR 1개로 통합</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">8</div></div>
+    </section>
+
+    <!-- 9 체크리스트 -->
+    <section class="slide l-content">
+      <div class="head"><h2>체크리스트 & 다음 주</h2><div class="sub">이걸 할 수 있으면 Week 1 완료</div></div>
+      <div class="body">
+        <ul>
+          <li><b>docker run / build / push</b>를 활용할 수 있다</li>
+          <li>Dockerfile의 <b>FROM·COPY·RUN·CMD·EXPOSE</b>를 설명할 수 있다</li>
+          <li><b>git add → commit → push</b>의 의미를 안다</li>
+          <li><b>PR</b>을 생성하고 머지할 수 있다</li>
+        </ul>
+        <div class="callout tip" style="margin-top:18px"><div class="ico">→</div><div><b>다음 주(Week 2)</b> — K8s 아키텍처와 Control Plane, 그리고 1 Master + 2 Worker 클러스터를 직접 구축합니다.</div></div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">9</div></div>
+    </section>
+
+  </div>
+</div>
+<nav class="nav">
+  <button id="prev" aria-label="Previous">‹</button>
+  <div class="dots" id="dots"></div>
+  <button id="next" aria-label="Next">›</button>
+</nav>
+<script src="deck.js"></script>
+</body>
+</html>
