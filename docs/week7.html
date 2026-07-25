@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 7 — CRD · Operator · Cluster API + Helm/Carvel · K8s 10주</title>
+<link rel="stylesheet" href="deck.css">
+<style>.home{position:fixed;top:16px;left:18px;z-index:60;background:rgba(27,30,53,.82);color:#fff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:999px;backdrop-filter:blur(6px)}</style>
+</head>
+<body>
+<a class="home" href="index.html">← 목차</a>
+<div class="stage">
+  <div class="deck" id="deck">
+
+    <!-- 1 Title -->
+    <section class="slide l-title active">
+      <svg class="swoosh" style="left:0;top:0" width="560" height="720" viewBox="0 0 560 720" fill="none">
+        <defs><linearGradient id="gLeaf" x1="0" y1="720" x2="560" y2="0" gradientUnits="userSpaceOnUse"><stop stop-color="#61A00A"/><stop offset="1" stop-color="#007A86"/></linearGradient></defs>
+        <path d="M0 0 H560 C 380 60 300 180 300 380 C 300 560 220 680 0 720 Z" fill="url(#gLeaf)"/>
+        <path d="M560 14 C 388 76 316 192 316 380 C 316 556 240 672 40 720" stroke="#0193C2" stroke-width="3" fill="none"/>
+      </svg>
+      <div class="title-block">
+        <div class="eyebrow">Week 7 · Phase 3 운영과 확장</div>
+        <h1>CRD · Operator · Cluster API<br>+ 패키지 관리</h1>
+        <div class="rule"></div>
+        <div class="subtitle">K8s API를 확장하는 CRD/Operator, 클러스터를 CRD로 다루는 Cluster API, 그리고 Helm·Carvel 패키지 관리</div>
+      </div>
+      <div class="meta"><b>학습 자료</b> · k8s-crd-clusterapi · helm · carvel-kapp<br>산출물 · 첫 Operator 배포 + Helm Chart 직접 작성</div>
+      <div class="footer"><div>Kubernetes 10주 교육 커리큘럼 · github.com/kjin17/k8s_study</div><div class="brand-mark">VMware <span>by Broadcom</span></div></div>
+    </section>
+
+    <!-- 2 학습 목표 -->
+    <section class="slide l-content">
+      <div class="head"><h2>학습 목표</h2><div class="sub">K8s를 "확장"하고 "선언적으로 패키징"한다</div></div>
+      <div class="body">
+        <ul>
+          <li><b>CRD</b> — Custom Resource Definition으로 API를 확장하는 원리를 이해한다</li>
+          <li><b>Operator 패턴</b> — Watch + Reconcile로 운영 지식을 코드화한다</li>
+          <li><b>Cluster API</b> — 클러스터 자체를 CRD로 관리하는 방식(VKS 실무 사례)을 학습한다</li>
+          <li><b>Helm 3 / Carvel(kapp)</b> — 패키지·설정을 선언적으로 관리한다</li>
+          <li>Operator vs Helm vs Carvel의 사용 시나리오를 구분한다</li>
+        </ul>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">2</div></div>
+    </section>
+
+    <!-- 3 CRD -->
+    <section class="slide l-content">
+      <div class="head"><h2>CRD — 나만의 K8s API 만들기</h2><div class="sub">쿠버네티스 오브젝트 종류를 직접 추가한다</div></div>
+      <div class="body diagram">
+        <svg class="slidesvg" viewBox="0 0 1120 250">
+          <style>.t{fill:#1B1E35;font:700 15px Arial}.s{fill:#6a6e80;font:600 12px Arial}.m{fill:#8ad35a;font:700 13px "SF Mono",monospace}</style>
+          <rect x="30" y="30" width="500" height="180" rx="12" fill="#f0f7e6" stroke="#61A00A"/><text x="52" y="62" class="t">① CRD 등록 (스키마 정의)</text>
+          <text x="52" y="92" class="m">group: demo.example.com</text><text x="52" y="116" class="m">kind: Backup · scope: Namespaced</text><text x="52" y="140" class="m">versions: [v1] · openAPIV3Schema</text>
+          <text x="52" y="180" class="s">→ kubectl이 backups 리소스를 인식</text>
+          <text x="560" y="128" class="s" font-weight="700" fill="#007A86">then</text>
+          <rect x="620" y="30" width="470" height="180" rx="12" fill="#eef6f7" stroke="#007A86"/><text x="642" y="62" class="t" fill="#007A86">② CR 인스턴스 생성</text>
+          <text x="642" y="92" class="m">kind: Backup · name: nightly</text><text x="642" y="116" class="m">spec: {schedule, storage}</text>
+          <text x="642" y="156" class="s">kubectl get backups</text><text x="642" y="180" class="s">kubectl explain backup.spec</text>
+        </svg>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">3</div></div>
+    </section>
+
+    <!-- 4 Operator -->
+    <section class="slide l-content">
+      <div class="head"><h2>Operator 패턴 — Watch + Reconcile</h2><div class="sub">운영자가 하던 작업을 컨트롤러 코드로 자동화</div></div>
+      <div class="body diagram">
+        <svg class="slidesvg" viewBox="0 0 1120 280">
+          <style>.t{fill:#1B1E35;font:700 15px Arial}.s{fill:#6a6e80;font:600 12px Arial}</style>
+          <rect x="360" y="30" width="400" height="60" rx="10" fill="#eef6f7" stroke="#007A86"/><text x="560" y="66" class="t" text-anchor="middle" fill="#007A86">Desired State (CR spec)</text>
+          <path d="M760 60 C 900 60, 900 150, 770 165" fill="none" stroke="#61A00A" stroke-width="2" marker-end=""/><path d="M778 158 l-12 4 6 8 z" fill="#61A00A"/>
+          <rect x="360" y="140" width="400" height="70" rx="10" fill="#f0f7e6" stroke="#61A00A"/><text x="560" y="170" class="t" text-anchor="middle">Operator (Controller)</text><text x="560" y="194" class="s" text-anchor="middle">Watch → 차이 계산 → 조치(Reconcile)</text>
+          <path d="M360 175 C 220 165, 220 60, 350 60" fill="none" stroke="#0193C2" stroke-width="2"/><path d="M342 53 l12 -4 -6 -8 z" fill="#0193C2"/>
+          <rect x="360" y="235" width="400" height="40" rx="9" fill="#f5f1f9" stroke="#6C4B8F"/><text x="560" y="261" class="s" text-anchor="middle">Actual State — 실제 리소스가 spec과 일치하도록 지속 조정</text>
+          <text x="30" y="120" class="s">예: Prometheus Operator</text><text x="820" y="120" class="s">예: cert-manager</text>
+        </svg>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">4</div></div>
+    </section>
+
+    <!-- 5 Cluster API -->
+    <section class="slide l-two">
+      <div class="head"><h2>Cluster API — 클러스터를 CRD로</h2><div class="sub">클러스터 생성·확장·업그레이드를 선언적으로 (VKS 실무 사례)</div></div>
+      <div class="cols">
+        <div class="card leaf">
+          <span class="card-tag">개념</span>
+          <h3>Management ↔ Workload</h3>
+          <ul>
+            <li><b>Management Cluster</b> — CAPI 컨트롤러가 도는 관리 클러스터</li>
+            <li><b>Workload Cluster</b> — Cluster/Machine CRD로 생성·관리되는 대상</li>
+            <li>클러스터가 하나의 K8s 오브젝트가 됨</li>
+          </ul>
+        </div>
+        <div class="card aqua">
+          <span class="card-tag">실무 · VKS</span>
+          <h3>vSphere Kubernetes Service</h3>
+          <ul>
+            <li>Supervisor = Management, CAPI/CAPV로 클러스터 프로비저닝</li>
+            <li><span class="mono">kubectl get crd | grep cluster.x-k8s.io</span></li>
+            <li>ClusterClass로 표준화·업그레이드 자동화</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">5</div></div>
+    </section>
+
+    <!-- 6 Helm vs Carvel -->
+    <section class="slide l-two">
+      <div class="head"><h2>패키지 관리 — Helm vs Carvel</h2><div class="sub">선언적으로 앱을 묶어 배포·업그레이드·롤백</div></div>
+      <div class="cols">
+        <div class="card leaf">
+          <span class="card-tag">Helm 3</span>
+          <h3>Chart · Release</h3>
+          <ul>
+            <li>Go 템플릿 + <b>values.yaml</b> 오버라이드</li>
+            <li><b>install / upgrade / rollback / history</b></li>
+            <li>Release 단위 관리 · 방대한 차트 생태계</li>
+          </ul>
+        </div>
+        <div class="card plum">
+          <span class="card-tag">Carvel</span>
+          <h3>ytt · kbld · kapp · imgpkg · vendir</h3>
+          <ul>
+            <li><b>ytt</b> overlay(템플릿 대신 패치) · <b>kbld</b> 이미지 고정</li>
+            <li><b>kapp</b> — state-aware diff로 안전 배포</li>
+            <li>App CR(GroupedRecord)로 리소스 묶음 추적</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">6</div></div>
+    </section>
+
+    <!-- 7 실습 -->
+    <section class="slide l-content">
+      <div class="head"><h2>라이브 실습 — CRD · Helm · kapp</h2><div class="sub">확장부터 패키징까지</div></div>
+      <div class="body">
+        <div class="code" style="font-size:12.5px">
+<span class="c"># CRD + CR 생성, Operator 활용</span>
+<span class="pr">$</span> <span class="cmd">kubectl</span> apply -f crd.yaml && <span class="cmd">kubectl</span> get backups
+<span class="pr">$</span> <span class="cmd">kubectl</span> get crd | grep monitoring.coreos.com   <span class="c"># Prometheus Operator</span>
+
+<span class="c"># Helm — Chart 만들고 배포·업그레이드·롤백</span>
+<span class="pr">$</span> <span class="cmd">helm</span> create mychart
+<span class="pr">$</span> <span class="cmd">helm</span> install demo ./mychart -n demo --create-namespace
+<span class="pr">$</span> <span class="cmd">helm</span> upgrade demo ./mychart --set <span class="str">replicaCount=3</span>
+<span class="pr">$</span> <span class="cmd">helm</span> rollback demo 1 -n demo
+
+<span class="c"># Carvel/kapp — 매니페스트 묶음을 state-aware 배포</span>
+<span class="pr">$</span> <span class="cmd">kapp</span> deploy -a my-app -f manifests/
+        </div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">7</div></div>
+    </section>
+
+    <!-- 8 과제 -->
+    <section class="slide l-two">
+      <div class="head"><h2>과제 — 확장 & 패키징</h2><div class="sub">직접 만들고 비교</div></div>
+      <div class="cols">
+        <div class="card leaf"><span class="card-tag">CRD/Operator</span><h3>확장</h3>
+          <ul><li>본인 CRD(예: <b>WebApp</b>) 스키마 + validation 작성</li><li><b>Cert-Manager</b> 설치 → Issuer/Certificate 동작 분석</li><li>Operator vs Helm 5가지 비교 표</li></ul></div>
+        <div class="card plum"><span class="card-tag">패키징</span><h3>Helm & Carvel</h3>
+          <ul><li>Nginx+Service+ConfigMap <b>Helm Chart 직접 작성</b> → 환경별 values 분리(dev/prod)</li><li>동일 워크로드를 <b>Carvel(kapp+ytt)</b>로 재구성 → 차이 비교 보고서</li></ul></div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">8</div></div>
+    </section>
+
+    <!-- 9 체크리스트 -->
+    <section class="slide l-content">
+      <div class="head"><h2>체크리스트 & 다음 주</h2><div class="sub">이걸 할 수 있으면 Week 7 완료</div></div>
+      <div class="body">
+        <ul>
+          <li>CRD의 <b>group/version/kind/scope</b>를 이해한다</li>
+          <li>Operator가 <b>Reconcile loop</b>로 동작함을 안다</li>
+          <li>Cluster API의 <b>Management/Workload Cluster</b> 개념을 안다</li>
+          <li><b>helm install/upgrade/rollback/history</b> + values 오버라이드를 사용할 수 있다</li>
+          <li>Carvel 5종(<b>ytt·kbld·kapp·imgpkg·vendir</b>)의 역할을 구분할 수 있다</li>
+        </ul>
+        <div class="callout tip" style="margin-top:14px"><div class="ico">→</div><div><b>다음 주(Week 8)</b> — DevOps 통합: Harbor 레지스트리 + Jenkins CI + GitOps로 파이프라인을 구축합니다.</div></div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">9</div></div>
+    </section>
+
+  </div>
+</div>
+<nav class="nav">
+  <button id="prev" aria-label="Previous">‹</button>
+  <div class="dots" id="dots"></div>
+  <button id="next" aria-label="Next">›</button>
+</nav>
+<script src="deck.js"></script>
+</body>
+</html>
