@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 5 — 스토리지 (PV/PVC · CSI · StatefulSet) · K8s 10주</title>
+<link rel="stylesheet" href="deck.css">
+<style>.home{position:fixed;top:16px;left:18px;z-index:60;background:rgba(27,30,53,.82);color:#fff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:999px;backdrop-filter:blur(6px)}</style>
+</head>
+<body>
+<a class="home" href="index.html">← 목차</a>
+<div class="stage">
+  <div class="deck" id="deck">
+
+    <!-- 1 Title -->
+    <section class="slide l-title active">
+      <svg class="swoosh" style="left:0;top:0" width="560" height="720" viewBox="0 0 560 720" fill="none">
+        <defs><linearGradient id="gLeaf" x1="0" y1="720" x2="560" y2="0" gradientUnits="userSpaceOnUse"><stop stop-color="#61A00A"/><stop offset="1" stop-color="#007A86"/></linearGradient></defs>
+        <path d="M0 0 H560 C 380 60 300 180 300 380 C 300 560 220 680 0 720 Z" fill="url(#gLeaf)"/>
+        <path d="M560 14 C 388 76 316 192 316 380 C 316 556 240 672 40 720" stroke="#0193C2" stroke-width="3" fill="none"/>
+      </svg>
+      <div class="title-block">
+        <div class="eyebrow">Week 5 · Phase 2 핵심 오브젝트</div>
+        <h1>스토리지<br>PV/PVC · CSI · StatefulSet</h1>
+        <div class="rule"></div>
+        <div class="subtitle">스토리지 추상화(PV/PVC/StorageClass), 동적 프로비저닝, CSI 드라이버, 그리고 상태 있는 워크로드</div>
+      </div>
+      <div class="meta"><b>학습 자료</b> · k8s-storage · (심화) csi-comparison<br>산출물 · MySQL StatefulSet + 백업</div>
+      <div class="footer"><div>Kubernetes 10주 교육 커리큘럼 · github.com/kjin17/k8s_study</div><div class="brand-mark">VMware <span>by Broadcom</span></div></div>
+    </section>
+
+    <!-- 2 학습 목표 -->
+    <section class="slide l-content">
+      <div class="head"><h2>학습 목표</h2><div class="sub">"영속 데이터를 어떻게 안전하게 다루나"</div></div>
+      <div class="body">
+        <ul>
+          <li><b>PV/PVC 분리</b> — 왜 스토리지 제공(관리자)과 요청(개발자)을 나누는지 설명한다</li>
+          <li><b>StorageClass + 동적 프로비저닝</b> — PV 자동 생성을 구현한다</li>
+          <li><b>CSI 아키텍처</b> — 표준 인터페이스를 이해하고 vSphere CSI를 활용한다</li>
+          <li><b>StatefulSet</b> — 안정적 ID·영속 스토리지가 필요한 워크로드를 배포한다</li>
+        </ul>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">2</div></div>
+    </section>
+
+    <!-- 3 3단계 추상화 -->
+    <section class="slide l-content">
+      <div class="head"><h2>스토리지 3단계 추상화</h2><div class="sub">개발자는 "요청"만, 실제 볼륨은 자동으로</div></div>
+      <div class="body diagram">
+        <svg class="slidesvg" viewBox="0 0 1120 340">
+          <style>.t{fill:#1B1E35;font:700 16px Arial}.s{fill:#6a6e80;font:600 12px Arial}.m{fill:#8ad35a;font:700 12px "SF Mono",monospace}</style>
+          <rect x="30" y="60" width="300" height="120" rx="12" fill="#f0f7e6" stroke="#61A00A"/><text x="50" y="96" class="t">① PVC (요청)</text><text x="50" y="124" class="s">개발자: "1Gi 볼륨 주세요"</text><text x="50" y="148" class="s">accessMode · size · class</text>
+          <text x="345" y="122" class="m" text-anchor="middle">bind →</text>
+          <rect x="410" y="60" width="300" height="120" rx="12" fill="#eff7fb" stroke="#0193C2"/><text x="430" y="96" class="t">② StorageClass</text><text x="430" y="124" class="s">동적 프로비저너가</text><text x="430" y="148" class="s">PV를 자동 생성</text>
+          <text x="725" y="122" class="m" text-anchor="middle">provision →</text>
+          <rect x="790" y="60" width="300" height="120" rx="12" fill="#eef6f7" stroke="#007A86"/><text x="810" y="96" class="t">③ PV (실제 볼륨)</text><text x="810" y="124" class="s">CSI가 백엔드에 볼륨 생성</text><text x="810" y="148" class="s">vSAN/NFS/EBS...</text>
+          <text x="30" y="240" class="s">PVC(요청)와 PV(실체)를 분리 → 개발자는 인프라를 몰라도 되고, 관리자는 백엔드를 자유롭게 교체 가능</text>
+          <text x="30" y="272" class="s"><tspan font-weight="700" fill="#1B1E35">ReclaimPolicy</tspan> — Retain(보존) · Delete(삭제) · Recycle(재활용)</text>
+        </svg>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">3</div></div>
+    </section>
+
+    <!-- 4 AccessMode + StatefulSet -->
+    <section class="slide l-two">
+      <div class="head"><h2>AccessMode & StatefulSet</h2><div class="sub">어떻게 붙이나, 그리고 상태 있는 워크로드</div></div>
+      <div class="cols">
+        <div class="card leaf">
+          <span class="card-tag">AccessMode</span>
+          <h3>볼륨 접근 방식</h3>
+          <ul>
+            <li><b>RWO</b> (ReadWriteOnce) — 단일 노드 읽기·쓰기</li>
+            <li><b>ROX</b> (ReadOnlyMany) — 다중 노드 읽기</li>
+            <li><b>RWX</b> (ReadWriteMany) — 다중 노드 읽기·쓰기(NFS 등)</li>
+            <li><b>RWOP</b> — 단일 Pod 전용</li>
+          </ul>
+        </div>
+        <div class="card aqua">
+          <span class="card-tag">StatefulSet</span>
+          <h3>vs Deployment</h3>
+          <ul>
+            <li>안정적 ID — <b>pod-0, pod-1</b> 순서 보장</li>
+            <li><b>Headless Service</b>로 각 Pod에 고유 DNS</li>
+            <li><b>volumeClaimTemplates</b> — Pod별 전용 PVC</li>
+            <li>→ DB·메시지큐 등 상태 워크로드</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">4</div></div>
+    </section>
+
+    <!-- 5 CSI 아키텍처 -->
+    <section class="slide l-content">
+      <div class="head"><h2>CSI 드라이버 아키텍처</h2><div class="sub">In-Tree 한계를 벗어난 표준 스토리지 인터페이스</div></div>
+      <div class="body diagram">
+        <svg class="slidesvg" viewBox="0 0 1120 320">
+          <style>.t{fill:#1B1E35;font:700 15px Arial}.s{fill:#6a6e80;font:600 12px Arial}.h{fill:#6a6e80;font:700 12px Arial;letter-spacing:1px}</style>
+          <rect x="30" y="30" width="1060" height="52" rx="10" fill="#eef6f7" stroke="#007A86"/><text x="52" y="63" class="t" fill="#007A86">Kubernetes (kube-controller / kubelet)</text>
+          <path d="M560 82 L560 108" stroke="#9aa0b4" stroke-width="2"/><path d="M560 108 l-6 -9 h12 z" fill="#9aa0b4"/>
+          <rect x="30" y="112" width="345" height="120" rx="12" fill="#f0f7e6" stroke="#61A00A"/><text x="52" y="140" class="h">CONTROLLER</text><text x="52" y="166" class="t">Provisioner</text><text x="52" y="190" class="s">PVC 감지 → 볼륨 생성/삭제</text><text x="52" y="212" class="s">Attacher — 노드에 연결</text>
+          <rect x="388" y="112" width="345" height="120" rx="12" fill="#eff7fb" stroke="#0193C2"/><text x="410" y="140" class="h">NODE</text><text x="410" y="166" class="t">Node Plugin</text><text x="410" y="190" class="s">볼륨 mount/unmount</text><text x="410" y="212" class="s">각 노드 DaemonSet</text>
+          <rect x="746" y="112" width="344" height="120" rx="12" fill="#f5f1f9" stroke="#6C4B8F"/><text x="768" y="140" class="h">BACKEND</text><text x="768" y="166" class="t">Storage 시스템</text><text x="768" y="190" class="s">vSphere CSI · Trident</text><text x="768" y="212" class="s">EBS · Rook-Ceph · NFS</text>
+          <text x="30" y="280" class="s">CSI = 스토리지 벤더가 K8s 코드 수정 없이 플러그인 제공 · VolumeSnapshot으로 스냅샷/복원 지원</text>
+        </svg>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">5</div></div>
+    </section>
+
+    <!-- 6 실습 -->
+    <section class="slide l-content">
+      <div class="head"><h2>라이브 실습 — 동적 PVC & StatefulSet</h2><div class="sub">자동 프로비저닝과 상태 워크로드</div></div>
+      <div class="body">
+        <div class="code" style="font-size:12.5px">
+<span class="c"># 동적 프로비저닝 PVC</span>
+<span class="cmd">kind:</span> PersistentVolumeClaim
+<span class="cmd">spec:</span> {accessModes: [<span class="str">ReadWriteOnce</span>], storageClassName: <span class="str">&lt;default-sc&gt;</span>,
+       resources: {requests: {storage: <span class="str">1Gi</span>}}}
+<span class="pr">$</span> <span class="cmd">kubectl</span> get pv,pvc          <span class="c"># 자동 생성된 PV 확인</span>
+
+<span class="c"># StatefulSet — Pod별 전용 볼륨</span>
+<span class="cmd">kind:</span> StatefulSet
+<span class="cmd">spec:</span> {serviceName: mysql-headless, replicas: <span class="str">3</span>,
+       volumeClaimTemplates: [{... storage: <span class="str">5Gi</span>}]}
+<span class="pr">$</span> <span class="cmd">kubectl</span> get csidriver         <span class="c"># vSphere CSI 확인</span>
+        </div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">6</div></div>
+    </section>
+
+    <!-- 7 과제 -->
+    <section class="slide l-two">
+      <div class="head"><h2>과제 — 영속성 검증</h2><div class="sub">데이터가 진짜 살아남는지 확인</div></div>
+      <div class="cols">
+        <div class="card leaf"><span class="card-tag">기본</span><h3>영속·스냅샷·쿼터</h3>
+          <ul><li>StatefulSet <b>PostgreSQL</b> → Pod 삭제·재생성 후 데이터 유지 검증</li><li><b>VolumeSnapshot</b>으로 PVC 스냅샷 → 새 PVC로 복원</li><li><b>ResourceQuota</b>로 스토리지 초과 시 PVC 실패 확인</li></ul></div>
+        <div class="card plum"><span class="card-tag">심화</span><h3>CSI 비교</h3>
+          <ul><li>2개 이상 CSI(예: <b>vSphere CSI + NFS</b>) 설치</li><li>동일 워크로드 성능·기능 비교 표 작성</li></ul></div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">7</div></div>
+    </section>
+
+    <!-- 8 체크리스트 -->
+    <section class="slide l-content">
+      <div class="head"><h2>체크리스트 & 다음 주</h2><div class="sub">이걸 할 수 있으면 Week 5 완료</div></div>
+      <div class="body">
+        <ul>
+          <li><b>PV/PVC/StorageClass</b> 3단계 추상화를 그림으로 그릴 수 있다</li>
+          <li><b>AccessMode</b>(RWO/ROX/RWX/RWOP)를 구분할 수 있다</li>
+          <li>StatefulSet의 <b>안정적 ID</b>와 Headless Service의 관계를 안다</li>
+          <li>CSI의 <b>Provisioner/Attacher/NodePlugin</b> 역할을 안다</li>
+        </ul>
+        <div class="callout tip" style="margin-top:18px"><div class="ico">→</div><div><b>다음 주(Week 6)</b> — 보안: 인증·인가, RBAC 4대 리소스, ServiceAccount, Pod Security Admission을 다룹니다.</div></div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">8</div></div>
+    </section>
+
+  </div>
+</div>
+<nav class="nav">
+  <button id="prev" aria-label="Previous">‹</button>
+  <div class="dots" id="dots"></div>
+  <button id="next" aria-label="Next">›</button>
+</nav>
+<script src="deck.js"></script>
+</body>
+</html>
