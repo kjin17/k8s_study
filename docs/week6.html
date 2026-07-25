@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 6 — 보안과 RBAC · K8s 10주</title>
+<link rel="stylesheet" href="deck.css">
+<style>.home{position:fixed;top:16px;left:18px;z-index:60;background:rgba(27,30,53,.82);color:#fff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:999px;backdrop-filter:blur(6px)}</style>
+</head>
+<body>
+<a class="home" href="index.html">← 목차</a>
+<div class="stage">
+  <div class="deck" id="deck">
+
+    <!-- 1 Title -->
+    <section class="slide l-title active">
+      <svg class="swoosh" style="left:0;top:0" width="560" height="720" viewBox="0 0 560 720" fill="none">
+        <defs><linearGradient id="gLeaf" x1="0" y1="720" x2="560" y2="0" gradientUnits="userSpaceOnUse"><stop stop-color="#61A00A"/><stop offset="1" stop-color="#007A86"/></linearGradient></defs>
+        <path d="M0 0 H560 C 380 60 300 180 300 380 C 300 560 220 680 0 720 Z" fill="url(#gLeaf)"/>
+        <path d="M560 14 C 388 76 316 192 316 380 C 316 556 240 672 40 720" stroke="#0193C2" stroke-width="3" fill="none"/>
+      </svg>
+      <div class="title-block">
+        <div class="eyebrow">Week 6 · Phase 3 운영과 확장</div>
+        <h1>보안과 RBAC<br>+ Pod Security</h1>
+        <div class="rule"></div>
+        <div class="subtitle">인증·인가의 차이, RBAC 4대 리소스, ServiceAccount, X.509/OIDC 사용자, 그리고 Pod Security Admission</div>
+      </div>
+      <div class="meta"><b>학습 자료</b> · k8s-rbac · podsecurity_admission<br>산출물 · 팀별 권한 분리 + ServiceAccount + PSA 적용</div>
+      <div class="footer"><div>Kubernetes 10주 교육 커리큘럼 · github.com/kjin17/k8s_study</div><div class="brand-mark">VMware <span>by Broadcom</span></div></div>
+    </section>
+
+    <!-- 2 학습 목표 -->
+    <section class="slide l-content">
+      <div class="head"><h2>학습 목표</h2><div class="sub">"누가, 무엇을, 어디까지 할 수 있나"</div></div>
+      <div class="body">
+        <ul>
+          <li><b>인증 vs 인가</b> — Authentication(누구인가)과 Authorization(무엇을 허용)의 차이를 안다</li>
+          <li><b>RBAC 4대 리소스</b> — Role / ClusterRole / RoleBinding / ClusterRoleBinding을 작성한다</li>
+          <li><b>ServiceAccount</b> — Pod 워크로드의 권한을 분리한다</li>
+          <li><b>X.509 / OIDC</b> — 사용자 인증 흐름을 이해하고 직접 사용자를 만든다</li>
+          <li><b>Pod Security Admission</b> — 네임스페이스 단위 Pod 보안 정책을 적용한다</li>
+        </ul>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">2</div></div>
+    </section>
+
+    <!-- 3 인증 vs 인가 -->
+    <section class="slide l-content">
+      <div class="head"><h2>인증(AuthN) → 인가(AuthZ) → Admission</h2><div class="sub">API 요청이 통과하는 3개의 관문</div></div>
+      <div class="body diagram">
+        <svg class="slidesvg" viewBox="0 0 1120 280">
+          <style>.t{fill:#1B1E35;font:700 16px Arial}.s{fill:#6a6e80;font:600 12.5px Arial}</style>
+          <rect x="20" y="100" width="150" height="70" rx="10" fill="#f2f2f2" stroke="#cfd2dc"/><text x="95" y="140" class="t" text-anchor="middle">요청</text>
+          <path d="M170 135 h50" stroke="#9aa0b4" stroke-width="2"/><path d="M220 135 l-9 -5 v10 z" fill="#9aa0b4"/>
+          <rect x="220" y="95" width="250" height="80" rx="10" fill="#f0f7e6" stroke="#61A00A"/><text x="345" y="128" class="t" text-anchor="middle">① 인증 (AuthN)</text><text x="345" y="152" class="s" text-anchor="middle">X.509 · OIDC · SA Token</text>
+          <path d="M470 135 h40" stroke="#9aa0b4" stroke-width="2"/><path d="M510 135 l-9 -5 v10 z" fill="#9aa0b4"/>
+          <rect x="510" y="95" width="250" height="80" rx="10" fill="#eff7fb" stroke="#0193C2"/><text x="635" y="128" class="t" text-anchor="middle">② 인가 (AuthZ)</text><text x="635" y="152" class="s" text-anchor="middle">RBAC 규칙 검사</text>
+          <path d="M760 135 h40" stroke="#9aa0b4" stroke-width="2"/><path d="M800 135 l-9 -5 v10 z" fill="#9aa0b4"/>
+          <rect x="800" y="95" width="290" height="80" rx="10" fill="#f5f1f9" stroke="#6C4B8F"/><text x="945" y="128" class="t" text-anchor="middle">③ Admission (PSA 등)</text><text x="945" y="152" class="s" text-anchor="middle">정책 검증 → etcd 저장</text>
+          <text x="20" y="225" class="s">인증: "너 누구야?" · 인가: "그거 해도 돼?" · Admission: "정책에 맞아?" — 셋 다 통과해야 반영</text>
+        </svg>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">3</div></div>
+    </section>
+
+    <!-- 4 RBAC 4대 리소스 -->
+    <section class="slide l-data table-only">
+      <div class="head"><h2>RBAC 4대 리소스 조합</h2><div class="sub">권한(Role)과 부여(Binding)를 범위(네임스페이스/클러스터)로 조합</div></div>
+      <table>
+        <thead><tr><th style="width:26%">리소스</th><th style="width:22%">범위</th><th>역할</th></tr></thead>
+        <tbody>
+          <tr><td><b>Role</b></td><td>네임스페이스</td><td>해당 NS 안의 권한 규칙 정의</td></tr>
+          <tr><td><b>ClusterRole</b></td><td>클러스터 전체</td><td>클러스터 범위 권한 or 여러 NS 재사용</td></tr>
+          <tr><td><b>RoleBinding</b></td><td>네임스페이스</td><td>주체(User/SA)에게 Role/ClusterRole을 NS에 부여</td></tr>
+          <tr><td><b>ClusterRoleBinding</b></td><td>클러스터 전체</td><td>주체에게 ClusterRole을 전 클러스터에 부여</td></tr>
+        </tbody>
+      </table>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">4</div></div>
+    </section>
+
+    <!-- 5 SA / PSA -->
+    <section class="slide l-two">
+      <div class="head"><h2>ServiceAccount & Pod Security Admission</h2><div class="sub">워크로드 권한 분리 + 네임스페이스 Pod 보안</div></div>
+      <div class="cols">
+        <div class="card leaf">
+          <span class="card-tag">ServiceAccount</span>
+          <h3>워크로드의 신원</h3>
+          <ul>
+            <li>Pod에 SA 할당 → 해당 권한으로만 API 호출</li>
+            <li>Token(1.24+ 프로젝티드·단명) 자동 마운트</li>
+            <li>예: Jenkins SA는 <b>ci NS만</b>, prod는 read-only</li>
+          </ul>
+        </div>
+        <div class="card plum">
+          <span class="card-tag">PSA</span>
+          <h3>3 레벨 × 3 모드</h3>
+          <ul>
+            <li>레벨: <b>privileged</b> / <b>baseline</b> / <b>restricted</b></li>
+            <li>모드: <b>enforce</b>(차단) / <b>audit</b>(기록) / <b>warn</b>(경고)</li>
+            <li>NS 라벨로 적용 · restricted = runAsNonRoot·drop ALL</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">5</div></div>
+    </section>
+
+    <!-- 6 실습 -->
+    <section class="slide l-content">
+      <div class="head"><h2>라이브 실습 — RBAC & 권한 검증</h2><div class="sub">사용자를 만들고 권한 범위를 확인</div></div>
+      <div class="body">
+        <div class="code">
+<span class="c"># 인터랙티브 RBAC 스크립트 (SA→Role/Binding→권한테스트→X.509 사용자)</span>
+<span class="pr">$</span> ./k8s-rbac.sh
+
+<span class="c"># alice 사용자 권한 영향 범위 검증</span>
+<span class="pr">$</span> <span class="cmd">kubectl</span> auth can-i --list -n dev --as=alice
+<span class="pr">$</span> <span class="cmd">kubectl</span> auth can-i create deployments -n prod --as=alice   <span class="c"># no</span>
+<span class="pr">$</span> <span class="cmd">kubectl</span> auth can-i create deployments -n dev  --as=alice   <span class="c"># yes</span>
+        </div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">6</div></div>
+    </section>
+
+    <!-- 7 과제 -->
+    <section class="slide l-two">
+      <div class="head"><h2>과제 — 권한 설계 & 강제</h2><div class="sub">회사 시나리오로 권한 체계를 설계</div></div>
+      <div class="cols">
+        <div class="card leaf"><span class="card-tag">RBAC 설계</span><h3>팀별 권한 분리</h3>
+          <ul><li>dev팀(dev/test edit) · ops팀(전체 view) · security팀(audit) RBAC 설계서+적용</li><li>Jenkins SA: ci NS만 동작, prod read-only</li><li>Forbidden 분석 → 최소 권한만 추가 워크플로우 문서화</li></ul></div>
+        <div class="card plum"><span class="card-tag">PSA 강제</span><h3>restricted 차단</h3>
+          <ul><li><b>restricted</b> NS에 권한 부족 Pod 배포 → 차단 로그 분석</li><li>워크로드 수정: <b>runAsNonRoot</b>, drop ALL capabilities</li></ul></div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">7</div></div>
+    </section>
+
+    <!-- 8 체크리스트 -->
+    <section class="slide l-content">
+      <div class="head"><h2>체크리스트 & 다음 주</h2><div class="sub">이걸 할 수 있으면 Week 6 완료</div></div>
+      <div class="body">
+        <ul>
+          <li><b>kubectl auth can-i / impersonation(--as)</b>을 활용할 수 있다</li>
+          <li>Role/ClusterRole/RoleBinding/ClusterRoleBinding <b>4조합</b>을 그릴 수 있다</li>
+          <li><b>X.509 CSR</b>로 사용자를 만들고 kubeconfig를 발급할 수 있다</li>
+          <li>Pod에 <b>ServiceAccount</b>를 할당하고 token을 검증할 수 있다</li>
+          <li>PSA <b>3레벨·3모드</b>(enforce/audit/warn)의 차이를 설명할 수 있다</li>
+        </ul>
+        <div class="callout tip" style="margin-top:14px"><div class="ico">→</div><div><b>다음 주(Week 7)</b> — CRD·Operator·Cluster API로 K8s를 확장하고, Helm/Carvel로 패키지를 관리합니다.</div></div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">8</div></div>
+    </section>
+
+  </div>
+</div>
+<nav class="nav">
+  <button id="prev" aria-label="Previous">‹</button>
+  <div class="dots" id="dots"></div>
+  <button id="next" aria-label="Next">›</button>
+</nav>
+<script src="deck.js"></script>
+</body>
+</html>
