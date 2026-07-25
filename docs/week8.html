@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 8 — DevOps 통합 (Harbor · Jenkins · GitOps) · K8s 10주</title>
+<link rel="stylesheet" href="deck.css">
+<style>.home{position:fixed;top:16px;left:18px;z-index:60;background:rgba(27,30,53,.82);color:#fff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:999px;backdrop-filter:blur(6px)}</style>
+</head>
+<body>
+<a class="home" href="index.html">← 목차</a>
+<div class="stage">
+  <div class="deck" id="deck">
+
+    <!-- 1 Title -->
+    <section class="slide l-title active">
+      <svg class="swoosh" style="left:0;top:0" width="560" height="720" viewBox="0 0 560 720" fill="none">
+        <defs><linearGradient id="gLeaf" x1="0" y1="720" x2="560" y2="0" gradientUnits="userSpaceOnUse"><stop stop-color="#61A00A"/><stop offset="1" stop-color="#007A86"/></linearGradient></defs>
+        <path d="M0 0 H560 C 380 60 300 180 300 380 C 300 560 220 680 0 720 Z" fill="url(#gLeaf)"/>
+        <path d="M560 14 C 388 76 316 192 316 380 C 316 556 240 672 40 720" stroke="#0193C2" stroke-width="3" fill="none"/>
+      </svg>
+      <div class="title-block">
+        <div class="eyebrow">Week 8 · Phase 4 DevOps 통합</div>
+        <h1>DevOps 통합<br>Harbor · Jenkins · GitOps</h1>
+        <div class="rule"></div>
+        <div class="subtitle">레지스트리와 취약점 스캔, Jenkins CI, ArgoCD GitOps를 하나의 CI/CD 파이프라인으로</div>
+      </div>
+      <div class="meta"><b>학습 자료</b> · harbor-registry · k8s-cicd<br>산출물 · CI/CD 파이프라인 구축 + 종합 프로젝트</div>
+      <div class="footer"><div>Kubernetes 10주 교육 커리큘럼 · github.com/kjin17/k8s_study</div><div class="brand-mark">VMware <span>by Broadcom</span></div></div>
+    </section>
+
+    <!-- 2 학습 목표 -->
+    <section class="slide l-content">
+      <div class="head"><h2>학습 목표</h2><div class="sub">"코드 → 이미지 → 클러스터"를 자동화한다</div></div>
+      <div class="body">
+        <ul>
+          <li><b>Harbor</b> — 컨테이너 레지스트리의 필요성과 역할을 안다</li>
+          <li><b>Trivy</b> — 이미지 취약점 스캔을 수행하고 결과를 해석한다</li>
+          <li><b>Jenkins</b> — Master/Agent 구조와 Declarative Pipeline(Jenkinsfile)을 작성한다</li>
+          <li><b>GitOps + ArgoCD</b> — 4대 원칙을 이해하고 Git → 클러스터 동기화를 구현한다</li>
+          <li><b>하이브리드 파이프라인</b> — Jenkins(CI) + ArgoCD(CD)를 종합 프로젝트로 구축한다</li>
+        </ul>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">2</div></div>
+    </section>
+
+    <!-- 3 파이프라인 전체 -->
+    <section class="slide l-content">
+      <div class="head"><h2>CI/CD 파이프라인 전체 그림</h2><div class="sub">CI는 이미지를, CD는 클러스터 상태를 책임진다</div></div>
+      <div class="body diagram">
+        <svg class="slidesvg" viewBox="0 0 1120 300">
+          <style>.t{fill:#1B1E35;font:700 13.5px Arial}.s{fill:#6a6e80;font:600 11px Arial}.lb{fill:#6a6e80;font:700 11px Arial;letter-spacing:1px}</style>
+          <text x="40" y="30" class="lb" fill="#61A00A">CI — Jenkins</text>
+          <rect x="20" y="44" width="150" height="66" rx="9" fill="#f2f2f2" stroke="#cfd2dc"/><text x="95" y="74" class="t" text-anchor="middle">App Repo</text><text x="95" y="94" class="s" text-anchor="middle">git push</text>
+          <path d="M170 77 h30" stroke="#9aa0b4" stroke-width="2"/><path d="M200 77 l-9 -5 v10 z" fill="#9aa0b4"/>
+          <rect x="202" y="44" width="170" height="66" rx="9" fill="#f0f7e6" stroke="#61A00A"/><text x="287" y="70" class="t" text-anchor="middle">Jenkins</text><text x="287" y="90" class="s" text-anchor="middle">빌드 · Trivy 스캔</text>
+          <path d="M372 77 h30" stroke="#9aa0b4" stroke-width="2"/><path d="M402 77 l-9 -5 v10 z" fill="#9aa0b4"/>
+          <rect x="404" y="44" width="150" height="66" rx="9" fill="#eef6f7" stroke="#007A86"/><text x="479" y="70" class="t" text-anchor="middle">Harbor</text><text x="479" y="90" class="s" text-anchor="middle">image push</text>
+          <path d="M479 110 v40 h-100" stroke="#9aa0b4" stroke-width="2" fill="none"/><path d="M379 150 l9 -5 v10 z" fill="#9aa0b4"/>
+          <text x="700" y="30" class="lb" fill="#0193C2">CD — ArgoCD (GitOps)</text>
+          <rect x="240" y="150" width="180" height="60" rx="9" fill="#fdf6e3" stroke="#EDB516"/><text x="330" y="176" class="t" text-anchor="middle">Manifest Repo</text><text x="330" y="196" class="s" text-anchor="middle">image tag commit</text>
+          <path d="M420 180 h40" stroke="#9aa0b4" stroke-width="2"/><path d="M460 180 l-9 -5 v10 z" fill="#9aa0b4"/>
+          <rect x="462" y="150" width="180" height="60" rx="9" fill="#eff7fb" stroke="#0193C2"/><text x="552" y="176" class="t" text-anchor="middle">ArgoCD</text><text x="552" y="196" class="s" text-anchor="middle">watch → 자동 sync</text>
+          <path d="M642 180 h40" stroke="#9aa0b4" stroke-width="2"/><path d="M682 180 l-9 -5 v10 z" fill="#9aa0b4"/>
+          <rect x="684" y="150" width="200" height="60" rx="9" fill="#f5f1f9" stroke="#6C4B8F"/><text x="784" y="176" class="t" text-anchor="middle">Kubernetes Cluster</text><text x="784" y="196" class="s" text-anchor="middle">dev / stage</text>
+          <text x="20" y="260" class="s">App push → Jenkins(빌드+스캔+Harbor push) → Manifest Repo tag 업데이트 → ArgoCD가 감지해 클러스터에 자동 반영</text>
+        </svg>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">3</div></div>
+    </section>
+
+    <!-- 4 Harbor + Jenkins -->
+    <section class="slide l-two">
+      <div class="head"><h2>Harbor · Trivy & Jenkins CI</h2><div class="sub">안전한 이미지 저장 + 자동 빌드</div></div>
+      <div class="cols">
+        <div class="card leaf">
+          <span class="card-tag">Registry</span>
+          <h3>Harbor + Trivy</h3>
+          <ul>
+            <li>사설 <b>컨테이너 레지스트리</b> · RBAC·프로젝트 격리</li>
+            <li><b>Trivy</b> 이미지 취약점 스캔(HIGH/CRITICAL)</li>
+            <li>서명·복제·보존 정책 등 엔터프라이즈 기능</li>
+          </ul>
+        </div>
+        <div class="card aqua">
+          <span class="card-tag">CI</span>
+          <h3>Jenkins</h3>
+          <ul>
+            <li><b>Master/Agent</b> — 빌드 분산 실행</li>
+            <li><b>Jenkinsfile</b>(Declarative Pipeline)로 단계 정의</li>
+            <li>GitHub Webhook → 자동 빌드 + Harbor push</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">4</div></div>
+    </section>
+
+    <!-- 5 GitOps -->
+    <section class="slide l-content">
+      <div class="head"><h2>GitOps & ArgoCD</h2><div class="sub">Git이 유일한 진실의 원천(Single Source of Truth)</div></div>
+      <div class="body">
+        <ul>
+          <li><b>선언적</b> — 원하는 상태를 Git 매니페스트로 기술</li>
+          <li><b>버전 관리</b> — 모든 변경이 Git 이력 · <b>git revert = 롤백</b></li>
+          <li><b>자동 동기화</b> — ArgoCD가 Git ↔ 클러스터 차이를 감지·조정</li>
+          <li><b>지속 조정(Self-Heal)</b> — 수동 변경(Drift)도 원래 상태로 복구</li>
+        </ul>
+        <div class="callout tip" style="margin-top:16px"><div class="ico">i</div><div>ArgoCD <b>Application</b> CR: <span class="mono">source(Git repo/path)</span> + <span class="mono">destination(cluster/ns)</span> + <span class="mono">syncPolicy(automated: prune·selfHeal)</span></div></div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">5</div></div>
+    </section>
+
+    <!-- 6 실습 -->
+    <section class="slide l-content">
+      <div class="head"><h2>라이브 실습 — 파이프라인 구성요소</h2><div class="sub">Harbor·Trivy → Jenkins → ArgoCD 순서로</div></div>
+      <div class="body">
+        <div class="code" style="font-size:12px">
+<span class="c"># Part A: Harbor 자격증명 + Trivy 스캔</span>
+<span class="pr">$</span> <span class="cmd">kubectl</span> create secret docker-registry harbor-cred \
+    --docker-server=harbor.example.com --docker-username=admin --docker-password=<span class="str">&lt;pw&gt;</span>
+<span class="pr">$</span> <span class="cmd">trivy</span> image --severity <span class="str">HIGH,CRITICAL</span> nginx:1.24
+
+<span class="c"># Part B: Jenkins 설치 (Helm)</span>
+<span class="pr">$</span> <span class="cmd">helm</span> install jenkins jenkins/jenkins -n jenkins --create-namespace --set agent.enabled=true
+
+<span class="c"># Part C: ArgoCD 설치 + Application 등록</span>
+<span class="pr">$</span> <span class="cmd">kubectl</span> apply -n argocd -f https://.../argo-cd/stable/manifests/install.yaml
+<span class="pr">$</span> <span class="cmd">kubectl</span> apply -f application.yaml   <span class="c"># syncPolicy: automated(prune,selfHeal)</span>
+        </div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">6</div></div>
+    </section>
+
+    <!-- 7 종합 프로젝트 -->
+    <section class="slide l-content">
+      <div class="head"><h2>종합 프로젝트 — GitOps Capstone</h2><div class="sub">지금까지 배운 것을 하나의 파이프라인으로</div></div>
+      <div class="body">
+        <ul>
+          <li><b>저장소 분리</b> — App Repo + Manifest Repo</li>
+          <li><b>CI(Jenkins)</b> — 빌드 + Trivy 스캔 + Harbor push + Manifest Repo에 image tag commit</li>
+          <li><b>CD(ArgoCD)</b> — Manifest Repo watch → 자동 sync (<b>ApplicationSet</b>로 dev/stage 분리)</li>
+          <li><b>RBAC</b> — 개발자는 dev NS만, ArgoCD는 dev+stage</li>
+        </ul>
+        <div class="callout tip" style="margin-top:14px"><div class="ico">✓</div><div>산출물: 두 Repo 이력 · Jenkins 빌드 3회+ · ArgoCD Synced/Healthy · Harbor tag 3개+ · <b>git revert 롤백 데모</b> · 발표 슬라이드</div></div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">7</div></div>
+    </section>
+
+    <!-- 8 체크리스트 -->
+    <section class="slide l-content">
+      <div class="head"><h2>체크리스트 & 다음 주</h2><div class="sub">이걸 할 수 있으면 Week 8 완료</div></div>
+      <div class="body">
+        <ul>
+          <li><b>Harbor</b>에 이미지를 push하고 <b>Trivy</b> 스캔 결과를 해석할 수 있다</li>
+          <li><b>Jenkinsfile</b>로 빌드→스캔→push 파이프라인을 작성할 수 있다</li>
+          <li><b>GitOps 4원칙</b>을 설명하고 ArgoCD Application을 등록할 수 있다</li>
+          <li><b>git revert</b>로 배포를 롤백할 수 있다</li>
+        </ul>
+        <div class="callout tip" style="margin-top:18px"><div class="ico">→</div><div><b>다음 주(Week 9)</b> — VCF/VKS 실무: VCF Supervisor 아키텍처와 VPC 네트워킹으로 넘어갑니다.</div></div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">8</div></div>
+    </section>
+
+  </div>
+</div>
+<nav class="nav">
+  <button id="prev" aria-label="Previous">‹</button>
+  <div class="dots" id="dots"></div>
+  <button id="next" aria-label="Next">›</button>
+</nav>
+<script src="deck.js"></script>
+</body>
+</html>
