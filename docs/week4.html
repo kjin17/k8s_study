@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 4 — 네트워킹 (Service · Ingress · CNI) · K8s 10주</title>
+<link rel="stylesheet" href="deck.css">
+<style>.home{position:fixed;top:16px;left:18px;z-index:60;background:rgba(27,30,53,.82);color:#fff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:999px;backdrop-filter:blur(6px)}</style>
+</head>
+<body>
+<a class="home" href="index.html">← 목차</a>
+<div class="stage">
+  <div class="deck" id="deck">
+
+    <!-- 1 Title -->
+    <section class="slide l-title active">
+      <svg class="swoosh" style="left:0;top:0" width="560" height="720" viewBox="0 0 560 720" fill="none">
+        <defs><linearGradient id="gLeaf" x1="0" y1="720" x2="560" y2="0" gradientUnits="userSpaceOnUse"><stop stop-color="#61A00A"/><stop offset="1" stop-color="#007A86"/></linearGradient></defs>
+        <path d="M0 0 H560 C 380 60 300 180 300 380 C 300 560 220 680 0 720 Z" fill="url(#gLeaf)"/>
+        <path d="M560 14 C 388 76 316 192 316 380 C 316 556 240 672 40 720" stroke="#0193C2" stroke-width="3" fill="none"/>
+      </svg>
+      <div class="title-block">
+        <div class="eyebrow">Week 4 · Phase 2 핵심 오브젝트</div>
+        <h1>네트워킹<br>Service · Ingress · CNI</h1>
+        <div class="rule"></div>
+        <div class="subtitle">Pod 평면 네트워크부터 Service 4타입, Ingress 도메인 라우팅, CoreDNS, 그리고 CNI 비교까지</div>
+      </div>
+      <div class="meta"><b>학습 자료</b> · k8s-networking · (심화) cni-comparison · kube-proxy<br>산출물 · 도메인 기반 라우팅 구현</div>
+      <div class="footer"><div>Kubernetes 10주 교육 커리큘럼 · github.com/kjin17/k8s_study</div><div class="brand-mark">VMware <span>by Broadcom</span></div></div>
+    </section>
+
+    <!-- 2 학습 목표 -->
+    <section class="slide l-content">
+      <div class="head"><h2>학습 목표</h2><div class="sub">"서비스를 어떻게 노출하고 연결하나"</div></div>
+      <div class="body">
+        <ul>
+          <li><b>Pod 네트워크 모델</b> — 모든 Pod가 하나의 평면 IP로 통신하는 원리를 이해한다</li>
+          <li><b>Service 4타입</b> — ClusterIP / NodePort / LoadBalancer / ExternalName을 구분한다</li>
+          <li><b>kube-proxy</b> — iptables / IPVS 모드 동작을 안다</li>
+          <li><b>Ingress</b> — 도메인·경로 기반 HTTP 라우팅을 구현한다</li>
+          <li><b>CNI</b> — Antrea / Calico / Cilium의 역할·차이를 설명한다</li>
+        </ul>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">2</div></div>
+    </section>
+
+    <!-- 3 Service 4타입 -->
+    <section class="slide l-data table-only">
+      <div class="head"><h2>Service 4가지 타입</h2><div class="sub">사라지는 Pod IP 앞에 안정적인 연결점을 제공</div></div>
+      <table>
+        <thead><tr><th style="width:22%">타입</th><th style="width:30%">노출 범위</th><th>용도</th></tr></thead>
+        <tbody>
+          <tr><td><b>ClusterIP</b></td><td>클러스터 내부 (기본)</td><td>내부 서비스 간 통신 · 가상 IP</td></tr>
+          <tr><td><b>NodePort</b></td><td>노드 IP:30000–32767</td><td>외부에서 노드 포트로 접근 (개발/테스트)</td></tr>
+          <tr><td><b>LoadBalancer</b></td><td>외부 LB VIP</td><td>클라우드/MetalLB로 외부 노출</td></tr>
+          <tr><td><b>ExternalName</b></td><td>DNS CNAME</td><td>외부 도메인을 클러스터 이름으로 매핑</td></tr>
+        </tbody>
+      </table>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">3</div></div>
+    </section>
+
+    <!-- 4 Ingress 라우팅 -->
+    <section class="slide l-content">
+      <div class="head"><h2>Ingress — 도메인·경로 라우팅</h2><div class="sub">하나의 진입점(L7)에서 여러 서비스로 분기</div></div>
+      <div class="body diagram">
+        <svg class="slidesvg" viewBox="0 0 1120 320">
+          <style>.it{fill:#1B1E35;font:700 15px Arial}.is{fill:#6a6e80;font:600 12px Arial}.im{fill:#8ad35a;font:700 12px "SF Mono",monospace}</style>
+          <rect x="30" y="120" width="200" height="70" rx="10" fill="#f2f2f2" stroke="#cfd2dc"/><text x="130" y="152" class="it" text-anchor="middle">Client</text><text x="130" y="174" class="is" text-anchor="middle">HTTP(S)</text>
+          <path d="M230 155 h70" stroke="#9aa0b4" stroke-width="2"/><path d="M300 155 l-9 -5 v10 z" fill="#9aa0b4"/>
+          <rect x="300" y="110" width="240" height="90" rx="10" fill="#eef6f7" stroke="#007A86"/><text x="420" y="145" class="it" fill="#007A86" text-anchor="middle">Ingress Controller</text><text x="420" y="172" class="is" text-anchor="middle">nginx · 호스트/경로 규칙</text>
+          <path d="M540 140 h90" stroke="#9aa0b4" stroke-width="2"/><path d="M630 140 l-9 -5 v10 z" fill="#9aa0b4"/>
+          <path d="M540 175 h90" stroke="#9aa0b4" stroke-width="2"/><path d="M630 175 l-9 -5 v10 z" fill="#9aa0b4"/>
+          <rect x="630" y="105" width="300" height="46" rx="9" fill="#e0f0e0" stroke="#61A00A"/><text x="650" y="133" class="im">api.example.local →</text><text x="820" y="133" class="is">Service: api</text>
+          <rect x="630" y="163" width="300" height="46" rx="9" fill="#f5f1f9" stroke="#6C4B8F"/><text x="650" y="191" class="im">web.example.local →</text><text x="820" y="191" class="is">Service: web</text>
+          <text x="30" y="250" class="is">Ingress = L7 라우팅(호스트·경로) · NodePort/LoadBalancer 여러 개 대신 진입점 1개로 통합 → 비용·관리 절감</text>
+        </svg>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">4</div></div>
+    </section>
+
+    <!-- 5 CNI 비교 -->
+    <section class="slide l-two">
+      <div class="head"><h2>CNI 비교 — Antrea · Calico · Cilium</h2><div class="sub">Pod 네트워크·정책을 구현하는 플러그인, 데이터플레인이 다르다</div></div>
+      <div class="cols three">
+        <div class="card leaf"><span class="card-tag">Antrea</span><h3>OVS 기반</h3>
+          <ul><li>Open vSwitch 데이터플레인</li><li>NetworkPolicy + Antrea CRD</li><li>VMware/VKS 기본 CNI</li></ul></div>
+        <div class="card aqua"><span class="card-tag">Calico</span><h3>L3 라우팅/BGP</h3>
+          <ul><li>BGP 라우팅(터널 없이도)</li><li>강력한 NetworkPolicy</li><li>대규모·성능 안정</li></ul></div>
+        <div class="card plum"><span class="card-tag">Cilium</span><h3>eBPF 기반</h3>
+          <ul><li>eBPF 데이터플레인·고성능</li><li>L7 정책·Hubble 관측성</li><li>kube-proxy 대체 가능</li></ul></div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">5</div></div>
+    </section>
+
+    <!-- 6 실습 Service/Ingress -->
+    <section class="slide l-content">
+      <div class="head"><h2>라이브 실습 — Service & Ingress</h2><div class="sub">타입별 차이 관찰 후 Ingress Controller 설치</div></div>
+      <div class="body">
+        <div class="code">
+<span class="c"># 실습 1: Service 타입 비교 (ClusterIP → NodePort → LoadBalancer)</span>
+<span class="pr">$</span> ./k8s-learn.sh   <span class="c"># 4번 메뉴</span>
+
+<span class="c"># 실습 2: Ingress Controller(nginx) 설치</span>
+<span class="pr">$</span> <span class="cmd">helm</span> repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+<span class="pr">$</span> <span class="cmd">helm</span> install ingress-nginx ingress-nginx/ingress-nginx \
+    -n ingress-nginx --create-namespace \
+    --set controller.service.type=<span class="str">NodePort</span>
+        </div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">6</div></div>
+    </section>
+
+    <!-- 7 실습 CoreDNS -->
+    <section class="slide l-content">
+      <div class="head"><h2>라이브 실습 — CoreDNS (서비스 디스커버리)</h2><div class="sub">이름으로 서비스를 찾는 원리</div></div>
+      <div class="body">
+        <div class="code">
+<span class="c"># dnsutils Pod에서 이름 해석 관찰</span>
+<span class="pr">$</span> <span class="cmd">kubectl</span> run dnsutils --image=registry.k8s.io/e2e-test-images/jessie-dnsutils:1.3 --rm -it -- bash
+
+<span class="c"># Pod 안에서:</span>
+<span class="pr">#</span> <span class="cmd">nslookup</span> kubernetes.default
+<span class="pr">#</span> <span class="cmd">nslookup</span> <span class="str">my-svc.my-namespace.svc.cluster.local</span>
+        </div>
+        <div class="callout tip" style="margin-top:16px"><div class="ico">i</div><div>서비스 FQDN 규칙: <b>&lt;service&gt;.&lt;namespace&gt;.svc.cluster.local</b> — Pod IP는 사라져도 이 이름은 안정적</div></div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">7</div></div>
+    </section>
+
+    <!-- 8 과제 -->
+    <section class="slide l-two">
+      <div class="head"><h2>과제 — 네트워킹 실전</h2><div class="sub">정책·노출·보안·CNI 비교</div></div>
+      <div class="cols">
+        <div class="card leaf"><span class="card-tag">기본</span><h3>노출 & 보안</h3>
+          <ul><li><b>NetworkPolicy</b>로 dev→prod 접근 차단</li><li><b>MetalLB</b>로 LoadBalancer 구현(베어메탈)</li><li>TLS Secret + <b>Ingress HTTPS</b>(cert-manager)</li></ul></div>
+        <div class="card plum"><span class="card-tag">심화</span><h3>CNI · kube-proxy 비교</h3>
+          <ul><li>동일 워크로드를 <b>Antrea/Calico/Cilium</b>에 배포 → 패킷 경로(터널 vs BGP vs eBPF) 비교</li><li>iptables ↔ IPVS 전환 → 분산 알고리즘(rr/lc) 검증</li></ul></div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">8</div></div>
+    </section>
+
+    <!-- 9 체크리스트 -->
+    <section class="slide l-content">
+      <div class="head"><h2>체크리스트 & 다음 주</h2><div class="sub">이걸 할 수 있으면 Week 4 완료</div></div>
+      <div class="body">
+        <ul>
+          <li><b>CNI</b>가 무엇이고 왜 필요한지 설명할 수 있다</li>
+          <li><b>kube-proxy</b>의 iptables/IPVS 모드 차이를 안다</li>
+          <li><b>CoreDNS</b>의 service discovery 동작 원리를 안다</li>
+          <li><b>Ingress</b>와 NodePort/LoadBalancer의 차이를 비교할 수 있다</li>
+        </ul>
+        <div class="callout tip" style="margin-top:18px"><div class="ico">→</div><div><b>다음 주(Week 5)</b> — 스토리지: PV/PVC, CSI, StatefulSet으로 영속 데이터를 다룹니다.</div></div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">9</div></div>
+    </section>
+
+  </div>
+</div>
+<nav class="nav">
+  <button id="prev" aria-label="Previous">‹</button>
+  <div class="dots" id="dots"></div>
+  <button id="next" aria-label="Next">›</button>
+</nav>
+<script src="deck.js"></script>
+</body>
+</html>
