@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 10 — VKS 클러스터 관리 · K8s 10주</title>
+<link rel="stylesheet" href="deck.css">
+<style>.home{position:fixed;top:16px;left:18px;z-index:60;background:rgba(27,30,53,.82);color:#fff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:999px;backdrop-filter:blur(6px)}</style>
+</head>
+<body>
+<a class="home" href="index.html">← 목차</a>
+<div class="stage">
+  <div class="deck" id="deck">
+
+    <!-- 1 Title -->
+    <section class="slide l-title active">
+      <svg class="swoosh" style="left:0;top:0" width="560" height="720" viewBox="0 0 560 720" fill="none">
+        <defs><linearGradient id="gLeaf" x1="0" y1="720" x2="560" y2="0" gradientUnits="userSpaceOnUse"><stop stop-color="#61A00A"/><stop offset="1" stop-color="#007A86"/></linearGradient></defs>
+        <path d="M0 0 H560 C 380 60 300 180 300 380 C 300 560 220 680 0 720 Z" fill="url(#gLeaf)"/>
+        <path d="M560 14 C 388 76 316 192 316 380 C 316 556 240 672 40 720" stroke="#0193C2" stroke-width="3" fill="none"/>
+      </svg>
+      <div class="title-block">
+        <div class="eyebrow">Week 10 · Phase 5 VCF/VKS 실무</div>
+        <h1>VKS 클러스터 관리</h1>
+        <div class="rule"></div>
+        <div class="subtitle">ClusterClass 기반 선언적 프로비저닝, 노드 풀·스케일링·업데이트, 그리고 pvCSI·PSA·Velero 운영</div>
+      </div>
+      <div class="meta"><b>학습 자료</b> · vks-cluster-management<br>산출물 · 프로비저닝 · 운영 · 업데이트 · 보안 · 백업 · <b>10주 완주</b> 🎓</div>
+      <div class="footer"><div>Kubernetes 10주 교육 커리큘럼 · github.com/kjin17/k8s_study</div><div class="brand-mark">VMware <span>by Broadcom</span></div></div>
+    </section>
+
+    <!-- 2 학습 목표 -->
+    <section class="slide l-content">
+      <div class="head"><h2>학습 목표</h2><div class="sub">엔터프라이즈 K8s를 선언적으로 운영한다</div></div>
+      <div class="body">
+        <ul>
+          <li><b>VKS 프로비저닝</b> — vSphere Kubernetes Service 클러스터 생성 방법을 안다</li>
+          <li><b>ClusterClass</b> — 선언적 클러스터 관리를 이해한다</li>
+          <li><b>멀티 OS 노드 풀</b> — Photon / Ubuntu / Windows 구성을 안다</li>
+          <li><b>운영</b> — 업데이트 · 오토스케일링 · 애드온 관리를 수행한다</li>
+          <li><b>스토리지·보안·백업</b> — pvCSI · PSA · Velero를 이해한다</li>
+        </ul>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">2</div></div>
+    </section>
+
+    <!-- 3 ClusterClass -->
+    <section class="slide l-content">
+      <div class="head"><h2>ClusterClass — 선언적 클러스터 관리</h2><div class="sub">클러스터를 "템플릿 + 변수"로 표준화</div></div>
+      <div class="body diagram">
+        <svg class="slidesvg" viewBox="0 0 1120 280">
+          <style>.t{fill:#1B1E35;font:700 15px Arial}.s{fill:#6a6e80;font:600 12px Arial}</style>
+          <rect x="30" y="40" width="320" height="120" rx="12" fill="#f5f1f9" stroke="#6C4B8F"/><text x="50" y="72" class="t" fill="#6C4B8F">ClusterClass (템플릿)</text><text x="50" y="100" class="s">CP·워커·네트워크·애드온 표준</text><text x="50" y="124" class="s">버전·정책 일괄 관리</text>
+          <path d="M350 100 h50" stroke="#9aa0b4" stroke-width="2"/><path d="M400 100 l-9 -5 v10 z" fill="#9aa0b4"/>
+          <rect x="410" y="40" width="320" height="120" rx="12" fill="#eef6f7" stroke="#007A86"/><text x="430" y="72" class="t" fill="#007A86">Cluster (인스턴스)</text><text x="430" y="100" class="s">topology.variables 오버라이드</text><text x="430" y="124" class="s">replicas · vmClass · version</text>
+          <path d="M730 100 h50" stroke="#9aa0b4" stroke-width="2"/><path d="M780 100 l-9 -5 v10 z" fill="#9aa0b4"/>
+          <rect x="790" y="40" width="300" height="120" rx="12" fill="#f0f7e6" stroke="#61A00A"/><text x="810" y="72" class="t">Machines (실제 노드)</text><text x="810" y="100" class="s">CP 3 + Worker N</text><text x="810" y="124" class="s">CAPI/CAPV가 생성·조정</text>
+          <text x="30" y="220" class="s">ClusterClass 하나로 여러 클러스터를 일관되게 · 업그레이드는 클래스 버전 변경으로 롤링 적용</text>
+        </svg>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">3</div></div>
+    </section>
+
+    <!-- 4 노드풀 / 운영 -->
+    <section class="slide l-two">
+      <div class="head"><h2>노드 풀 & 클러스터 운영</h2><div class="sub">스케일·업데이트·멀티 OS</div></div>
+      <div class="cols">
+        <div class="card leaf">
+          <span class="card-tag">Node Pool</span>
+          <h3>스케일 & 멀티 OS</h3>
+          <ul>
+            <li>MachineDeployment로 <b>워커 풀</b> 정의</li>
+            <li>replicas 변경 → <b>스케일 아웃/인</b></li>
+            <li>Photon · Ubuntu · Windows 혼합 풀</li>
+            <li>version 변경 → <b>롤링 업데이트</b></li>
+          </ul>
+        </div>
+        <div class="card aqua">
+          <span class="card-tag">Day-2 운영</span>
+          <h3>스토리지·보안·백업</h3>
+          <ul>
+            <li><b>pvCSI</b> — 영구 볼륨 프로비저닝</li>
+            <li><b>PSA</b> — 네임스페이스 Pod 보안</li>
+            <li><b>Velero</b> — 클러스터 백업/복원</li>
+            <li>애드온 관리(VKr 번들)</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">4</div></div>
+    </section>
+
+    <!-- 5 실습 프로비저닝 -->
+    <section class="slide l-content">
+      <div class="head"><h2>라이브 실습 — 프로비저닝 & 접근</h2><div class="sub">Cluster CRD 하나로 클러스터를 만든다</div></div>
+      <div class="body">
+        <div class="code" style="font-size:12.5px">
+<span class="cmd">apiVersion:</span> cluster.x-k8s.io/v1beta1
+<span class="cmd">kind:</span> Cluster
+<span class="cmd">metadata:</span> {name: dev-cluster, namespace: dev-ns}
+<span class="cmd">spec:</span>
+  <span class="arg">topology:</span>
+    class: <span class="str">tanzukubernetescluster</span>
+    version: <span class="str">v1.28.4+vmware.1-tkg.1</span>
+    controlPlane: {replicas: <span class="str">3</span>}
+    workers: {machineDeployments: [{name: worker-pool, replicas: <span class="str">3</span>}]}
+
+<span class="pr">$</span> <span class="cmd">kubectl</span> get cluster,machine -n dev-ns
+<span class="pr">$</span> <span class="cmd">kubectl</span> get secret dev-cluster-kubeconfig -n dev-ns -o jsonpath='{.data.value}' | base64 -d &gt; kc
+        </div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">5</div></div>
+    </section>
+
+    <!-- 6 실습 스케일 -->
+    <section class="slide l-content">
+      <div class="head"><h2>라이브 실습 — 노드 풀 스케일링</h2><div class="sub">선언만 바꾸면 CAPI가 조정</div></div>
+      <div class="body">
+        <div class="code">
+<span class="c"># worker-pool을 3 → 5로 스케일 아웃</span>
+<span class="pr">$</span> <span class="cmd">kubectl</span> patch cluster dev-cluster -n dev-ns --type merge -p '
+  spec:
+    topology:
+      workers:
+        machineDeployments:
+        - {class: node-pool, name: worker-pool, replicas: <span class="str">5</span>}'
+
+<span class="pr">$</span> <span class="cmd">kubectl</span> --kubeconfig=kc get nodes    <span class="c"># 워크로드 클러스터 노드 확인</span>
+        </div>
+        <div class="callout tip" style="margin-top:14px"><div class="ico">i</div><div>업데이트도 동일 — <b>version</b> 필드를 올리면 CAPI가 노드를 롤링 교체(무중단)</div></div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">6</div></div>
+    </section>
+
+    <!-- 7 과제 + 체크리스트 -->
+    <section class="slide l-content">
+      <div class="head"><h2>과제 & 체크리스트</h2><div class="sub">이걸 할 수 있으면 Week 10 완료</div></div>
+      <div class="body">
+        <ul>
+          <li>VKS 클러스터 <b>프로비저닝 YAML</b>을 작성하고 노드 상태를 확인할 수 있다</li>
+          <li><b>ClusterClass</b>의 역할과 버전 관리 방식을 안다</li>
+          <li><b>노드 풀 스케일링·롤링 업데이트</b>를 수행할 수 있다</li>
+          <li><b>pvCSI</b>로 영구 볼륨을 프로비저닝할 수 있다</li>
+          <li><b>Velero</b> 백업/복원 절차를 설명할 수 있다</li>
+        </ul>
+        <div class="callout tip" style="margin-top:14px"><div class="ico">✓</div><div>과제: 클러스터 프로비저닝 스크린샷 · ClusterClass 변수 문서화 · <b>Velero 백업/복원 시연</b></div></div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">7</div></div>
+    </section>
+
+    <!-- 8 마무리 (수료) -->
+    <section class="slide l-big">
+      <div class="statement" style="top:200px">
+        <div class="eyebrow">Course Complete · 10 Weeks</div>
+        컨테이너에서 시작해 <em>K8s 아키텍처·네트워킹·스토리지·보안·확장·DevOps</em>를 지나,<br><em>VCF/VKS 엔터프라이즈 운영</em>까지 — 10주 완주를 축하합니다 🎓
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">8</div></div>
+    </section>
+
+  </div>
+</div>
+<nav class="nav">
+  <button id="prev" aria-label="Previous">‹</button>
+  <div class="dots" id="dots"></div>
+  <button id="next" aria-label="Next">›</button>
+</nav>
+<script src="deck.js"></script>
+</body>
+</html>
