@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 9 — VCF Supervisor와 VPC 네트워킹 · K8s 10주</title>
+<link rel="stylesheet" href="deck.css">
+<style>.home{position:fixed;top:16px;left:18px;z-index:60;background:rgba(27,30,53,.82);color:#fff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:999px;backdrop-filter:blur(6px)}</style>
+</head>
+<body>
+<a class="home" href="index.html">← 목차</a>
+<div class="stage">
+  <div class="deck" id="deck">
+
+    <!-- 1 Title -->
+    <section class="slide l-title active">
+      <svg class="swoosh" style="left:0;top:0" width="560" height="720" viewBox="0 0 560 720" fill="none">
+        <defs><linearGradient id="gLeaf" x1="0" y1="720" x2="560" y2="0" gradientUnits="userSpaceOnUse"><stop stop-color="#61A00A"/><stop offset="1" stop-color="#007A86"/></linearGradient></defs>
+        <path d="M0 0 H560 C 380 60 300 180 300 380 C 300 560 220 680 0 720 Z" fill="url(#gLeaf)"/>
+        <path d="M560 14 C 388 76 316 192 316 380 C 316 556 240 672 40 720" stroke="#0193C2" stroke-width="3" fill="none"/>
+      </svg>
+      <div class="title-block">
+        <div class="eyebrow">Week 9 · Phase 5 VCF/VKS 실무</div>
+        <h1>VCF Supervisor와<br>VPC 네트워킹</h1>
+        <div class="rule"></div>
+        <div class="subtitle">VCF 9.0 Supervisor 아키텍처와 NSX Project→VPC→Namespace 매핑, VPC 서브넷과 Transit Gateway</div>
+      </div>
+      <div class="meta"><b>학습 자료</b> · vcf-supervisor-vpc<br>산출물 · Supervisor 아키텍처 · VPC 서브넷 · 배포 절차</div>
+      <div class="footer"><div>Kubernetes 10주 교육 커리큘럼 · github.com/kjin17/k8s_study</div><div class="brand-mark">VMware <span>by Broadcom</span></div></div>
+    </section>
+
+    <!-- 2 학습 목표 -->
+    <section class="slide l-content">
+      <div class="head"><h2>학습 목표</h2><div class="sub">엔터프라이즈 K8s 인프라 네트워킹의 기초</div></div>
+      <div class="body">
+        <ul>
+          <li><b>VCF 9.0 Supervisor</b>의 역할과 VPC 네트워킹 아키텍처를 이해한다</li>
+          <li><b>NSX Project → VPC → vSphere Namespace</b> 매핑 구조를 안다</li>
+          <li><b>VPC 서브넷 유형</b>(Private / External / Private TGW)의 차이를 구분한다</li>
+          <li><b>Centralized Transit Gateway</b>를 통한 크로스 VPC 통신을 이해한다</li>
+          <li>Supervisor 배포 요구사항·절차를 설명할 수 있다</li>
+        </ul>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">2</div></div>
+    </section>
+
+    <!-- 3 매핑 구조 -->
+    <section class="slide l-content">
+      <div class="head"><h2>NSX Project → VPC → vSphere Namespace</h2><div class="sub">테넌트 격리가 계층적으로 매핑된다</div></div>
+      <div class="body diagram">
+        <svg class="slidesvg" viewBox="0 0 1120 300">
+          <style>.t{fill:#1B1E35;font:700 16px Arial}.s{fill:#6a6e80;font:600 12px Arial}</style>
+          <rect x="30" y="60" width="300" height="120" rx="12" fill="#f5f1f9" stroke="#6C4B8F"/><text x="50" y="96" class="t" fill="#6C4B8F">NSX Project</text><text x="50" y="124" class="s">테넌트 경계(최상위)</text><text x="50" y="148" class="s">네트워크 자원 격리 단위</text>
+          <path d="M330 120 h50" stroke="#9aa0b4" stroke-width="2"/><path d="M380 120 l-9 -5 v10 z" fill="#9aa0b4"/>
+          <rect x="390" y="60" width="300" height="120" rx="12" fill="#eff7fb" stroke="#0193C2"/><text x="410" y="96" class="t" fill="#0193C2">VPC</text><text x="410" y="124" class="s">프로젝트 내 격리 네트워크</text><text x="410" y="148" class="s">서브넷·게이트웨이·라우팅</text>
+          <path d="M690 120 h50" stroke="#9aa0b4" stroke-width="2"/><path d="M740 120 l-9 -5 v10 z" fill="#9aa0b4"/>
+          <rect x="750" y="60" width="340" height="120" rx="12" fill="#eef6f7" stroke="#007A86"/><text x="770" y="96" class="t" fill="#007A86">vSphere Namespace</text><text x="770" y="124" class="s">K8s 워크로드 배치·쿼터·권한</text><text x="770" y="148" class="s">개발팀이 사용하는 단위</text>
+          <text x="30" y="240" class="s">상위 프로젝트가 여러 VPC를, VPC가 여러 Namespace를 포함 → 멀티테넌시를 네트워크 레벨에서 격리</text>
+        </svg>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">3</div></div>
+    </section>
+
+    <!-- 4 VPC 서브넷 유형 -->
+    <section class="slide l-two">
+      <div class="head"><h2>VPC 서브넷 3유형 & Transit Gateway</h2><div class="sub">어디까지 통신 가능한가로 서브넷을 나눈다</div></div>
+      <div class="cols three">
+        <div class="card leaf"><span class="card-tag">Private</span><h3>내부 전용</h3>
+          <ul><li>VPC 내부 통신만</li><li>외부 노출 없음(보안)</li><li>DB·백엔드 등</li></ul></div>
+        <div class="card aqua"><span class="card-tag">External</span><h3>외부 연결</h3>
+          <ul><li>외부(북/남) 트래픽 허용</li><li>LoadBalancer·공인 접근</li><li>프론트엔드·게이트웨이</li></ul></div>
+        <div class="card plum"><span class="card-tag">Private TGW</span><h3>크로스 VPC</h3>
+          <ul><li>Transit Gateway 경유</li><li>다른 VPC와 통신</li><li>공유 서비스 접근</li></ul></div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">4</div></div>
+    </section>
+
+    <!-- 5 Centralized TGW -->
+    <section class="slide l-content">
+      <div class="head"><h2>Centralized Transit Gateway</h2><div class="sub">여러 VPC를 한 중심 게이트웨이로 연결</div></div>
+      <div class="body diagram">
+        <svg class="slidesvg" viewBox="0 0 1120 300">
+          <style>.t{fill:#1B1E35;font:700 15px Arial}.s{fill:#6a6e80;font:600 12px Arial}</style>
+          <rect x="440" y="30" width="240" height="60" rx="10" fill="#eef6f7" stroke="#007A86"/><text x="560" y="66" class="t" text-anchor="middle" fill="#007A86">Central Transit Gateway</text>
+          <rect x="60" y="180" width="220" height="70" rx="10" fill="#eff7fb" stroke="#0193C2"/><text x="170" y="212" class="t" text-anchor="middle">VPC-A</text><text x="170" y="234" class="s" text-anchor="middle">테넌트 A</text>
+          <rect x="450" y="180" width="220" height="70" rx="10" fill="#f0f7e6" stroke="#61A00A"/><text x="560" y="212" class="t" text-anchor="middle">VPC-B</text><text x="560" y="234" class="s" text-anchor="middle">테넌트 B</text>
+          <rect x="840" y="180" width="220" height="70" rx="10" fill="#f5f1f9" stroke="#6C4B8F"/><text x="950" y="212" class="t" text-anchor="middle">VPC-C</text><text x="950" y="234" class="s" text-anchor="middle">공유 서비스</text>
+          <path d="M540 90 L200 180" stroke="#9aa0b4" stroke-width="2"/><path d="M560 90 L560 180" stroke="#9aa0b4" stroke-width="2"/><path d="M580 90 L930 180" stroke="#9aa0b4" stroke-width="2"/>
+          <text x="60" y="290" class="s">중앙 집중형: 관리·정책 일원화 · vs Distributed(분산형, DTGW): 성능·확장성 — 시나리오에 맞게 선택</text>
+        </svg>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">5</div></div>
+    </section>
+
+    <!-- 6 실습 -->
+    <section class="slide l-content">
+      <div class="head"><h2>라이브 실습 — Supervisor & VPC 탐색</h2><div class="sub">환경 확인부터 서비스 노출까지</div></div>
+      <div class="body">
+        <div class="code">
+<span class="c"># Supervisor 환경 확인</span>
+<span class="pr">$</span> <span class="cmd">kubectl</span> config get-contexts       <span class="c"># Supervisor context</span>
+<span class="pr">$</span> <span class="cmd">kubectl</span> get ns                     <span class="c"># vSphere Namespace 목록</span>
+<span class="pr">$</span> <span class="cmd">kubectl</span> get cluster -A              <span class="c"># TKG/VKS 클러스터</span>
+
+<span class="c"># VPC 네트워킹 구조 탐색</span>
+<span class="pr">$</span> <span class="cmd">kubectl</span> get networkconfig -A
+<span class="pr">$</span> <span class="cmd">kubectl</span> expose pod vpc-test --type=<span class="str">LoadBalancer</span> --port=80 -n &lt;ns&gt;
+<span class="pr">$</span> <span class="cmd">kubectl</span> get svc -n &lt;ns&gt;              <span class="c"># External IP 확인</span>
+        </div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">6</div></div>
+    </section>
+
+    <!-- 7 과제 -->
+    <section class="slide l-two">
+      <div class="head"><h2>과제 — VPC 아키텍처 분석</h2><div class="sub">직접 그리고 검증</div></div>
+      <div class="cols">
+        <div class="card leaf"><span class="card-tag">설계</span><h3>아키텍처 · 접근성</h3>
+          <ul><li>NSX Project/VPC/Subnet 매핑 <b>다이어그램</b> 작성</li><li>Private vs External 서브넷에 Pod 배포 → <b>접근성 차이</b> 검증 문서화</li></ul></div>
+        <div class="card plum"><span class="card-tag">통신 흐름</span><h3>Transit Gateway</h3>
+          <ul><li>Centralized Transit Gateway 통신 흐름을 <b>시퀀스 다이어그램</b>으로 정리</li></ul></div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">7</div></div>
+    </section>
+
+    <!-- 8 체크리스트 -->
+    <section class="slide l-content">
+      <div class="head"><h2>체크리스트 & 다음 주</h2><div class="sub">이걸 할 수 있으면 Week 9 완료</div></div>
+      <div class="body">
+        <ul>
+          <li><b>Supervisor</b>의 역할과 VPC 네트워킹 아키텍처를 설명할 수 있다</li>
+          <li><b>NSX Project → VPC → vSphere Namespace</b> 매핑을 이해한다</li>
+          <li>3가지 <b>VPC 서브넷 유형</b>의 차이를 구분할 수 있다</li>
+          <li><b>Centralized Transit Gateway</b>의 동작 원리를 안다</li>
+          <li>Supervisor <b>배포 요구사항</b>을 나열할 수 있다</li>
+        </ul>
+        <div class="callout tip" style="margin-top:14px"><div class="ico">→</div><div><b>다음 주(Week 10)</b> — 마지막: VKS 클러스터 프로비저닝·업데이트·오토스케일·백업 등 엔터프라이즈 운영입니다.</div></div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">8</div></div>
+    </section>
+
+  </div>
+</div>
+<nav class="nav">
+  <button id="prev" aria-label="Previous">‹</button>
+  <div class="dots" id="dots"></div>
+  <button id="next" aria-label="Next">›</button>
+</nav>
+<script src="deck.js"></script>
+</body>
+</html>
