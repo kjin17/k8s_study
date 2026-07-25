@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 2 — K8s 아키텍처와 Control Plane · K8s 10주</title>
+<link rel="stylesheet" href="deck.css">
+<style>.home{position:fixed;top:16px;left:18px;z-index:60;background:rgba(27,30,53,.82);color:#fff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:999px;backdrop-filter:blur(6px)}</style>
+</head>
+<body>
+<a class="home" href="index.html">← 목차</a>
+<div class="stage">
+  <div class="deck" id="deck">
+
+    <!-- 1 Title -->
+    <section class="slide l-title active">
+      <svg class="swoosh" style="left:0;top:0" width="560" height="720" viewBox="0 0 560 720" fill="none">
+        <defs><linearGradient id="gLeaf" x1="0" y1="720" x2="560" y2="0" gradientUnits="userSpaceOnUse"><stop stop-color="#61A00A"/><stop offset="1" stop-color="#007A86"/></linearGradient></defs>
+        <path d="M0 0 H560 C 380 60 300 180 300 380 C 300 560 220 680 0 720 Z" fill="url(#gLeaf)"/>
+        <path d="M560 14 C 388 76 316 192 316 380 C 316 556 240 672 40 720" stroke="#0193C2" stroke-width="3" fill="none"/>
+      </svg>
+      <div class="title-block">
+        <div class="eyebrow">Week 2 · Phase 1 기초 다지기</div>
+        <h1>K8s 아키텍처와<br>Control Plane</h1>
+        <div class="rule"></div>
+        <div class="subtitle">선언적(Declarative) 모델과 Master 5대 컴포넌트 — 그리고 1 Master + 2 Worker 클러스터를 직접 구축한다</div>
+      </div>
+      <div class="meta"><b>학습 자료</b> · k8s-master-components · (참고) k8s-install.sh<br>산출물 · 동작하는 1 Master + 2 Worker 클러스터</div>
+      <div class="footer"><div>Kubernetes 10주 교육 커리큘럼 · github.com/kjin17/k8s_study</div><div class="brand-mark">VMware <span>by Broadcom</span></div></div>
+    </section>
+
+    <!-- 2 학습 목표 -->
+    <section class="slide l-content">
+      <div class="head"><h2>학습 목표</h2><div class="sub">이번 주에 반드시 체득할 4가지</div></div>
+      <div class="body">
+        <ul>
+          <li><b>선언적 모델</b> — "무엇을 원하는가"를 선언하면 K8s가 알아서 맞춘다(Reconcile)</li>
+          <li><b>Master 5대 컴포넌트</b> — apiserver·etcd·scheduler·controller-manager·cloud-controller-manager의 역할을 설명한다</li>
+          <li><b>클러스터 구축</b> — kubeadm으로 1 Master + 2 Worker를 직접 만든다</li>
+          <li><b>kubectl 기본</b> — context·kubeconfig 구조와 describe로 상태를 분석한다</li>
+        </ul>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">2</div></div>
+    </section>
+
+    <!-- 3 선언적 모델 -->
+    <section class="slide l-two">
+      <div class="head"><h2>선언적 모델 — 명령이 아니라 선언</h2><div class="sub">K8s의 심장은 "원하는 상태(Desired State)"를 향한 끊임없는 조율</div></div>
+      <div class="cols">
+        <div class="card plum">
+          <span class="card-tag">명령형 (X)</span>
+          <h3>Imperative</h3>
+          <ul>
+            <li>"컨테이너를 <b>지금 실행해</b>"</li>
+            <li>한 번의 동작, 상태 추적 없음</li>
+            <li>죽으면 사람이 다시 살려야 함</li>
+            <li>→ 규모가 커지면 관리 불가</li>
+          </ul>
+        </div>
+        <div class="card leaf">
+          <span class="card-tag">선언형 (O)</span>
+          <h3>Declarative</h3>
+          <ul>
+            <li>"Pod가 <b>항상 3개 있어야 해</b>"</li>
+            <li>원하는 상태를 etcd에 기록</li>
+            <li>Controller가 현재≠원하는 상태면 <b>자동 복구</b></li>
+            <li>→ Self-Healing의 기반</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">3</div></div>
+    </section>
+
+    <!-- 4 Control Plane 5대 컴포넌트 다이어그램 -->
+    <section class="slide l-content">
+      <div class="head"><h2>Control Plane 5대 컴포넌트</h2><div class="sub">모든 컴포넌트는 apiserver를 통해서만 etcd에 접근한다</div></div>
+      <div class="body diagram">
+        <svg class="slidesvg" viewBox="0 0 1120 430">
+          <style>.t{fill:#1B1E35;font:700 16px Arial}.s{fill:#6a6e80;font:600 12px Arial}.h{fill:#6a6e80;font:700 12px Arial;letter-spacing:1px}.ln{stroke:#0193C2;stroke-width:2}</style>
+          <text x="20" y="22" class="h" fill="#007A86">MASTER NODE · CONTROL PLANE</text>
+          <rect x="20" y="34" width="1080" height="360" rx="14" fill="#f7f9fa" stroke="#cfd2dc"/>
+
+          <!-- apiserver center -->
+          <rect x="430" y="150" width="260" height="110" rx="10" fill="#eef6f7" stroke="#007A86" stroke-width="2"/>
+          <text x="560" y="192" class="t" text-anchor="middle" fill="#007A86">kube-apiserver</text>
+          <text x="560" y="216" class="s" text-anchor="middle">모든 요청의 진입점 · 인증/인가</text>
+          <text x="560" y="236" class="s" text-anchor="middle">유일하게 etcd와 직접 통신</text>
+
+          <!-- etcd -->
+          <rect x="770" y="60" width="290" height="86" rx="10" fill="#fdf6e3" stroke="#EDB516"/>
+          <text x="915" y="98" class="t" text-anchor="middle">etcd</text>
+          <text x="915" y="122" class="s" text-anchor="middle">분산 KV 저장소 · Source of Truth</text>
+          <line x1="690" y1="180" x2="800" y2="146" class="ln"/>
+
+          <!-- scheduler -->
+          <rect x="60" y="60" width="290" height="86" rx="10" fill="#e0f0e0" stroke="#61A00A"/>
+          <text x="205" y="98" class="t" text-anchor="middle">kube-scheduler</text>
+          <text x="205" y="122" class="s" text-anchor="middle">Pod를 어느 노드에 둘지 결정</text>
+          <line x1="350" y1="120" x2="430" y2="175" class="ln"/>
+
+          <!-- controller-manager -->
+          <rect x="60" y="270" width="290" height="86" rx="10" fill="#e0f0e0" stroke="#61A00A"/>
+          <text x="205" y="308" class="t" text-anchor="middle">controller-manager</text>
+          <text x="205" y="332" class="s" text-anchor="middle">현재→원하는 상태로 조율(Reconcile)</text>
+          <line x1="350" y1="305" x2="430" y2="235" class="ln"/>
+
+          <!-- cloud-controller-manager -->
+          <rect x="770" y="270" width="290" height="86" rx="10" fill="#f2f2f2" stroke="#cfd2dc"/>
+          <text x="915" y="308" class="t" text-anchor="middle">cloud-controller-manager</text>
+          <text x="915" y="332" class="s" text-anchor="middle">클라우드 제공자 연동(LB·볼륨)</text>
+          <line x1="690" y1="235" x2="800" y2="305" class="ln"/>
+        </svg>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">4</div></div>
+    </section>
+
+    <!-- 5 컴포넌트 요약 비유 -->
+    <section class="slide l-content">
+      <div class="head"><h2>공항으로 이해하는 Control Plane</h2><div class="sub">각 컴포넌트를 공항 역할에 비유하면 직관적이다</div></div>
+      <div class="body">
+        <ul>
+          <li><b>kube-apiserver</b> — 공항 안내 데스크: 모든 문의·요청이 반드시 거치는 창구</li>
+          <li><b>etcd</b> — 운항 기록부: 클러스터의 모든 상태가 기록되는 유일한 원장</li>
+          <li><b>kube-scheduler</b> — 게이트 배정 담당자: 새 Pod를 어떤 노드(게이트)에 붙일지 결정</li>
+          <li><b>controller-manager</b> — 각 부서 관리자: 예정↔실제를 계속 비교하며 어긋나면 바로잡음</li>
+          <li><b>cloud-controller-manager</b> — 외부 연결 담당: 클라우드 LB·스토리지 등 외부 서비스 연동</li>
+        </ul>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">5</div></div>
+    </section>
+
+    <!-- 6 API 요청 처리 흐름 -->
+    <section class="slide l-content">
+      <div class="head"><h2>API 요청 처리 흐름</h2><div class="sub">kubectl apply 한 번에 벌어지는 5단계</div></div>
+      <div class="body diagram">
+        <svg class="slidesvg" viewBox="0 0 1120 300">
+          <style>.ft{fill:#1B1E35;font:700 15px Arial}.fs{fill:#6a6e80;font:600 12px Arial}.fn{fill:#fff;font:700 15px Arial}</style>
+          <circle cx="90" cy="90" r="30" fill="#007A86"/><text x="90" y="96" class="fn" text-anchor="middle">1</text>
+          <text x="90" y="150" class="ft" text-anchor="middle">인증</text><text x="90" y="170" class="fs" text-anchor="middle">누구인가</text>
+          <circle cx="300" cy="90" r="30" fill="#0193C2"/><text x="300" y="96" class="fn" text-anchor="middle">2</text>
+          <text x="300" y="150" class="ft" text-anchor="middle">인가</text><text x="300" y="170" class="fs" text-anchor="middle">권한 있나(RBAC)</text>
+          <circle cx="510" cy="90" r="30" fill="#61A00A"/><text x="510" y="96" class="fn" text-anchor="middle">3</text>
+          <text x="510" y="150" class="ft" text-anchor="middle">Admission</text><text x="510" y="170" class="fs" text-anchor="middle">검증·변형</text>
+          <circle cx="720" cy="90" r="30" fill="#EDB516"/><text x="720" y="96" class="fn" text-anchor="middle">4</text>
+          <text x="720" y="150" class="ft" text-anchor="middle">etcd 저장</text><text x="720" y="170" class="fs" text-anchor="middle">상태 영구 기록</text>
+          <circle cx="960" cy="90" r="30" fill="#8E3B85"/><text x="960" y="96" class="fn" text-anchor="middle">5</text>
+          <text x="960" y="150" class="ft" text-anchor="middle">Watch 알림</text><text x="960" y="170" class="fs" text-anchor="middle">scheduler·controller</text>
+          <line x1="120" y1="90" x2="270" y2="90" stroke="#cfd2dc" stroke-width="2" marker-end="url(#a)"/>
+          <line x1="330" y1="90" x2="480" y2="90" stroke="#cfd2dc" stroke-width="2"/>
+          <line x1="540" y1="90" x2="690" y2="90" stroke="#cfd2dc" stroke-width="2"/>
+          <line x1="750" y1="90" x2="930" y2="90" stroke="#cfd2dc" stroke-width="2"/>
+          <text x="560" y="250" class="fs" text-anchor="middle">apiserver는 상태를 "직접 실행"하지 않는다 — etcd에 기록하고, 각 컨트롤러가 Watch로 받아 실제 상태를 맞춘다</text>
+        </svg>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">6</div></div>
+    </section>
+
+    <!-- 7 라이브 실습 클러스터 구축 -->
+    <section class="slide l-content">
+      <div class="head"><h2>라이브 실습 — 클러스터 구축 & 검증</h2><div class="sub">kubeadm으로 직접 만들고 상태를 확인한다</div></div>
+      <div class="body">
+        <div class="code">
+<span class="c"># 실습 1: 클러스터 자동 설치 (1 Master + 2 Worker)</span>
+<span class="pr">$</span> <span class="cmd">chmod</span> +x k8s-install.sh && ./k8s-install.sh   <span class="c"># CNI: Antrea/Calico 선택</span>
+
+<span class="c"># 실습 2: 클러스터 상태 검증</span>
+<span class="pr">$</span> <span class="cmd">kubectl</span> get nodes -o wide
+<span class="pr">$</span> <span class="cmd">kubectl</span> get pods -n <span class="str">kube-system</span>
+<span class="pr">$</span> <span class="cmd">kubectl</span> cluster-info
+
+<span class="c"># 실습 3: Control Plane을 Static Pod로 직접 확인</span>
+<span class="pr">$</span> <span class="cmd">ls</span> /etc/kubernetes/manifests/
+<span class="pr">$</span> <span class="cmd">sudo</span> crictl ps | grep -E <span class="str">'apiserver|etcd|scheduler|controller'</span>
+        </div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">7</div></div>
+    </section>
+
+    <!-- 8 과제 & 토론 -->
+    <section class="slide l-two">
+      <div class="head"><h2>과제 & 토론</h2><div class="sub">직접 깊이 파고들며 아키텍처를 몸에 익힌다</div></div>
+      <div class="cols">
+        <div class="card plum">
+          <span class="card-tag">과제</span>
+          <h3>제출 산출물</h3>
+          <ul>
+            <li><b>etcdctl</b>로 <code>/registry/pods/default</code> 키 직접 조회</li>
+            <li>API Server 1분간 재시작 → 클러스터 동작 변화 관찰·기록</li>
+            <li>scheduler <code>--v=4</code> 로그로 Pod 배치 과정 추적</li>
+          </ul>
+        </div>
+        <div class="card aqua">
+          <span class="card-tag">토론</span>
+          <h3>생각해볼 질문</h3>
+          <ul>
+            <li>apiserver가 유일한 Single Source of Truth인 이유는?</li>
+            <li>etcd가 죽어도 클러스터가 즉시 멈추지 않는 이유는?(kubelet)</li>
+            <li>Scheduler와 Controller Manager의 책임 분리는?</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">8</div></div>
+    </section>
+
+    <!-- 9 체크리스트 -->
+    <section class="slide l-content">
+      <div class="head"><h2>체크리스트 & 다음 주</h2><div class="sub">이걸 할 수 있으면 Week 2 완료</div></div>
+      <div class="body">
+        <ul>
+          <li><b>5대 컴포넌트</b>(apiserver·etcd·scheduler·controller-manager·cloud-controller-manager)의 역할을 설명할 수 있다</li>
+          <li><b>kubeadm</b>으로 클러스터를 만들고 노드를 join할 수 있다</li>
+          <li><b>kubeconfig / context</b> 구조를 이해한다</li>
+          <li><b>kubectl describe</b>로 객체 상태를 분석할 수 있다</li>
+        </ul>
+        <div class="callout tip" style="margin-top:18px"><div class="ico">→</div><div><b>다음 주(Week 3)</b> — Worker Node 컴포넌트와 Pod·Deployment 핵심 오브젝트, 3-tier 앱 배포와 롤링 업데이트·Probe를 다룹니다.</div></div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">9</div></div>
+    </section>
+
+  </div>
+</div>
+<nav class="nav">
+  <button id="prev" aria-label="Previous">‹</button>
+  <div class="dots" id="dots"></div>
+  <button id="next" aria-label="Next">›</button>
+</nav>
+<script src="deck.js"></script>
+</body>
+</html>
