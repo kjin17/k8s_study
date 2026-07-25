@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 3 — Worker Node와 핵심 오브젝트 · K8s 10주</title>
+<link rel="stylesheet" href="deck.css">
+<style>.home{position:fixed;top:16px;left:18px;z-index:60;background:rgba(27,30,53,.82);color:#fff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:999px;backdrop-filter:blur(6px)}</style>
+</head>
+<body>
+<a class="home" href="index.html">← 목차</a>
+<div class="stage">
+  <div class="deck" id="deck">
+
+    <!-- 1 Title -->
+    <section class="slide l-title active">
+      <svg class="swoosh" style="left:0;top:0" width="560" height="720" viewBox="0 0 560 720" fill="none">
+        <defs><linearGradient id="gLeaf" x1="0" y1="720" x2="560" y2="0" gradientUnits="userSpaceOnUse"><stop stop-color="#61A00A"/><stop offset="1" stop-color="#007A86"/></linearGradient></defs>
+        <path d="M0 0 H560 C 380 60 300 180 300 380 C 300 560 220 680 0 720 Z" fill="url(#gLeaf)"/>
+        <path d="M560 14 C 388 76 316 192 316 380 C 316 556 240 672 40 720" stroke="#0193C2" stroke-width="3" fill="none"/>
+      </svg>
+      <div class="title-block">
+        <div class="eyebrow">Week 3 · Phase 2 핵심 오브젝트</div>
+        <h1>Worker Node와<br>핵심 오브젝트</h1>
+        <div class="rule"></div>
+        <div class="subtitle">워커 노드가 Pod를 실행하는 원리(kubelet·kube-proxy·containerd)와 Pod 생명주기·Probe·롤링 업데이트</div>
+      </div>
+      <div class="meta"><b>학습 자료</b> · k8s-worker-components · (심화) containerd<br>산출물 · 3-tier 앱(Frontend/Backend/Cache) 배포</div>
+      <div class="footer"><div>Kubernetes 10주 교육 커리큘럼 · github.com/kjin17/k8s_study</div><div class="brand-mark">VMware <span>by Broadcom</span></div></div>
+    </section>
+
+    <!-- 2 학습 목표 -->
+    <section class="slide l-content">
+      <div class="head"><h2>학습 목표</h2><div class="sub">워커 노드에서 실제로 무슨 일이 일어나는가</div></div>
+      <div class="body">
+        <ul>
+          <li><b>워커 3대 컴포넌트</b> — kubelet · kube-proxy · container runtime(containerd)의 역할을 이해한다</li>
+          <li><b>Pod 생명주기</b> — 상태·재시작 정책과 Liveness/Readiness Probe를 설명할 수 있다</li>
+          <li><b>Deployment</b> — 롤링 업데이트와 롤백을 활용할 수 있다</li>
+          <li><b>트러블슈팅</b> — <b>crictl</b>로 워커 노드에서 직접 진단한다</li>
+        </ul>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">2</div></div>
+    </section>
+
+    <!-- 3 워커 3대 컴포넌트 -->
+    <section class="slide l-content">
+      <div class="head"><h2>Worker Node 3대 컴포넌트</h2><div class="sub">Control Plane의 명령을 받아 실제 컨테이너를 띄운다</div></div>
+      <div class="body diagram">
+        <svg class="slidesvg" viewBox="0 0 1120 420">
+          <style>.t{fill:#1B1E35;font:700 17px Arial}.s{fill:#4b4f63;font:600 12.5px Arial}.h{fill:#6a6e80;font:700 12px Arial;letter-spacing:1px}.m{fill:#8ad35a;font:700 12px "SF Mono",monospace}</style>
+          <rect x="30" y="20" width="1060" height="60" rx="10" fill="#eef6f7" stroke="#007A86"/><text x="52" y="56" class="t" fill="#007A86">API Server (Control Plane)</text><text x="900" y="56" class="s">→ 원하는 상태 전달</text>
+          <path d="M560 80 L560 108" stroke="#9aa0b4" stroke-width="2"/><path d="M560 108 l-6 -9 h12 z" fill="#9aa0b4"/>
+          <rect x="30" y="112" width="345" height="150" rx="12" fill="#f0f7e6" stroke="#61A00A"/><text x="52" y="142" class="h">AGENT</text><text x="52" y="168" class="t">kubelet</text><text x="52" y="196" class="s">노드 대표 · PodSpec 받아</text><text x="52" y="216" class="s">컨테이너 생성·상태 보고</text><text x="52" y="240" class="s">Probe 실행·재시작 판단</text>
+          <rect x="388" y="112" width="345" height="150" rx="12" fill="#eff7fb" stroke="#0193C2"/><text x="410" y="142" class="h">NETWORK</text><text x="410" y="168" class="t">kube-proxy</text><text x="410" y="196" class="s">Service → Pod 라우팅</text><text x="410" y="216" class="s">iptables / IPVS 규칙 관리</text><text x="410" y="240" class="s">로드밸런싱</text>
+          <rect x="746" y="112" width="344" height="150" rx="12" fill="#f5f1f9" stroke="#6C4B8F"/><text x="768" y="142" class="h">RUNTIME</text><text x="768" y="168" class="t">containerd</text><text x="768" y="196" class="s">CRI로 kubelet과 통신</text><text x="768" y="216" class="s">이미지 pull · 컨테이너 실행</text><text x="768" y="240" class="s">shim으로 프로세스 관리</text>
+          <text x="560" y="300" class="m" text-anchor="middle">kubelet ⇄ (CRI) ⇄ containerd ⇄ (OCI) ⇄ runc → 컨테이너</text>
+          <text x="560" y="340" class="s" text-anchor="middle">kubelet은 "무엇을", kube-proxy는 "어디로", containerd는 "어떻게 실행"을 담당</text>
+        </svg>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">3</div></div>
+    </section>
+
+    <!-- 4 Pod 생명주기 + Probe -->
+    <section class="slide l-two">
+      <div class="head"><h2>Pod 생명주기 & Probe</h2><div class="sub">상태를 알고, 헬스체크로 자동 복구·트래픽 제어</div></div>
+      <div class="cols">
+        <div class="card leaf">
+          <span class="card-tag">Lifecycle</span>
+          <h3>Pod 5가지 상태</h3>
+          <ul>
+            <li><b>Pending</b> — 스케줄/이미지 pull 대기</li>
+            <li><b>Running</b> — 컨테이너 정상 실행 중</li>
+            <li><b>Succeeded / Failed</b> — 정상/비정상 종료</li>
+            <li><b>Unknown</b> — 노드 통신 불가</li>
+            <li>재시작 정책: Always · OnFailure · Never</li>
+          </ul>
+        </div>
+        <div class="card aqua">
+          <span class="card-tag">Probe</span>
+          <h3>Liveness vs Readiness</h3>
+          <ul>
+            <li><b>Liveness</b> — 실패 시 <b>컨테이너 재시작</b></li>
+            <li><b>Readiness</b> — 실패 시 <b>Service에서 제외</b>(트래픽 차단)</li>
+            <li>방식: httpGet · tcpSocket · exec</li>
+            <li>→ 자동 복구 + 무중단 트래픽 라우팅</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">4</div></div>
+    </section>
+
+    <!-- 5 Deployment 롤링 -->
+    <section class="slide l-content">
+      <div class="head"><h2>Deployment — 롤링 업데이트 & 롤백</h2><div class="sub">무중단 배포와 즉시 되돌리기</div></div>
+      <div class="body diagram">
+        <svg class="slidesvg" viewBox="0 0 1120 300">
+          <style>.rt{fill:#1B1E35;font:700 15px Arial}.rs{fill:#6a6e80;font:600 12px Arial}</style>
+          <rect x="30" y="60" width="230" height="90" rx="10" fill="#f2f2f2" stroke="#cfd2dc"/><text x="130" y="100" class="rt" text-anchor="middle">v1.24 ×3</text><text x="130" y="126" class="rs" text-anchor="middle">기존 ReplicaSet</text>
+          <text x="300" y="110" class="rs" text-anchor="middle">rollout →</text>
+          <rect x="360" y="60" width="230" height="90" rx="10" fill="#fdf6e3" stroke="#EDB516"/><text x="475" y="100" class="rt" text-anchor="middle">v1.24×1 + v1.25×2</text><text x="475" y="126" class="rs" text-anchor="middle">점진 교체(무중단)</text>
+          <text x="630" y="110" class="rs" text-anchor="middle">→</text>
+          <rect x="690" y="60" width="230" height="90" rx="10" fill="#e0f0e0" stroke="#61A00A"/><text x="805" y="100" class="rt" text-anchor="middle">v1.25 ×3</text><text x="805" y="126" class="rs" text-anchor="middle">새 ReplicaSet</text>
+          <path d="M805 155 C 805 220, 130 220, 130 158" fill="none" stroke="#6C4B8F" stroke-width="2" stroke-dasharray="6 5"/><text x="467" y="212" class="rs" fill="#6C4B8F" text-anchor="middle">rollout undo → 이전 버전으로 즉시 롤백</text>
+        </svg>
+        <div class="code" style="margin-top:6px;font-size:12.5px">
+<span class="pr">$</span> <span class="cmd">kubectl</span> set image deployment/nginx nginx=<span class="str">nginx:1.25</span>
+<span class="pr">$</span> <span class="cmd">kubectl</span> rollout status deployment/nginx   <span class="c"># 진행 확인</span>
+<span class="pr">$</span> <span class="cmd">kubectl</span> rollout undo deployment/nginx     <span class="c"># 롤백</span>
+        </div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">5</div></div>
+    </section>
+
+    <!-- 6 실습 crictl -->
+    <section class="slide l-content">
+      <div class="head"><h2>라이브 실습 — 핵심 오브젝트 & 트러블슈팅</h2><div class="sub">스크립트로 학습하고, 워커에서 직접 진단</div></div>
+      <div class="body">
+        <div class="code">
+<span class="c"># 실습 1: 인터랙티브 학습 (Namespace→Pod→Deployment→Service→ConfigMap→Secret)</span>
+<span class="pr">$</span> ./k8s-learn.sh
+
+<span class="c"># 실습 2: Worker Node에서 직접 트러블슈팅 (crictl)</span>
+<span class="pr">$</span> sudo <span class="cmd">crictl</span> ps                 <span class="c"># 컨테이너 목록</span>
+<span class="pr">$</span> sudo <span class="cmd">crictl</span> logs &lt;id&gt;          <span class="c"># 컨테이너 로그</span>
+<span class="pr">$</span> sudo <span class="cmd">systemctl</span> status kubelet
+<span class="pr">$</span> sudo <span class="cmd">journalctl</span> -u kubelet -f
+        </div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">6</div></div>
+    </section>
+
+    <!-- 7 Probe 실습 -->
+    <section class="slide l-content">
+      <div class="head"><h2>라이브 실습 — Probe 시나리오</h2><div class="sub">헬스체크 동작을 직접 관찰</div></div>
+      <div class="body">
+        <div class="code" style="font-size:13px">
+<span class="cmd">apiVersion:</span> v1
+<span class="cmd">kind:</span> Pod
+<span class="cmd">metadata:</span> {<span class="arg">name:</span> probe-demo}
+<span class="cmd">spec:</span>
+  <span class="arg">containers:</span>
+  - <span class="arg">name:</span> app
+    <span class="arg">image:</span> <span class="str">nginx</span>
+    <span class="arg">livenessProbe:</span>                      <span class="c"># 실패 → 재시작</span>
+      httpGet: {path: /, port: <span class="str">80</span>}
+      initialDelaySeconds: 5
+    <span class="arg">readinessProbe:</span>                     <span class="c"># 실패 → 트래픽 제외</span>
+      tcpSocket: {port: <span class="str">80</span>}
+        </div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">7</div></div>
+    </section>
+
+    <!-- 8 과제 -->
+    <section class="slide l-two">
+      <div class="head"><h2>과제 — 3-tier 앱 배포</h2><div class="sub">배운 오브젝트를 실제 앱으로</div></div>
+      <div class="cols">
+        <div class="card leaf">
+          <span class="card-tag">Deploy</span>
+          <h3>3-tier 애플리케이션</h3>
+          <ul>
+            <li><b>Frontend</b> — Nginx Deployment</li>
+            <li><b>Backend</b> — Node.js Deployment</li>
+            <li><b>Cache</b> — Redis Deployment</li>
+            <li>→ Deployment 3개로 구성</li>
+          </ul>
+        </div>
+        <div class="card plum">
+          <span class="card-tag">심화 과제</span>
+          <h3>Probe · Config 실습</h3>
+          <ul>
+            <li>Liveness를 일부러 실패 → <b>재시작 횟수 관찰·분석</b></li>
+            <li><b>ConfigMap</b>을 환경변수로</li>
+            <li><b>Secret</b>을 볼륨 마운트로 같은 Pod에 사용</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">8</div></div>
+    </section>
+
+    <!-- 9 체크리스트 -->
+    <section class="slide l-content">
+      <div class="head"><h2>체크리스트 & 다음 주</h2><div class="sub">이걸 할 수 있으면 Week 3 완료</div></div>
+      <div class="body">
+        <ul>
+          <li><b>kubelet · kube-proxy · container runtime</b>의 역할을 설명할 수 있다</li>
+          <li>Pod의 <b>5가지 상태</b>(Pending/Running/Succeeded/Failed/Unknown)를 안다</li>
+          <li><b>crictl</b>로 컨테이너 로그·상태를 확인할 수 있다</li>
+          <li><b>Deployment 롤백</b>을 실행할 수 있다</li>
+        </ul>
+        <div class="callout tip" style="margin-top:18px"><div class="ico">→</div><div><b>다음 주(Week 4)</b> — 네트워킹: Service 타입, Ingress 라우팅, CoreDNS, CNI 비교로 서비스를 노출합니다.</div></div>
+      </div>
+      <div class="footer"><div class="brand-mark">VMware <span>by Broadcom</span></div><div class="page-no">9</div></div>
+    </section>
+
+  </div>
+</div>
+<nav class="nav">
+  <button id="prev" aria-label="Previous">‹</button>
+  <div class="dots" id="dots"></div>
+  <button id="next" aria-label="Next">›</button>
+</nav>
+<script src="deck.js"></script>
+</body>
+</html>
