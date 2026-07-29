@@ -6,6 +6,13 @@ Kubernetes 클러스터 **자동 설치**, **오브젝트 학습**, **애드온 
 
 > 📅 **10주 커리큘럼**: [`curriculum-10weeks.md`](curriculum-10weeks.md) — 입문(컨테이너/Git)부터 GitOps 기반 CI/CD까지, 매주 *이론 → 실습 → 과제 → 토론*으로 진행되는 60시간 학습 로드맵.
 
+## 🔗 라이브 슬라이드 (GitHub Pages)
+
+10주 커리큘럼을 주차별 Broadcom 템플릿 슬라이드로 변환한 자료입니다.
+
+- **랜딩 허브 (10주 로드맵):** https://kjin17.github.io/k8s_study/
+- **주차별 덱:** 랜딩 페이지의 Week 1~10 카드에서 접근 (`week1.html` ~ `week10.html`)
+
 ---
 
 ## 📚 교육 자료
