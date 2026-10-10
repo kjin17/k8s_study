@@ -27,7 +27,7 @@
 
 ### Part 1. Pod 하나가 GPU를 쓰기까지
 
-- [ ] **01. GPU를 Pod에 붙이는 원리**
+- [x] **01. GPU를 Pod에 붙이는 원리** → [`01-gpu-pod-basics.md`](01-gpu-pod-basics.md)
   device plugin API(kubelet 등록, `ListAndWatch`, `Allocate`), 확장 리소스 `nvidia.com/gpu`의 요청/제한 규칙(정수, limits만 써도 되고 requests=limits여야 함, 오버커밋 없음), NVIDIA Container Toolkit과 CDI, containerd 런타임 설정, `RuntimeClass`.
   GPU 없이: 노드 status에 `nvidia.com/gpu` 용량을 패치해 스케줄링만 재현.
 - [ ] **02. NVIDIA GPU Operator 구성 요소**
@@ -85,3 +85,4 @@
 | 날짜 | 절 | 비고 |
 |------|----|------|
 | 2026-10-10 | 목차 | 12절 확정, 버전 기준 확인 |
+| 2026-10-10 | 01 | device plugin v0.20.1·Container Toolkit v1.20.1 기준, GPU 없이 kind+노드 status 패치 실습 |
