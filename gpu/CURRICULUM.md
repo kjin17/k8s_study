@@ -30,7 +30,7 @@
 - [x] **01. GPU를 Pod에 붙이는 원리** → [`01-gpu-pod-basics.md`](01-gpu-pod-basics.md)
   device plugin API(kubelet 등록, `ListAndWatch`, `Allocate`), 확장 리소스 `nvidia.com/gpu`의 요청/제한 규칙(정수, limits만 써도 되고 requests=limits여야 함, 오버커밋 없음), NVIDIA Container Toolkit과 CDI, containerd 런타임 설정, `RuntimeClass`.
   GPU 없이: 노드 status에 `nvidia.com/gpu` 용량을 패치해 스케줄링만 재현.
-- [ ] **02. NVIDIA GPU Operator 구성 요소**
+- [x] **02. NVIDIA GPU Operator 구성 요소** → [`02-gpu-operator.md`](02-gpu-operator.md)
   driver 컨테이너, container-toolkit, device-plugin, GPU Feature Discovery, NFD, DCGM·dcgm-exporter, MIG manager, validator. 어떤 순서로 뜨고 하나가 죽으면 무엇이 멈추나. 드라이버 사전 설치 노드와의 공존.
 - [ ] **03. GPU 노드 고르기**
   NFD/GFD 라벨(`nvidia.com/gpu.product`, `nvidia.com/gpu.count` 등), nodeSelector·nodeAffinity, GPU 노드 taint와 toleration, 일반 Pod가 GPU 노드를 차지하지 않게 하는 패턴, PriorityClass.
@@ -86,3 +86,4 @@
 |------|----|------|
 | 2026-10-10 | 목차 | 12절 확정, 버전 기준 확인 |
 | 2026-10-10 | 01 | device plugin v0.20.1·Container Toolkit v1.20.1 기준, GPU 없이 kind+노드 status 패치 실습 |
+| 2026-10-11 | 02 | GPU Operator v26.7.1 기준, CDI 기본(v25.10+)·validator 대기 사슬·GPUCluster(DRA) 구분 |
