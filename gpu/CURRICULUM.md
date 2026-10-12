@@ -32,7 +32,7 @@
   GPU 없이: 노드 status에 `nvidia.com/gpu` 용량을 패치해 스케줄링만 재현.
 - [x] **02. NVIDIA GPU Operator 구성 요소** → [`02-gpu-operator.md`](02-gpu-operator.md)
   driver 컨테이너, container-toolkit, device-plugin, GPU Feature Discovery, NFD, DCGM·dcgm-exporter, MIG manager, validator. 어떤 순서로 뜨고 하나가 죽으면 무엇이 멈추나. 드라이버 사전 설치 노드와의 공존.
-- [ ] **03. GPU 노드 고르기**
+- [x] **03. GPU 노드 고르기** → [`03-gpu-node-selection.md`](03-gpu-node-selection.md)
   NFD/GFD 라벨(`nvidia.com/gpu.product`, `nvidia.com/gpu.count` 등), nodeSelector·nodeAffinity, GPU 노드 taint와 toleration, 일반 Pod가 GPU 노드를 차지하지 않게 하는 패턴, PriorityClass.
 - [ ] **04. GPU 나눠 쓰기: MIG·time-slicing·MPS**
   격리 수준(메모리·장애·QoS) 비교표, MIG 프로필과 single/mixed 전략, time-slicing의 `replicas` 의미와 메모리 비격리, MPS 제어 데몬. 언제 무엇을 쓰고 무엇을 하면 안 되나.
