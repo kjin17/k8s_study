@@ -39,9 +39,10 @@ GPU 한 장을 여럿이 쓰는 방법은 셋이다. 하는 일이 전혀 다르
 
 목차의 전제대로 하이퍼바이저 vGPU는 다루지 않는다. 베어메탈이나 패스스루 GPU 노드에서 MIG·time-slicing·MPS만 본다.
 
-- **[근거]** MIG User Guide의 지원 GPU 표(2026-09-11 갱신)에는 A100·A30·H100·H200·H20·GH200·B200·GB200·RTX PRO Blackwell 계열이 있다. 최대 인스턴스 수는 A100·H100·B200이 7, A30·RTX PRO 6000이 4다. **B300(Blackwell Ultra)은 이 표에도, 프로필 표에도 없다.** 출처: <https://docs.nvidia.com/datacenter/tesla/mig-user-guide/supported-gpus.html>, <https://docs.nvidia.com/datacenter/tesla/mig-user-guide/supported-mig-profiles.html> (2026-10-14 확인)
+- **[근거]** MIG User Guide의 지원 GPU 표(2026-09-11 갱신)에는 A100·A30·H100·H200·H20·GH200·B200·GB200·RTX PRO Blackwell 계열이 있다. 최대 인스턴스 수는 A100·H100·B200이 7, A30·RTX PRO 6000이 4다. **B300(Blackwell Ultra)은 이 표에도, 프로필 표에도 아직 없다.** 출처: <https://docs.nvidia.com/datacenter/tesla/mig-user-guide/supported-gpus.html>, <https://docs.nvidia.com/datacenter/tesla/mig-user-guide/supported-mig-profiles.html> (2026-10-14 확인)
+- **[근거]** 그러나 HGX B300의 MIG는 다른 1차 출처에 있다. GPU Operator 25.10.0 릴리스 노트에 "Added support for new MIG profiles with NVIDIA HGX B300"과 프로필 목록(`1g.34gb`, `1g.34gb+me`, `1g.67gb`, `2g.67gb`, `3g.135gb`, `4g.135gb`, `7g.269gb`)이 있고, NVIDIA MIG 제품 페이지 사양표에도 HGX B300 열(최대 7개 인스턴스)이 있다. 출처: <https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/release-notes.html>, <https://www.nvidia.com/en-us/technologies/multi-instance-gpu/> (2026-10-14 확인)
 - **[근거]** 같은 시기의 CUDA MPS 문서 예시 출력에는 `NVIDIA B300` 8장에서 locality domain(옛 이름 MLOPart)을 쓰는 장면이 나온다. 출처: <https://docs.nvidia.com/deploy/mps/when-to-use-mps.html> "Locality Domains" (2026-10-14 확인)
-- **[추론]** 그래서 B300 노드에서 공유를 설계할 때는 "MIG가 된다"를 기본값으로 두면 안 된다. 문서 표에 없다는 것은 "안 된다"는 증거가 아니라 "문서로 확인 못 했다"는 뜻이다. 실제 장비에서 `nvidia-smi -i 0 --query-gpu=mig.mode.current --format=csv`로 지원 여부부터 본다. 표에 오를 때까지 B300의 공유 수단은 time-slicing·MPS로 보고 설계한다.
+- **[추론]** 그래서 B300에서 MIG는 쓸 수 있다고 본다. 다만 MIG User Guide 쪽이 늦어서 B300 프로필의 SM·메모리 비율이나 드라이버 최소 버전 같은 세부는 아직 User Guide로 확인할 수 없다. 프로필 이름은 GPU Operator 릴리스 노트를, 실제 가능 여부는 장비의 `nvidia-smi mig -lgip`(가능한 GPU 인스턴스 프로필 목록)를 기준으로 삼는다. 한 문서에 없다고 "지원 안 함"으로 적지 않는다.
 
 ## 2. 그림
 
@@ -241,20 +242,20 @@ kubectl describe node $N | sed -n '/Allocatable/,/System Info/p'
 5. **MIG 구성을 운영 중에 바꾼다.** MIG Manager가 그 노드의 GPU Pod를 다 내린다. 노드 라벨 하나로 운영 Pod가 내려간다는 뜻이라, 라벨 변경 권한을 좁히고 cordon과 같이 한다.
 6. **`gpu.product` 정확 일치 nodeSelector를 그대로 둔다.** 공유를 켜면 `-SHARED`, MIG single이면 `-MIG-1g.10gb`가 붙는다(03절 1.2).
 7. **time-slicing 노드의 dcgm-exporter 지표를 Pod별로 보려 한다.** 컨테이너 연결이 안 된다(12절에서 다시).
-8. **B300에서 MIG를 전제로 설계한다.** 2026-10-14 기준 MIG User Guide의 지원 표에 B300이 없다. 장비에서 먼저 확인한다(1.2).
+8. **문서 하나의 지원 표만 보고 결론 낸다.** 2026-10-14 기준 B300은 MIG User Guide 표에는 없지만 GPU Operator 릴리스 노트와 MIG 제품 페이지에는 있다(1.2). 프로필 이름은 릴리스 노트, 최종 판정은 장비의 `nvidia-smi mig -lgip`.
 
 ## 6. 확인 문제
 
 1. T4 1장 노드에 time-slicing `replicas: 4`를 켰다. Pod A가 `nvidia.com/gpu: 2`, Pod B·C가 각각 1을 요청해 셋 다 배치됐다(`failRequestsGreaterThanOne: false`). A가 B·C보다 2배 빠를까? A가 GPU 메모리 15GB를 다 쓰면 무슨 일이 생기나?
 2. H100 8장 노드를 MIG `mixed`로 바꾸고 일부 GPU에 `all-balanced`를 적용했다. 기존에 `nvidia.com/gpu: 1`을 요청하던 Deployment의 새 Pod는 어디로 갈 수 있나? 그리고 MIG 인스턴스에 MPS를 얹을 수 있나?
-3. 사내 두 팀이 GPU 한 장을 나눠 써야 하고, 한 팀은 실험 코드라 자주 죽는다. 세 방식 중 무엇을 고르고, 그 GPU가 B300이라면 무엇을 먼저 해야 하나?
+3. 사내 두 팀이 GPU 한 장을 나눠 써야 하고, 한 팀은 실험 코드라 자주 죽는다. 세 방식 중 무엇을 고르고, 그 GPU가 B300이라면 프로필 이름은 어디서 확인하나?
 
 <details>
 <summary>답</summary>
 
 1. 아니다. replica 수와 상관없이 CUDA는 GPU 프로세스마다 시간을 똑같이 나눈다. A가 프로세스 하나면 셋이 1/3씩이다. 메모리 격리가 없으므로 A가 메모리를 다 잡으면 B·C의 할당이 실패(OOM)한다. 장애 영역도 같아서 한 쪽이 GPU 오류를 내면 다 같이 영향을 받는다.
 2. `mixed`에서는 MIG가 켜진 GPU가 `nvidia.com/mig-<프로필>` 이름으로만 광고되고, `nvidia.com/gpu`는 MIG가 꺼진 GPU 수만 남는다. 그래서 새 Pod는 MIG를 안 켠 GPU에만 갈 수 있고, 그것이 0이면 `Pending`이다. MIG 위 MPS는 device plugin이 지원하지 않는다(MIG 위 time-slicing은 된다). MPS v3 메모리 분할도 MIG를 명시적으로 지원하지 않는다.
-3. 자주 죽는 쪽이 다른 팀을 끌어내리면 안 되므로 장애 격리가 있는 MIG가 맞다. time-slicing은 장애 영역이 같고, MPS도 치명적 오류가 같은 GPU의 클라이언트에 퍼진다. B300이라면 MIG User Guide 지원 표에 아직 없으므로(2026-10-14) 장비에서 MIG 모드 지원 여부부터 확인한다. 안 되면 두 팀을 노드 단위로 나누는 쪽(03절 라벨·taint)이 현실적인 대안이다(추론).
+3. 자주 죽는 쪽이 다른 팀을 끌어내리면 안 되므로 장애 격리가 있는 MIG가 맞다. time-slicing은 장애 영역이 같고, MPS도 치명적 오류가 같은 GPU의 클라이언트에 퍼진다. B300은 MIG User Guide 표에 아직 없으므로(2026-10-14) GPU Operator 25.10.0 릴리스 노트의 B300 프로필 목록(예: `3g.135gb` 둘로 반씩)을 보고, 장비에서 `nvidia-smi mig -lgip`로 실제 목록을 확인한 뒤 `nvidia.com/mig.config`를 고른다. 격리가 더 필요하면 두 팀을 노드 단위로 나누는 쪽(03절 라벨·taint)도 있다(추론).
 
 </details>
 
@@ -272,5 +273,7 @@ kubectl describe node $N | sed -n '/Allocatable/,/System Info/p'
 - GFD 라벨러 소스(v0.20.1, `mps.capable`): <https://github.com/NVIDIA/k8s-device-plugin/blob/v0.20.1/internal/lm/nvml.go>
 - GPU Operator, Time-Slicing GPUs in Kubernetes: <https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/gpu-sharing.html>
 - GPU Operator, GPU Operator with MIG: <https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/gpu-operator-mig.html>
+- GPU Operator 릴리스 노트(25.10.0의 HGX B300 MIG 프로필): <https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/release-notes.html>
+- NVIDIA MIG 제품 페이지(사양표, HGX B300 열): <https://www.nvidia.com/en-us/technologies/multi-instance-gpu/>
 - MIG User Guide(2026-09-11 갱신): Introduction, Supported GPUs, Supported MIG Profiles, Deployment Considerations — <https://docs.nvidia.com/datacenter/tesla/mig-user-guide/>
 - CUDA MPS 문서(2026-09-09 갱신): When to Use MPS, MPS v3 Interface, MPS v3 Memory Partitioning — <https://docs.nvidia.com/deploy/mps/>
