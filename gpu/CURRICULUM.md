@@ -88,4 +88,4 @@
 | 2026-10-10 | 01 | device plugin v0.20.1·Container Toolkit v1.20.1 기준, GPU 없이 kind+노드 status 패치 실습 |
 | 2026-10-11 | 02 | GPU Operator v26.7.1 기준, CDI 기본(v25.10+)·validator 대기 사슬·GPUCluster(DRA) 구분 |
 | 2026-10-12 | 03 | GFD v0.20.1 라벨 표, `Gt`/`Lt` 메모리 조건, ExtendedResourceToleration 기본 꺼짐(기록 누락분 보충) |
-| 2026-10-14 | 04 | MIG User Guide(09-11) 지원 표에 B300 없음, MPS는 여전히 실험적, MPS v3(cgroup 메모리 분할) 새로 생김 |
+| 2026-10-14 | 04 | B300 MIG는 User Guide(09-11) 표엔 없고 GPU Operator 25.10 릴리스 노트·MIG 제품 페이지엔 있음(정정 반영), MPS는 여전히 실험적, MPS v3(cgroup 메모리 분할) 새로 생김 |
