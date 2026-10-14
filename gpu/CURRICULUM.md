@@ -36,7 +36,7 @@
   NFD/GFD 라벨(`nvidia.com/gpu.product`, `nvidia.com/gpu.count` 등), nodeSelector·nodeAffinity, GPU 노드 taint와 toleration, 일반 Pod가 GPU 노드를 차지하지 않게 하는 패턴, PriorityClass.
 - [x] **04. GPU 나눠 쓰기: MIG·time-slicing·MPS** → [`04-gpu-sharing.md`](04-gpu-sharing.md)
   격리 수준(메모리·장애·QoS) 비교표, MIG 프로필과 single/mixed 전략, time-slicing의 `replicas` 의미와 메모리 비격리, MPS 제어 데몬. 언제 무엇을 쓰고 무엇을 하면 안 되나.
-- [ ] **05. DRA(Dynamic Resource Allocation)**
+- [x] **05. DRA(Dynamic Resource Allocation)** → [`05-dra.md`](05-dra.md)
   `DeviceClass`·`ResourceClaim`·`ResourceClaimTemplate`·`ResourceSlice`, CEL로 장치 고르기, 장치 공유. device plugin 모델과 무엇이 다른가, NVIDIA DRA 드라이버 현황.
   [근거] 핵심 API가 v1.34에서 GA(<https://kubernetes.io/blog/2025/09/01/kubernetes-v1-34-dra-updates/>, 2026-10-10 확인), 공식 문서 기능 상태는 "Stable since v1.35"로 기능 게이트가 잠김(<https://kubernetes.io/docs/concepts/resource-management/dynamic-resource-allocation/>, 2026-10-10 확인).
 
@@ -89,3 +89,4 @@
 | 2026-10-11 | 02 | GPU Operator v26.7.1 기준, CDI 기본(v25.10+)·validator 대기 사슬·GPUCluster(DRA) 구분 |
 | 2026-10-12 | 03 | GFD v0.20.1 라벨 표, `Gt`/`Lt` 메모리 조건, ExtendedResourceToleration 기본 꺼짐(기록 누락분 보충) |
 | 2026-10-14 | 04 | B300 MIG는 User Guide(09-11) 표엔 없고 GPU Operator 25.10 릴리스 노트·MIG 제품 페이지엔 있음(정정 반영), MPS는 여전히 실험적, MPS v3(cgroup 메모리 분할) 새로 생김 |
+| 2026-10-14 | 05 | K8s 1.37 기능 게이트 단계표, NVIDIA DRA 드라이버 v0.5.1(kubernetes-sigs 이관), GPU 할당 지위가 README(미공식)와 GPU Operator 문서(GA)에서 엇갈림, 관리형 DeviceClass엔 `nvidia.com/gpu` 매핑 없음, 선점 미지원 |
