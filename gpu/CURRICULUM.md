@@ -42,7 +42,7 @@
 
 ### Part 2. 여러 노드에 걸친 분산 잡
 
-- [ ] **06. 멀티노드 분산 학습 기초**
+- [x] **06. 멀티노드 분산 학습 기초** → [`06-multinode-ddp-basics.md`](06-multinode-ddp-basics.md)
   데이터 병렬(DDP)과 모델 병렬 개관, `torchrun`과 rendezvous(c10d), `MASTER_ADDR`·`WORLD_SIZE`·`RANK`, NCCL이 하는 일(all-reduce), Headless Service로 서로 찾기. 일반 `Job`(Indexed Job)만으로 2노드 DDP 띄워 보기.
 - [ ] **07. Kubeflow Trainer**
   v1 Training Operator의 `PyTorchJob`·`MPIJob`과 v2의 `TrainJob`·`TrainingRuntime`. 무엇이 바뀌었고 새로 시작하면 어느 쪽을 쓰나.
@@ -90,3 +90,4 @@
 | 2026-10-12 | 03 | GFD v0.20.1 라벨 표, `Gt`/`Lt` 메모리 조건, ExtendedResourceToleration 기본 꺼짐(기록 누락분 보충) |
 | 2026-10-14 | 04 | B300 MIG는 User Guide(09-11) 표엔 없고 GPU Operator 25.10 릴리스 노트·MIG 제품 페이지엔 있음(정정 반영), MPS는 여전히 실험적, MPS v3(cgroup 메모리 분할) 새로 생김 |
 | 2026-10-14 | 05 | K8s 1.37 기능 게이트 단계표, NVIDIA DRA 드라이버 v0.5.1(kubernetes-sigs 이관), GPU 할당 지위가 README(미공식)와 GPU Operator 문서(GA)에서 엇갈림, 관리형 DeviceClass엔 `nvidia.com/gpu` 매핑 없음, 선점 미지원 |
+| 2026-10-15 | 06 | PyTorch 2.14·NCCL 2.32.3 기준, torchrun rdzv 기본값은 static, subdomain DNS는 Ready Pod만(publishNotReadyAddresses), NCCL 기본 타임아웃 10분, 기본 Job 재시도로는 static world에 재합류 불가 |
