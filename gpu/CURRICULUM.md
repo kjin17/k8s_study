@@ -54,7 +54,7 @@
 
 ### Part 3. 성능과 운영
 
-- [ ] **10. 노드 간 통신: RDMA·InfiniBand·GPUDirect RDMA**
+- [x] **10. 노드 간 통신: RDMA·InfiniBand·GPUDirect RDMA** → [`10-rdma-gpudirect.md`](10-rdma-gpudirect.md)
   왜 TCP로는 부족한가, InfiniBand와 RoCEv2, GPUDirect RDMA, NVIDIA Network Operator(MOFED·RDMA shared device plugin·SR-IOV device plugin), Multus 보조 네트워크, Pod에서 `rdma/...` 리소스 요청.
 - [ ] **11. 토폴로지 인지 배치**
   NVLink·NVSwitch와 PCIe, NUMA, GPU-NIC 짝짓기. kubelet Topology Manager 정책(`single-numa-node` 등)·CPU Manager·Memory Manager, `nvidia-smi topo -m` 읽기, 노드 간 배치(같은 랙·같은 스위치) 힌트.
