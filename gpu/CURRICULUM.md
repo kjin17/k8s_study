@@ -49,7 +49,7 @@
   [근거] 최신 릴리스는 v2.3.0, v1 계열은 v1.9.4로 유지보수 릴리스 중(<https://github.com/kubeflow/trainer/releases>, 2026-10-10 확인).
 - [x] **08. KubeRay로 분산 학습·추론** → [`08-kuberay.md`](08-kuberay.md)
   `RayCluster`·`RayJob`·`RayService`의 GPU 워커 그룹, Ray Train과 Ray Serve에서 GPU 지정, 오토스케일링과 GPU 노드 비용. Kubeflow Trainer와 언제 갈리나.
-- [ ] **09. 갱 스케줄링과 큐: Volcano·Kueue**
+- [x] **09. 갱 스케줄링과 큐: Volcano·Kueue** → [`09-gang-scheduling-queues.md`](09-gang-scheduling-queues.md)
   기본 스케줄러가 Pod를 하나씩 놓아 생기는 부분 배치 교착, all-or-nothing 배치, 큐·쿼터·선점·공정 분배. Volcano(`PodGroup`)와 Kueue(`ClusterQueue`·`LocalQueue`·`Workload`, TopologyAwareScheduling) 비교, Trainer·KubeRay와 연동.
 
 ### Part 3. 성능과 운영
@@ -93,3 +93,4 @@
 | 2026-10-15 | 06 | PyTorch 2.14·NCCL 2.32.3 기준, torchrun rdzv 기본값은 static, subdomain DNS는 Ready Pod만(publishNotReadyAddresses), NCCL 기본 타임아웃 10분, 기본 Job 재시도로는 static world에 재합류 불가 |
 | 2026-10-16 | 07 | Trainer v2.3.0(API alpha, 2.3 경유 필수)·v1.9.4(유지보수) 기준, PET_* 5개 주입·예약어 거절, JobSet DNS·publishNotReadyAddresses 기본 true, 잡 단위 재시작은 JobSet failurePolicy, RuntimePatches 문서 예시의 컨테이너 이름(trainer)이 기본 런타임(node)과 다름 |
 | 2026-10-17 | 08 | KubeRay v1.7.1·Ray 2.59.0 기준, KubeRay는 이름이 `gpu`로 끝나거나 MIG 정규식인 limits만 `--num-gpus`로 옮김(time-slicing `gpu.shared`·DRA는 안 잡힘, 소스 추론), Ray Train V2 기본 켜짐·placement group 대기 60초·NCCL `timeout_s` 1800초, 분수 GPU는 메모리 비격리 |
+| 2026-10-18 | 09 | Kueue v0.20.2(v1beta1 서비스 중단, waitForPodsReady 0.19부터 기본 켜짐·30분, 선점 기본 Never, 기본 설정에 v1 pytorchjob 꺼짐)·Volcano v1.16.0(기본 actions에 preempt·reclaim 없음, overcommit 1.2) 기준, K8s 1.37 기본 스케줄러 갱은 베타·기본 꺼짐(Job 연동 WorkloadWithJob은 알파), KubeRay Volcano 갱 minMember는 오토스케일링 시 minReplicas+1 |
