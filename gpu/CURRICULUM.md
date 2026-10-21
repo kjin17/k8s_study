@@ -56,7 +56,7 @@
 
 - [x] **10. 노드 간 통신: RDMA·InfiniBand·GPUDirect RDMA** → [`10-rdma-gpudirect.md`](10-rdma-gpudirect.md)
   왜 TCP로는 부족한가, InfiniBand와 RoCEv2, GPUDirect RDMA, NVIDIA Network Operator(MOFED·RDMA shared device plugin·SR-IOV device plugin), Multus 보조 네트워크, Pod에서 `rdma/...` 리소스 요청.
-- [ ] **11. 토폴로지 인지 배치**
+- [x] **11. 토폴로지 인지 배치** → [`11-topology-aware-placement.md`](11-topology-aware-placement.md)
   NVLink·NVSwitch와 PCIe, NUMA, GPU-NIC 짝짓기. kubelet Topology Manager 정책(`single-numa-node` 등)·CPU Manager·Memory Manager, `nvidia-smi topo -m` 읽기, 노드 간 배치(같은 랙·같은 스위치) 힌트.
 - [ ] **12. 관측과 장애 대응**
   dcgm-exporter 지표와 Prometheus/Grafana, XID 오류 읽기, ECC·throttling, NCCL 디버그(`NCCL_DEBUG=INFO`, 타임아웃, hang), 잡 재시작·체크포인트와의 관계.
@@ -94,3 +94,4 @@
 | 2026-10-16 | 07 | Trainer v2.3.0(API alpha, 2.3 경유 필수)·v1.9.4(유지보수) 기준, PET_* 5개 주입·예약어 거절, JobSet DNS·publishNotReadyAddresses 기본 true, 잡 단위 재시작은 JobSet failurePolicy, RuntimePatches 문서 예시의 컨테이너 이름(trainer)이 기본 런타임(node)과 다름 |
 | 2026-10-17 | 08 | KubeRay v1.7.1·Ray 2.59.0 기준, KubeRay는 이름이 `gpu`로 끝나거나 MIG 정규식인 limits만 `--num-gpus`로 옮김(time-slicing `gpu.shared`·DRA는 안 잡힘, 소스 추론), Ray Train V2 기본 켜짐·placement group 대기 60초·NCCL `timeout_s` 1800초, 분수 GPU는 메모리 비격리 |
 | 2026-10-18 | 09 | Kueue v0.20.2(v1beta1 서비스 중단, waitForPodsReady 0.19부터 기본 켜짐·30분, 선점 기본 Never, 기본 설정에 v1 pytorchjob 꺼짐)·Volcano v1.16.0(기본 actions에 preempt·reclaim 없음, overcommit 1.2) 기준, K8s 1.37 기본 스케줄러 갱은 베타·기본 꺼짐(Job 연동 WorkloadWithJob은 알파), KubeRay Volcano 갱 minMember는 오토스케일링 시 minReplicas+1 |
+| 2026-10-21 | 11 | K8s 1.37·device plugin v0.20.1·NCCL 2.32.3·PyTorch 2.14 기준, 정렬 할당(go-gpuallocator 분할 점수)은 통 GPU일 때만(time-slicing·MIG는 꺼짐), Topology Manager 거절 Pod는 재배치 없음, `torchrun --numa-binding`은 cpuset과 교집합이 비면 즉시 실패·numactl 필요, 기본 스케줄러 TAS는 1.37에서도 알파(`schedulingConstraints.topology` 1개) |
