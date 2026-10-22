@@ -1,5 +1,6 @@
 # Kubernetes GPU 교육 커리큘럼: Pod의 GPU 사용과 노드 간 분산 잡
 
+> **완료: 2026-10-22, 12절 모두 채움.** 이후로는 릴리스 노트로 바뀐 점만 점검해 해당 절을 고치고 아래 진행 기록에 남긴다.
 > 시작: 2026-10-10. 한 회차에 한 절씩 `gpu/NN-<주제>.md`로 채운다. 채운 절은 `[x]`로 바꾸고 파일 링크를 단다.
 > 공개된 1차 출처(Kubernetes·NVIDIA·Kubeflow·Ray·Volcano·Kueue 공식 문서, 릴리스 노트, KEP)만 쓴다.
 > 주장마다 등급을 붙인다. **[근거]** 는 출처에 그대로 있는 것, **[추론]** 은 여러 출처를 엮어 직접 내린 결론이다.
@@ -58,7 +59,7 @@
   왜 TCP로는 부족한가, InfiniBand와 RoCEv2, GPUDirect RDMA, NVIDIA Network Operator(MOFED·RDMA shared device plugin·SR-IOV device plugin), Multus 보조 네트워크, Pod에서 `rdma/...` 리소스 요청.
 - [x] **11. 토폴로지 인지 배치** → [`11-topology-aware-placement.md`](11-topology-aware-placement.md)
   NVLink·NVSwitch와 PCIe, NUMA, GPU-NIC 짝짓기. kubelet Topology Manager 정책(`single-numa-node` 등)·CPU Manager·Memory Manager, `nvidia-smi topo -m` 읽기, 노드 간 배치(같은 랙·같은 스위치) 힌트.
-- [ ] **12. 관측과 장애 대응**
+- [x] **12. 관측과 장애 대응** → [`12-observability-troubleshooting.md`](12-observability-troubleshooting.md)
   dcgm-exporter 지표와 Prometheus/Grafana, XID 오류 읽기, ECC·throttling, NCCL 디버그(`NCCL_DEBUG=INFO`, 타임아웃, hang), 잡 재시작·체크포인트와의 관계.
 
 ## 이어 볼 자료
@@ -96,3 +97,4 @@
 | 2026-10-18 | 09 | Kueue v0.20.2(v1beta1 서비스 중단, waitForPodsReady 0.19부터 기본 켜짐·30분, 선점 기본 Never, 기본 설정에 v1 pytorchjob 꺼짐)·Volcano v1.16.0(기본 actions에 preempt·reclaim 없음, overcommit 1.2) 기준, K8s 1.37 기본 스케줄러 갱은 베타·기본 꺼짐(Job 연동 WorkloadWithJob은 알파), KubeRay Volcano 갱 minMember는 오토스케일링 시 minReplicas+1 |
 | 2026-10-19 | 10 | Network Operator v26.7.1·GPU Operator v26.7.2·NCCL 2.32.3 기준, NicClusterPolicy는 이름이 `nic-cluster-policy`일 때만 처리(다른 이름은 오류 없이 `ignore`), GPUDirect RDMA 기본은 DMA-BUF(nvidia-peermem은 `driver.rdma.enabled=true` 레거시), NCCL 2.21+ RoCE GID 자동 선택이라 `NCCL_IB_GID_INDEX` 고정 금지(기록 누락분 보충, PR #13 머지 77a419f) |
 | 2026-10-21 | 11 | K8s 1.37·device plugin v0.20.1·NCCL 2.32.3·PyTorch 2.14 기준, 정렬 할당(go-gpuallocator 분할 점수)은 통 GPU일 때만(time-slicing·MIG는 꺼짐), Topology Manager 거절 Pod는 재배치 없음, `torchrun --numa-binding`은 cpuset과 교집합이 비면 즉시 실패·numactl 필요, 기본 스케줄러 TAS는 1.37에서도 알파(`schedulingConstraints.topology` 1개) |
+| 2026-10-22 | 12 | DCGM Exporter 4.8.4(DCGM 4.6.1)·GPU Operator v26.7.2·device plugin v0.20.1·K8s 1.37·PyTorch 2.14 기준, 기본 CSV에 ECC·스로틀링·NVLink 오류·SM_ACTIVE 없음, `XID_ERRORS`는 마지막 번호 게이지(건수는 opt-in `DCGM_EXP_XID_ERRORS_COUNT`), device plugin은 XID 13·31·43·45·68·109를 무시하고 Unhealthy에서 복구 경로 없음(plugin 재시작 필요), `ResourceHealthStatus` 1.36 베타·기본 켜짐, PyTorch Flight Recorder 2.14 기본 켜짐·덤프는 `$HOME/.cache/torch`(PVC로 빼야 함), 경보 규칙은 promtool 3.15.1로 실측 통과. **커리큘럼 완료** |
