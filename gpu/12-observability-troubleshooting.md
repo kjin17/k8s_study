@@ -205,13 +205,16 @@ spec:
   groups:
   - name: gpu-hardware
     rules:
-    # XID는 "마지막 값"인 게이지다. 0이 아니면 무언가 났다는 뜻일 뿐, 횟수가 아니다
+    # XID는 "마지막 값"인 게이지이고 0으로 돌아가지 않는다(아래 주의 (1)).
+    # 그래서 `!= 0`이 아니라 "값이 바뀌었거나 새로 생겼다"를 본다. 10분 동안 울리고 꺼진다.
+    # 한계: 같은 번호가 다시 나면 못 잡는다. 건수가 필요하면 3.2의 DCGM_EXP_XID_ERRORS_COUNT > 0
     - alert: GpuXidReported
-      expr: DCGM_FI_DEV_XID_ERRORS != 0
-      for: 1m
+      expr: |
+        changes(DCGM_FI_DEV_XID_ERRORS[10m]) > 0
+          or (DCGM_FI_DEV_XID_ERRORS unless DCGM_FI_DEV_XID_ERRORS offset 10m)
       labels: {severity: warning}
       annotations:
-        summary: "{{ $labels.Hostname }} GPU {{ $labels.gpu }} XID {{ $value }}"
+        summary: "{{ $labels.Hostname }} GPU {{ $labels.gpu }} XID 새로 보고됨 (번호는 DCGM_FI_DEV_XID_ERRORS로 확인)"
     # 노드 재부팅·RMA 후보 번호만 따로 (48 DBE, 79 버스 이탈, 95 비격리 메모리 오류)
     - alert: GpuXidCritical
       expr: DCGM_FI_DEV_XID_ERRORS == 48 or DCGM_FI_DEV_XID_ERRORS == 79 or DCGM_FI_DEV_XID_ERRORS == 95
@@ -239,7 +242,19 @@ spec:
       labels: {severity: info}
 ```
 
-[추론] 몇 가지 주의. (1) `DCGM_FI_DEV_XID_ERRORS`의 값이 언제 0으로 돌아가는지는 문서에 없다. 횟수가 필요하면 3.2처럼 `DCGM_EXP_XID_ERRORS_COUNT`(창 안 건수)나 `_TOTAL`을 켠다. (2) kube-state-metrics는 리소스 이름의 `.`·`/`를 `_`로 바꿔 `nvidia_com_gpu`로 내보내는 것으로 알지만, 판마다 다를 수 있으니 `kube_node_status_capacity`를 먼저 조회해 실제 값을 확인한다. (3) 스로틀링 기준(5분 중 1분)은 예시 값이다.
+몇 가지 주의.
+
+(1) **`DCGM_FI_DEV_XID_ERRORS`는 0으로 돌아가지 않는다.** 공식 문서에는 리셋 규칙이 없어서 소스로 확인했다. 아래는 DCGM 4.6.1(태그 `v4.6.1`)·dcgm-exporter 4.8.4 소스 판독이며, GPU에서 실측한 것은 아니다(2026-10-22).
+
+- [근거] XID 필드는 주기 갱신 루프가 건너뛰고(`dcgmlib/src/DcgmCacheManager.cpp:13759-13761`, "handled by the NVML event thread"), 값은 NVML `XidCriticalError` 이벤트나 `/dev/kmsg`에서 XID가 왔을 때만 그 번호로 들어간다(같은 파일 7535-7630, 7792-7804, 7883-7895). "이상 없음"을 뜻하는 0이 들어가는 길은 없다.
+- [근거] 보존 시간 정리(exporter 기본 `--watch-max-keep-age=10m`)는 새 표본을 넣을 때만 돌고 방금 넣은 최신 표본은 지우지 않는다(`EnforceWatchInfoQuota` 호출처 7149·7246·7300·7355, `sdk/nvidia/nvml/common/timeseries.c`). 그래서 **값은 다음 XID가 덮어쓸 때까지 그대로**다. 같은 번호가 다시 나면 값은 바뀌지 않는다.
+- [근거] XID가 한 번도 안 난 GPU는 0이 아니라 **시계열 자체가 없다.** DCGM은 `DCGM_ST_NO_DATA`를 주고(5117-5132), exporter는 상태가 OK가 아니면 그 지표를 내보내지 않는다(`internal/pkg/collector/gpu_collector.go:1022-1050`). DCGM 자체 시험도 XID를 "기본으로는 데이터가 안 생기는 필드"로 둔다(`testing/python3/tests/test_field_values.py:966-976`).
+- [근거] **원격 nv-hostengine(GPU Operator 기본)에서는 exporter를 재시작해도 값이 안 지워진다.** exporter 종료가 타는 길(UnwatchFields → `DcgmHostEngineHandler::UnwatchFieldGroup`, 연결 끊김 → `OnConnectionRemoveImpl`의 `clearCache = false`)은 캐시를 지우지 않고, `RemoveEntityFieldWatch`(3747-3813)는 `clearCache` 인자를 로그에만 찍는다. 재시작 뒤 첫 수집부터 예전 번호가 다시 나온다.
+- [근거] 시계열이 실제로 지워지는 것은 `ClearWatchInfo` → `timeseries_destroy`(6768-6788)뿐이고, 그 길은 **DCGM 파드(호스트엔진) 재시작**(메모리 캐시), **`EmptyCache` API**(`dcgmEmptyCache`), **GPU 분리·재부착**이다. exporter 4.8.4는 `EmptyCache`를 부르지 않는다.
+- [추론] exporter가 엔진을 품는 **내장 모드**(`-r` 없이 실행)에서는 exporter 재시작이 곧 엔진 재시작이라 시계열이 사라진다. 같은 "exporter 재시작"이 배치 방식에 따라 반대 결과이고, 내장 모드에서 경보가 풀리는 것은 고쳐져서가 아니라 증거가 사라진 것이다.
+- [추론] 그래서 `DCGM_FI_DEV_XID_ERRORS != 0` 경보는 "지금 XID가 났다"가 아니라 "캐시가 살아 있는 동안 언젠가 났다"를 뜻하고, GPU를 고친 뒤에도 꺼지지 않는다. 위 `GpuXidReported`가 변화 감지 식인 이유다. 건수가 필요하면 3.2처럼 `DCGM_EXP_XID_ERRORS_COUNT`(창 안 건수)나 `_TOTAL`을 켜고 `DCGM_EXP_XID_ERRORS_COUNT > 0`이나 `increase(DCGM_EXP_XID_ERRORS_TOTAL[5m]) > 0`을 쓴다. `GpuXidCritical`(번호 일치)도 같은 이유로 값이 덮이거나 엔진이 재시작될 때까지 계속 울린다. 노드 정리(3.5) 뒤 DCGM 파드 재시작으로 지운다.
+
+[추론] (2) kube-state-metrics는 리소스 이름의 `.`·`/`를 `_`로 바꿔 `nvidia_com_gpu`로 내보내는 것으로 알지만, 판마다 다를 수 있으니 `kube_node_status_capacity`를 먼저 조회해 실제 값을 확인한다. (3) 스로틀링 기준(5분 중 1분)은 예시 값이다.
 
 ### 3.4 고장 장치를 Pod 쪽에서 보기
 
@@ -294,7 +309,7 @@ volumes:
 
 ## 4. GPU 없이 확인하는 법
 
-1. **경보 규칙 단위 시험.** Prometheus의 `promtool test rules`는 가짜 시계열을 넣고 경보가 뜨는지 본다. GPU도 클러스터도 필요 없다. 3.3의 규칙을 `rules.yaml`로 뽑고, 아래처럼 `DCGM_FI_DEV_XID_ERRORS`를 0→79로 바꾼 입력을 준다.
+1. **경보 규칙 단위 시험.** Prometheus의 `promtool test rules`는 가짜 시계열을 넣고 경보가 뜨는지 본다. GPU도 클러스터도 필요 없다. 3.3의 규칙을 `rules.yaml`로 뽑고, 아래처럼 XID가 없다가(시계열 없음, `_`) 79가 생겨 그대로 남는 입력을 준다. 실제 exporter는 XID가 나기 전엔 0이 아니라 아무 시계열도 내보내지 않는다(3.3 주의 (1)).
 
    ```yaml
    # test.yaml
@@ -304,15 +319,23 @@ volumes:
    - interval: 1m
      input_series:
      - series: 'DCGM_FI_DEV_XID_ERRORS{gpu="3",Hostname="node-a"}'
-       values: '0 0 79 79 79'
+       values: '_ _ 79x30'          # 0~1분 없음, 2분부터 79가 계속 남음
      alert_rule_test:
      - eval_time: 4m
        alertname: GpuXidCritical
        exp_alerts:
        - exp_labels: {severity: critical, gpu: "3", Hostname: "node-a"}
+     - eval_time: 4m                # 새로 생겼으니 울린다
+       alertname: GpuXidReported
+       exp_alerts:
+       - exp_labels: {severity: warning, gpu: "3", Hostname: "node-a"}
+         exp_annotations: {summary: "node-a GPU 3 XID 새로 보고됨 (번호는 DCGM_FI_DEV_XID_ERRORS로 확인)"}
+     - eval_time: 30m               # 값은 남아 있지만 바뀐 게 없으니 꺼져 있어야 한다
+       alertname: GpuXidReported
+       exp_alerts: []
    ```
 
-   `promtool test rules test.yaml`. (2026-10-22 promtool 3.15.1로 실측: `check rules`가 3.3의 규칙 6개를 통과시키고, 이 시험은 SUCCESS. 입력을 `'0 0 0 0 0'`으로 바꾸면 `got:[]`로 FAILED가 나서 시험이 실제로 경보를 재고 있음을 확인했다.) 3.3은 PrometheusRule 형식이니 `spec.groups` 아래만 떼어 `groups:`로 시작하는 파일로 만든다. `GpuXidReported`처럼 `for: 1m`이 있는 규칙은 `eval_time`을 조금씩 바꿔 보며 언제부터 뜨는지 확인한다.
+   `promtool test rules test.yaml`. (2026-10-23 promtool 3.15.1로 실측: 3.3의 새 `GpuXidReported` 식으로 이 시험은 SUCCESS. 같은 시험을 옛 식 `DCGM_FI_DEV_XID_ERRORS != 0`에 대면 30분 시점에 `exp:[]`인데 경보가 남아 FAILED가 나서, 시험이 "한 번 나면 계속 울림"을 실제로 가르는 것을 확인했다. 번호가 13→43으로 바뀌는 시계열을 더해도 새 식은 바뀐 시점부터 10분간만 울렸다.) 3.3은 PrometheusRule 형식이니 `spec.groups` 아래만 떼어 `groups:`로 시작하는 파일로 만든다. `for:`가 있는 규칙은 `eval_time`을 조금씩 바꿔 보며 언제부터 뜨는지 확인한다.
 2. **Unhealthy 흉내.** 01절처럼 kind 노드에 `nvidia.com/gpu` 용량을 패치하되, `capacity`는 8, `allocatable`은 7로 준다. 8장을 요청하는 Pod는 Pending(`Insufficient nvidia.com/gpu`)이 되고, 3.3의 `GpuAllocatableBelowCapacity` 식을 kube-state-metrics가 깔린 kind에서 조회하면 1이 나온다. 단 kubelet이 노드 상태를 다시 보고하면 패치가 덮일 수 있다(01절의 주의와 같다).
 3. **NCCL 없이 hang·타임아웃 보기.** CPU용 `gloo` 백엔드로 06절의 2-Pod torchrun Job을 띄우고, 한 Pod에서 `kill -STOP <python PID>`로 rank 하나를 얼린다. 다른 rank가 집합 연산에서 기다리다 타임아웃으로 죽는지, 그 뒤 Job·JobSet 재시작이 어떻게 도는지 본다. `init_process_group(timeout=timedelta(seconds=60))`처럼 타임아웃을 줄이면 빨리 볼 수 있다. Flight Recorder는 NCCL 프로세스 그룹 기능이라 gloo에서는 덤프가 나오지 않을 수 있다(이 절에서 실측하지 않았다).
 4. **dry-run.** 3.2의 ConfigMap과 3.3의 PrometheusRule은 해당 CRD가 깔린 클러스터에서 `kubectl apply --dry-run=server -f`로 필드 오타를 잡는다. PrometheusRule CRD만 필요하면 prometheus-operator의 CRD만 설치한다.
@@ -321,7 +344,7 @@ volumes:
 
 1. **`GPU_UTIL` 100%를 "잘 쓰고 있다"로 읽는다.** 커널이 하나라도 돌면 100%다. 효율은 `PIPE_TENSOR_ACTIVE`·`SM_ACTIVE`로 본다.
 2. **기본 CSV에 없는 지표로 경보를 건다.** ECC·스로틀링·NVLink 오류 카운터는 기본 꺼짐이다. 경보가 안 울리는 이유가 "고장이 없어서"가 아닐 수 있다.
-3. **`DCGM_FI_DEV_XID_ERRORS`에 `rate()`·`increase()`를 건다.** 마지막 XID 번호를 담은 게이지다. 번호가 커지면 증가로 보이고, 같은 XID가 두 번 나면 아무 변화도 없다.
+3. **`DCGM_FI_DEV_XID_ERRORS`에 `rate()`·`increase()`를 건다.** 마지막 XID 번호를 담은 게이지다. 번호가 커지면 증가로 보이고, 같은 XID가 두 번 나면 아무 변화도 없다. 반대로 `!= 0`만 걸면 **0으로 돌아오지 않아서** GPU를 고친 뒤에도 계속 울린다. exporter를 재시작해도(원격 nv-hostengine이면) 안 지워진다(3.3 주의 (1)).
 4. **GPU를 고친 뒤 device plugin을 재시작하지 않는다.** Unhealthy는 스스로 풀리지 않는다.
 5. **노드 allocatable만 보고 끝낸다.** 이미 고장 GPU를 가진 Pod는 쫓겨나지 않는다. `allocatedResourcesStatus`나 PodResources API로 그 Pod를 찾아 따로 정리한다.
 6. **`DP_DISABLE_HEALTHCHECKS=all`로 "자꾸 GPU가 빠지는 문제"를 끈다.** 증상만 감춘다. 고장 장치에 새 Pod가 계속 배치된다. 특정 XID가 오탐이면 그 번호만 제외하고 이유를 적어 둔다.
