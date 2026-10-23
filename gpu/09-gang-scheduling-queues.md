@@ -3,6 +3,12 @@
 > [목차로](CURRICULUM.md) · 작성 2026-10-18 · 기준 버전: Kubernetes 1.37, Kueue v0.20.2(2026-10-15, `v0.20.2` 태그 소스), Volcano v1.16.0(2026-10-14, `v1.16.0` 태그 소스), Kubeflow Trainer v2.3.0, KubeRay v1.7.1
 > **[근거]** 출처에 그대로 있는 내용, **[추론]** 여러 출처를 엮어 내린 결론.
 > 앞 절: [08. KubeRay](08-kuberay.md)
+>
+> **최신화 2026-10-23 (Kueue v0.20.3, 2026-10-22).** 설치 명령을 v0.20.3으로 올렸다. 본문의 기본값(1.4) 설명은 그대로 맞다. 이 과정과 닿는 고침만 추린다. 출처: <https://github.com/kubernetes-sigs/kueue/releases/tag/v0.20.3> (2026-10-23 확인)
+> - **[근거]** DRA: DeviceClass의 암묵 이름 `deviceclass.resource.kubernetes.io/<class>`로 요청한 Workload가 보통 확장 리소스로 취급돼 `deviceClassMappings` 쿼터에 잡히지 않고 대기에 머물던 버그를 고쳤다(#17434). **[추론]** [05절 3.6](05-dra.md)의 `deviceclass.resource.kubernetes.io/gpu.nvidia.com` 요청을 Kueue `deviceClassMappings` 쿼터 아래에서 쓰려면 v0.20.3 이상이 필요하다.
+> - **[근거]** TrainJob: 같은 네임스페이스에 TrainJob과 이름이 같은 Workload가 있으면 TrainJob이 영영 입장하지 못하던 버그를 고쳤다(#17571).
+> - **[근거]** RayCluster: 워커 PodSet 수가 KubeRay의 `minReplicas`보다 작게 계산돼 자리가 나도 워커가 scheduling gate에 묶여 있던 버그를 고쳤다(#17366). 1.5의 Volcano `minMember` 계산과는 다른 경로다.
+> - **[근거]** TAS: JobSet·Ray 워커처럼 0번부터 세는 PodSet 그룹이 순번 없이 풀려 `podset-slice-required-topology` 조각이 토폴로지 도메인을 넘어 갈라질 수 있던 버그를 고쳤다(#17512). 업그레이드 뒤 입장한 Workload부터 적용된다.
 
 ## 1. 개념
 
@@ -119,7 +125,7 @@ sequenceDiagram
 ### 3.1 Kueue로 GPU 쿼터 걸기
 
 ```bash
-kubectl apply --server-side -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.20.2/manifests.yaml
+kubectl apply --server-side -f https://github.com/kubernetes-sigs/kueue/releases/download/v0.20.3/manifests.yaml
 kubectl -n kueue-system wait deploy/kueue-controller-manager --for=condition=Available --timeout=180s
 ```
 
@@ -329,7 +335,7 @@ kubectl get pods
 - Kubernetes Workload API·PodGroup API: <https://kubernetes.io/docs/concepts/workloads/workload-api/>, <https://kubernetes.io/docs/concepts/workloads/podgroup-api/>
 - Kubernetes Job의 Workload API 연동: <https://kubernetes.io/docs/concepts/workloads/controllers/job/#integrate-with-workload-apis>
 - kind 노드 이미지 `v1.37.0`(2026-08-26): <https://hub.docker.com/r/kindest/node/tags>
-- Kueue 릴리스(v0.20.2, v0.20.0, v0.19.0): <https://github.com/kubernetes-sigs/kueue/releases>
+- Kueue 릴리스(v0.20.3(2026-10-23 확인), v0.20.2, v0.20.0, v0.19.0): <https://github.com/kubernetes-sigs/kueue/releases>
 - Kueue 개념: <https://kueue.sigs.k8s.io/docs/concepts/> · waitForPodsReady: <https://kueue.sigs.k8s.io/docs/tasks/manage/setup_wait_for_pods_ready/> · TAS: <https://kueue.sigs.k8s.io/docs/concepts/topology_aware_scheduling/>
 - Kueue 소스 v0.20.2: `apis/config/v1beta2/defaults.go`, `apis/kueue/v1beta2/clusterqueue_types.go`, `apis/kueue/v1beta2/topology_types.go`, `pkg/features/kube_features.go`, `config/components/manager/controller_manager_config.yaml`, `site/static/examples/` — <https://github.com/kubernetes-sigs/kueue/tree/v0.20.2>
 - Volcano 릴리스 v1.16.0: <https://github.com/volcano-sh/volcano/releases/tag/v1.16.0> · 문서: <https://volcano.sh/en/docs/>
