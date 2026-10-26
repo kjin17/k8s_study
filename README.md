@@ -53,6 +53,7 @@ Kubernetes 클러스터 **자동 설치**, **오브젝트 학습**, **애드온 
 | [`k8s-logging-monitoring/`](k8s-logging-monitoring/) | Kubernetes 로깅/모니터링/알림 Best Practice (Observability, Prometheus, Grafana, Alertmanager) |
 | [`velero-csi-backup/`](velero-csi-backup/) | Kubernetes 백업/복구 (Velero, vSphere CSI Snapshot, 복구 시나리오, 운영 Best Practice) |
 | [`gpu/`](gpu/CURRICULUM.md) | Kubernetes GPU 교육 (Pod의 GPU 사용 원리, GPU Operator, MIG·time-slicing, DRA, 멀티노드 분산 학습, Kubeflow Trainer·KubeRay, Volcano·Kueue, RDMA, 토폴로지, 관측) — 12절, 한 절씩 채우는 중 |
+| [`vks-addons/`](vks-addons/CURRICULUM.md) | VKS 애드온(Standard Packages) 교육 (cert-manager·Contour·ExternalDNS·Prometheus·Fluent Bit·Velero·Harbor·Istio·Gatekeeper 등, PackageInstall과 Add-on Management 설치 경로) — 19절, 한 절씩 채우는 중 |
 
 ## 🛠️ 실습 파일 (Shell Script)
 
