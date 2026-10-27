@@ -56,7 +56,7 @@
 
 ### Part 0. 공통
 
-- [ ] **00. 패키지 저장소와 두 설치 경로**
+- [x] **00. 패키지 저장소와 두 설치 경로** → [00-repository-and-install-paths.md](00-repository-and-install-paths.md) (2026-10-27)
   `vks-standard-packages` 저장소, `PackageRepository`·`PackageInstall`·values Secret, Add-on Management 리소스, 판 목록 보는 법, 업그레이드와 롤백, 레거시 패키지를 Add-on 방식으로 옮기기.
   출처: Installing VKS Add-ons on a VKS Cluster Using VKr for vSphere <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-0/managing-vsphere-kuberenetes-service-clusters-and-workloads/installing-standard-packages-on-tkg-service-clusters/installing-standard-packages-on-tkg-cluster-using-tkr-for-vsphere-8-x.html>, Managing Add-ons(위 링크) (2026-10-26 확인)
 
@@ -129,3 +129,4 @@
 
 - 2026-10-26: 커리큘럼 작성. 공식 표·릴리스 노트(~~최신 저장소 3.6.0+20260521~~ → 3.6.0+20260521, 2026-10-26 기준 최신 아님)·참조 목차 세 곳을 대조해 19절(00~18)로 확정.
 - 2026-10-26: 기준 판을 3.8.0+20261021(9.1 VKS Add-ons Release Notes, 그 앞 판 3.7.0+20260924)로 바로잡음. 9.0 릴리스 노트는 3.6.0+20260521 까지만 실어 「최신」으로 잘못 적었다. 3.7.0 이후 들어온 일곱 애드온을 Part 6(19~25절)으로 더해 26절(00~25)이 됐다. 빠진 애드온은 없다.
+- 2026-10-27: 00절 작성. 9.0 Add-on 관리·레거시 패키지 문서 10쪽과 9.1 릴리스 노트로 두 설치 경로·리소스·업그레이드 흐름을 정리. 9.1 문서 세트의 Add-on 관리 페이지(9.0 경로를 9-1 로 바꾼 주소)는 404 여서 「Helm add-on」 설치 모양은 24·25절에서 확인한다.
