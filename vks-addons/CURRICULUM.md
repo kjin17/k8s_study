@@ -62,7 +62,7 @@
 
 ### Part 1. 기반
 
-- [ ] **01. Cert Manager** — 인증서 발급·갱신. 다른 패키지(웹훅·인그레스)가 기대는 기반. 업스트림 설치는 `k8s-addon.sh`.
+- [x] **01. Cert Manager** → [01-cert-manager.md](01-cert-manager.md) (2026-10-28) — 인증서 발급·갱신. 다른 패키지(웹훅·인그레스)가 기대는 기반. 업스트림 설치는 `k8s-addon.sh`.
   출처: Install Cert Manager <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-0/managing-vsphere-kuberenetes-service-clusters-and-workloads/installing-standard-packages-on-tkg-service-clusters/installing-standard-packages-on-tkg-cluster-using-tkr-for-vsphere-8-x/install-cert-manager.html>, Cert Manager Package Reference <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-0/managing-vsphere-kuberenetes-service-clusters-and-workloads/installing-standard-packages-on-tkg-service-clusters/standard-package-reference/cert-manager-package-reference.html> (2026-10-26 확인)
 - [ ] **02. Contour (Envoy 인그레스)** — 인그레스 컨트롤러·리버스 프록시. 업스트림 설치는 `k8s-addon.sh`.
   출처: Install Contour <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-0/managing-vsphere-kuberenetes-service-clusters-and-workloads/installing-standard-packages-on-tkg-service-clusters/installing-standard-packages-on-tkg-cluster-using-tkr-for-vsphere-8-x/install-contour-with-envoy(1).html>, Contour Package Reference <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-0/managing-vsphere-kuberenetes-service-clusters-and-workloads/installing-standard-packages-on-tkg-service-clusters/standard-package-reference/contour-package-reference.html> (2026-10-26 확인)
@@ -130,3 +130,4 @@
 - 2026-10-26: 커리큘럼 작성. 공식 표·릴리스 노트(~~최신 저장소 3.6.0+20260521~~ → 3.6.0+20260521, 2026-10-26 기준 최신 아님)·참조 목차 세 곳을 대조해 19절(00~18)로 확정.
 - 2026-10-26: 기준 판을 3.8.0+20261021(9.1 VKS Add-ons Release Notes, 그 앞 판 3.7.0+20260924)로 바로잡음. 9.0 릴리스 노트는 3.6.0+20260521 까지만 실어 「최신」으로 잘못 적었다. 3.7.0 이후 들어온 일곱 애드온을 Part 6(19~25절)으로 더해 26절(00~25)이 됐다. 빠진 애드온은 없다.
 - 2026-10-27: 00절 작성. 9.0 Add-on 관리·레거시 패키지 문서 10쪽과 9.1 릴리스 노트로 두 설치 경로·리소스·업그레이드 흐름을 정리. 9.1 문서 세트의 Add-on 관리 페이지(9.0 경로를 9-1 로 바꾼 주소)는 404 여서 「Helm add-on」 설치 모양은 24·25절에서 확인한다.
+- 2026-10-28: 01절(Cert Manager) 작성. 9.0 설치 문서 세 쪽(레거시·VCF CLI·kubectl)과 참조 문서, 9.1 릴리스 노트(3.8.0+20261021 의 cert-manager 판 1.21.2·1.20.4·1.19.6), 업스트림 지원 판 표로 정리. 참조 문서 안에서 `pspNames` 기본값이 예시와 표가 다르게 적힌 것을 흔한 실수에 적었다.
