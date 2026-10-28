@@ -38,6 +38,7 @@ Kubernetes 클러스터 **자동 설치**, **오브젝트 학습**, **애드온 
 | [`helm.md`](helm.md) | Helm 교육 (Chart/Repository/Release/Values, Helm 3 vs 2, 주요 명령어 전체, values 오버라이드, nginx-ingress/cert-manager 설치, Chart 직접 만들기, Helmfile) |
 | [`istio-gateway-api.md`](istio-gateway-api.md) | Istio & Gateway API 교육 (Helm 기반 설치, Gateway/HTTPRoute·Canary, Flux Helm Controller GitOps, 운영 튜닝) |
 | [`carvel-kapp.md`](carvel-kapp.md) | Carvel 툴킷 & kapp 교육 (ytt/kbld/kapp/imgpkg/vendir 각 역할, kapp 주요 명령어, GitOps kapp-controller, Carvel vs Helm 비교) |
+| [`carvel-ytt-for-kapp.md`](carvel-ytt-for-kapp.md) | ytt 로 kapp·kapp-controller 다루기 (kapp Config 생성, kapp 주석 overlay, App CR ytt 단계, PackageInstall overlay, values 검증, 렌더 diff, overlay 실수 사례) |
 | [`k8s-dns-troubleshooting.md`](k8s-dns-troubleshooting.md) | K8s 클러스터 내부 DNS 장애 트러블슈팅 (CoreDNS 진단 7단계, NetworkPolicy/CNI 점검, L1 플로우, 면접 답변 예시) |
 
 ## 🔬 심화 학습 자료

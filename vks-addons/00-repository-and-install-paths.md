@@ -53,6 +53,7 @@ projects.packages.broadcom.com/vsphere/supervisor/vks-standard-packages/3.8.0-20
 ### 2.3 레거시 방식: 클러스터 안의 Carvel 리소스
 
 Carvel·kapp-controller 기초는 [`../carvel-kapp.md`](../carvel-kapp.md)의 [6. kapp-controller & App CRD](../carvel-kapp.md#6-kapp-controller--app-crd-gitops)를 먼저 본다. 여기서는 VKS 에 특유한 점만 적는다.
+PackageInstall 의 values 스키마 보기·ytt overlay 덧씌우기(와 그것이 VKS 지원 밖이라는 경계)는 [`../carvel-ytt-for-kapp.md`](../carvel-ytt-for-kapp.md) 6·7절.
 
 - [근거] VKr 이미지에 Carvel 패키징 시스템과 kapp-controller 가 들어 있고, VKr 이 자동으로 관리한다. (General Requirements, 9.0)
 - [근거] `tkg-system` 네임스페이스는 클러스터 kapp-controller 의 **전역 네임스페이스**다. 저장소를 여기에 추가하면 Package·PackageMetadata 가 다른 모든 네임스페이스에서 보인다. (Manage Package Repository, 9.0)

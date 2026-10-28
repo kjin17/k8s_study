@@ -500,6 +500,8 @@ spec:
 ytt -f ./base/ -f overlay.yaml
 ```
 
+> 다음 단계: kapp·kapp-controller 를 ytt 로 다루는 법(kapp Config 생성, `kapp.k14s.io/*` 주석 overlay, App CR ytt 단계, PackageInstall overlay, values 검증, 렌더 diff)은 [`carvel-ytt-for-kapp.md`](carvel-ytt-for-kapp.md).
+
 ---
 
 ## 5. kbld 기초
