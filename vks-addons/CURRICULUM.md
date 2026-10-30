@@ -31,7 +31,7 @@
 [근거] 「Standard Package Reference」 목차: Cert Manager, Contour, ExternalDNS, Fluent Bit, Prometheus, Harbor, Windows gMSA Webhook, Telegraf, Istio, AKO, Gatekeeper, Helm Controller, SR-IOV Network Device Plugin.
 <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-0/managing-vsphere-kuberenetes-service-clusters-and-workloads/installing-standard-packages-on-tkg-service-clusters/standard-package-reference.html> (2026-10-26 확인)
 
-[근거] ~~Grafana, Alertmanager, Multus, Whereabouts, Calico, Pinniped 는 2026-10-26 기준 위 세 문서의 패키지 목록에 이름으로 나오지 않는다.~~ → Grafana, Alertmanager, Calico, Pinniped 는 2026-10-26 기준 위 문서들과 3.8.0+20261021 지원 표에 이름으로 나오지 않는다. Multus·Whereabouts 는 9.0 문서 세 곳에는 없지만 3.7.0+20260618 부터 애드온으로 들어왔으므로 절을 만든다(Part 6). (9.1 VKS Add-ons Release Notes, 2026-10-26 확인) 예전 TKG 문서에서 보던 이름이라도 지원 표에 없으면 여기서 절로 만들지 않는다. Alertmanager 가 Prometheus 패키지 안에 들어 있는지는 05절에서 Prometheus 패키지 참조 문서로 확인한다.
+[근거] ~~Grafana, Alertmanager, Multus, Whereabouts, Calico, Pinniped 는 2026-10-26 기준 위 세 문서의 패키지 목록에 이름으로 나오지 않는다.~~ → Grafana, Alertmanager, Calico, Pinniped 는 2026-10-26 기준 위 문서들과 3.8.0+20261021 지원 표에 이름으로 나오지 않는다. Multus·Whereabouts 는 9.0 문서 세 곳에는 없지만 3.7.0+20260618 부터 애드온으로 들어왔으므로 절을 만든다(Part 6). (9.1 VKS Add-ons Release Notes, 2026-10-26 확인) 예전 TKG 문서에서 보던 이름이라도 지원 표에 없으면 여기서 절로 만들지 않는다. ~~Alertmanager 가 Prometheus 패키지 안에 들어 있는지는 05절에서 Prometheus 패키지 참조 문서로 확인한다.~~ → Alertmanager 는 Prometheus 패키지의 구성 요소로 들어 있다(2026-10-31, Prometheus Package Reference). 따로 절을 만들지 않고 05절에서 다룬다.
 
 ## 설치 경로 두 가지
 
@@ -73,7 +73,7 @@
 
 ### Part 2. 관측
 
-- [ ] **05. Prometheus** — 메트릭 수집·경보. 루트 [`../k8s-logging-monitoring/`](../k8s-logging-monitoring/)와 잇는다. 업스트림 설치는 `k8s-addon.sh`.
+- [x] **05. Prometheus** → [05-prometheus.md](05-prometheus.md) (2026-10-31) — 메트릭 수집·경보. [근거] Alertmanager·kube-state-metrics·node-exporter·Pushgateway 와 선택 구성 요소 Prometheus Operator 가 같은 패키지에 들고, Grafana 는 없다(Prometheus Package Reference, 2026-10-31 확인). 루트 [`../k8s-logging-monitoring/`](../k8s-logging-monitoring/)와 잇는다. 업스트림 설치는 `k8s-addon.sh`.
   출처: Install Prometheus <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-0/managing-vsphere-kuberenetes-service-clusters-and-workloads/installing-standard-packages-on-tkg-service-clusters/installing-standard-packages-on-tkg-cluster-using-tkr-for-vsphere-8-x/install-prometheus.html>, Prometheus Package Reference <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-0/managing-vsphere-kuberenetes-service-clusters-and-workloads/installing-standard-packages-on-tkg-service-clusters/standard-package-reference/prometheus-package-reference.html> (2026-10-26 확인)
 - [ ] **06. Fluent Bit** — 로그 전달. 업스트림 설치는 `k8s-addon.sh`.
   출처: Fluent Bit Package Reference <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-0/managing-vsphere-kuberenetes-service-clusters-and-workloads/installing-standard-packages-on-tkg-service-clusters/standard-package-reference/fluent-bit-package-reference.html> (2026-10-26 확인)
@@ -134,3 +134,4 @@
 - 2026-10-30: 02절(Contour) 작성. 9.0 설치 문서 네 쪽(개요·레거시·VCF CLI·kubectl)과 참조 문서, 9.1 릴리스 노트(3.8.0+20261021 의 Contour 는 1.33.7+vmware.1-vks.1 한 판, Ecosystem 등급, Kubernetes 1.33~1.37 검증), 업스트림 호환 표(1.33.7 은 Kubernetes 1.32~1.34 에서만 시험)로 정리. VCF CLI 문서의 클러스터 이름·네임스페이스 설명이 뒤바뀐 것을 흔한 실수에 적었다.
 - 2026-10-30: 03절(ExternalDNS) 작성. 9.0 설치 문서 네 쪽과 참조 문서, 9.1 릴리스 노트(3.8.0+20261021 의 ExternalDNS 는 0.22.0+vmware.1-vks.1 한 판, Product 등급), 업스트림 v0.22.0 릴리스 노트·소스로 정리. 업스트림 0.22.0 이 어노테이션 기본 접두어를 바꾸고 `--policy` 를 필수로 만든 것이 Broadcom 문서에는 안 나와, 두 인자를 values 에 직접 적도록 했다.
 - 2026-10-31: 04절(Cluster Autoscaler) 작성. 9.0 「Autoscaling VKS Clusters」 아래 9쪽과 9.1 릴리스 노트(3.8.0+20261021 은 VKr 마이너당 한 판, 1.37.0+vmware.1-vks.1 은 VKS 3.8.0 이상), 업스트림 Cluster API 제공자 README·FAQ 로 정리. Add-on 경로는 사용자가 AddonInstall 을 만들지 않고 Cluster 라벨로 내장 AddonInstall 을 켠다는 점, 9.0 문서 예시 세 곳(`spec.selector.replicas`, `vks.11`, 3.5.0 저장소)을 흔한 실수에 적었다.
+- 2026-10-31: 05절(Prometheus) 작성. 9.0 설치 문서 일곱 쪽·Package Reference·Operator Reference 와 9.1 릴리스 노트(3.8.0+20261021 은 `3.13.3+vmware.1-vks.1` 한 판, Product 등급, Operator 0.94.0·Thanos 0.42.4 포함, 3.7.0+20260827 에서 3.5 → 3.13)로 정리. 레거시 모드와 Operator 모드의 차이, 전환 때 `deploycomponents` 를 false 로 두면 데이터가 영구히 지워진다는 경고를 중심에 두었고, 9.0 문서 안의 어긋남 다섯 곳(Operator 깃발 설명, PVC 기본값 150Gi 대 20Gi, service.type 지원 값, Troubleshoot 의 재설치 명령, 옛 예시 판)을 흔한 실수에 적었다.
