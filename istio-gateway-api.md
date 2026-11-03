@@ -115,7 +115,7 @@ kubectl get crd | grep gateway
 ### 4.1 Helm Repository 등록
 
 ```bash
-helm repo add istio https://istio-release.storage.googleapis.com/charts
+helm repo add istio https://blob.istio.io/istio-release/charts
 helm repo update
 helm search repo istio       # 사용 가능한 차트/버전 확인
 ```
@@ -399,7 +399,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 1h
-  url: https://istio-release.storage.googleapis.com/charts
+  url: https://blob.istio.io/istio-release/charts
 ```
 
 ### 7.3 HelmRelease — 릴리스 정의 (버전 고정 + 자동 복구)
