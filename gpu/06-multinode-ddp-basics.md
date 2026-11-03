@@ -3,6 +3,15 @@
 > [목차로](CURRICULUM.md) · 작성 2026-10-15 · 기준 버전: PyTorch 2.14(문서·`v2.14.0` 소스), NCCL 2.32.3 문서, Kubernetes 1.37 문서, 이미지 `pytorch/pytorch:2.14.1-cuda13.0-cudnn9-runtime`
 > **[근거]** 출처에 그대로 있는 내용, **[추론]** 여러 출처를 엮어 내린 결론.
 > 앞 절: [05. DRA](05-dra.md)
+>
+> **최신화 2026-11-03 (PyTorch 2.15.0, 2026-10-28).** 본문은 2.14 기준 그대로 두고, 이 절과 닿는 바뀐 점만 추린다.
+> - **[근거]** `backend="nccl"`(CUDA에서 `init_process_group()` 기본값)이 **새로 쓴 NCCL 구현**으로 바뀌었다. 옛 구현은 `nccl-legacy` 또는 모든 rank에 `TORCH_DIST_USE_NCCL2=0`으로 되돌릴 수 있지만 **다음 릴리스에서 둘 다 없어진다**. 출처: [2.15.0 릴리스 노트](https://github.com/pytorch/pytorch/releases/tag/v2.15.0) "Backwards Incompatible Changes › Distributed (c10d)", 소스 `v2.15.0` `torch/distributed/distributed_c10d.py`(2026-11-03 확인)
+> - **[근거]** 새 구현은 그룹마다 GPU 하나에 묶인다. `device_id`를 주지 않으면 `LOCAL_RANK % torch.cuda.device_count()`(없으면 전역 rank)로 정하고 `torch.cuda.set_device()`는 보지 않는다. 다른 GPU의 텐서를 넘기면 `ProcessGroupNCCL is bound to device cuda:X ...` 오류가 난다. 프로세스 하나가 GPU 여럿을 쓰는 구성은 `nccl-legacy`에서만 된다. 같은 출처
+> - **[근거]** 통신기(communicator)를 `init_process_group()`·`new_group()`에서 바로 만들어, 안 쓰는 그룹도 GPU 메모리를 잡는다(그룹당 약 200 MiB, 늦게 만들려면 새 옵션 `ProcessGroupNCCL.Options.lazy_init`). 송수신 상대마다 따로 겹쳐 돌리려면 `nccl-lazy`. 같은 출처 "Distributed (c10d)" 개선 항목
+> - **[근거]** PyPI 휠이 CUDA 13.2(`cu132`)·13.4(`cu134`)로 바뀌고 `cu126`·`cu130`은 더 나오지 않는다. CUDA 13 휠은 드라이버 580 이상·Turing(sm_75) 이상 GPU가 필요하다. 공식 이미지는 `pytorch/pytorch:2.15.0-cuda13.2-cudnn9-runtime`(Docker Hub 태그 2026-11-03 확인). 같은 출처
+> - **[근거]** 2.15에서 저장한 분산 체크포인트(DCP)는 2.14 이하에서 못 읽는다(메타데이터에 strides 추가, 옛 형식으로 쓰는 옵션 없음). 같은 출처
+> - **[추론]** 아래 실습 스크립트는 1 프로세스 = 1 GPU = `LOCAL_RANK`라 새 구현의 기본 묶음과 같은 GPU를 고른다. 그래도 rank와 GPU 대응을 코드에 드러내도록 `device_id`를 넘기게 고쳤다(`device_id` 인자는 2.14에도 있다, `v2.14.0` 소스 확인). 학습 Pod와 체크포인트를 함께 쓰는 잡은 **모든 Pod의 PyTorch 판을 맞춘다**. 섞이면 DCP를 못 읽거나 백엔드 동작이 rank마다 다르다.
+> - **[추론]** 12절의 `TORCH_NCCL_*` 환경 변수(Flight Recorder 등)는 2.15 문서 페이지가 2025-06 판 그대로라 새 구현에 모두 먹는지 공식 문서로는 확인하지 못했다. 릴리스 노트에는 새 구현에도 Flight Recorder를 기록·덤프하도록 했다는 항목이 있다. 12절 반영은 다음 점검으로 넘긴다.
 
 ## 1. 개념
 
@@ -138,12 +147,14 @@ data:
     @record
     def main():
         use_cuda = torch.cuda.is_available()
-        dist.init_process_group(backend="nccl" if use_cuda else "gloo")
-        rank, world = dist.get_rank(), dist.get_world_size()
         local = int(os.environ["LOCAL_RANK"])
         dev = torch.device(f"cuda:{local}") if use_cuda else torch.device("cpu")
         if use_cuda:
             torch.cuda.set_device(dev)
+        # device_id: 2.15의 새 NCCL 구현은 그룹을 GPU 하나에 묶는다(set_device는 안 봄)
+        dist.init_process_group(backend="nccl" if use_cuda else "gloo",
+                                device_id=dev if use_cuda else None)
+        rank, world = dist.get_rank(), dist.get_world_size()
         model = torch.nn.Linear(1024, 1024).to(dev)
         ddp = DDP(model, device_ids=[local] if use_cuda else None)
         opt = torch.optim.SGD(ddp.parameters(), lr=0.01)
