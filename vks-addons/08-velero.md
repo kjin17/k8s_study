@@ -285,7 +285,7 @@ KUBECONFIG=./kc-dummy velero install --provider aws --bucket b --secret-file ./c
 
 ## 4. 업스트림 Helm 설치와 다른 점
 
-[근거] 업스트림 Helm 설치는 루트 [`../k8s-addon.sh`](../k8s-addon.sh) 의 `addon_velero_minio` 함수에 있다. `vmware-tanzu/velero` 차트를 판 고정 없이 깔고, AWS 플러그인 `velero-plugin-for-aws:v1.9.0` 을 initContainer 로 넣고, `deployNodeAgent=true` 로 node-agent 를 켠다. 2026-11-01 현재 그 차트는 `12.2.2`(appVersion 1.18.2)다. (`vmware-tanzu/helm-charts` 의 `charts/velero/Chart.yaml`)
+[근거] 업스트림 Helm 설치는 루트 [`../k8s-addon.sh`](../k8s-addon.sh) 의 `addon_velero_minio` 함수에 있다. `vmware-tanzu/velero` 차트를 `12.2.2`(Velero 1.18.2)로 고정해 깔고, 그 짝인 AWS 플러그인 `velero-plugin-for-aws:v1.14.4` 를 initContainer 로 넣고, `deployNodeAgent=true` 로 node-agent 를 켠다. 2026-11-01 현재 그 차트는 `12.2.2`(appVersion 1.18.2)다. (`vmware-tanzu/helm-charts` 의 `charts/velero/Chart.yaml`)
 
 | | VKS Velero 애드온 | 업스트림 Helm 차트 |
 |---|---|---|
@@ -297,7 +297,7 @@ KUBECONFIG=./kc-dummy velero install --provider aws --bucket b --secret-file ./c
 | 지원 | Product 등급, VMware CLI 써야 지원 | 커뮤니티 |
 
 - [근거] AWS 플러그인과 Velero 의 짝은 v1.14.x ↔ 1.18.x, v1.13.x ↔ 1.17.x, …, v1.9.x ↔ 1.13.x 다. (`velero-plugin-for-aws` README 호환 표)
-- [추론] 그래서 `k8s-addon.sh` 처럼 차트 판을 안 박고 플러그인만 v1.9.0 으로 박아 두면, 오늘 깔리는 1.18 서버와 1.13 짝 플러그인이 만난다. 업스트림으로 실습할 때는 차트 `--version` 과 플러그인 판을 같이 박는다. 같은 스크립트가 `volumeSnapshotLocation` 을 `provider=aws` 로 만드는데, vSphere 에서는 쓰이지 않는 설정이다. 스크립트는 이 절에서 고치지 않는다.
+- [추론] 그래서 예전 `k8s-addon.sh` 처럼 차트 판을 안 박고 플러그인만 v1.9.0 으로 박아 두면, 그날 깔리는 1.18 서버와 1.13 짝 플러그인이 만난다. 업스트림으로 실습할 때는 차트 `--version` 과 플러그인 판을 같이 박는다(스크립트는 2026-11-03 에 차트 12.2.2·플러그인 v1.14.4 로 같이 박았다). 같은 스크립트가 `volumeSnapshotLocation` 을 `provider=aws` 로 만드는데, vSphere 에서는 쓰이지 않는 설정이다.
 - [추론] 애드온은 「Velero 전체」가 아니라 S3 호환 BSL 하나 + CSI(또는 Kopia FS) 경로로 좁혀 둔 모양이다. Azure·GCP BSL 이나 BSL 여러 개가 필요하면 values 칸이 없다. 그때는 깔린 뒤 BSL CR 을 손으로 더하는 방법(1.15→1.16 업그레이드 문서가 「기본 외 BSL 은 다시 만들라」고 한 것)을 쓴다.
 
 ## 5. 흔한 실수
