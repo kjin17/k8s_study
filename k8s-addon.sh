@@ -116,7 +116,7 @@ add_helm_repos() {
     "fluent               https://fluent.github.io/helm-charts"
     "kyverno              https://kyverno.github.io/kyverno"
     "gatekeeper           https://open-policy-agent.github.io/gatekeeper/charts"
-    "istio                https://istio-release.storage.googleapis.com/charts"
+    "istio                https://blob.istio.io/istio-release/charts"
     "ingress-nginx        https://kubernetes.github.io/ingress-nginx"
     "projectcontour       https://projectcontour.github.io/contour"
     "jetstack             https://charts.jetstack.io"
@@ -422,7 +422,7 @@ ${BOLD}구성 요소:${NC}
   if ! confirm "Istio 를 설치하시겠습니까?"; then return; fi
 
   read_val "설치 Namespace"       ISTIO_NS      "istio-system"
-  read_val "Istio 버전"           ISTIO_VERSION "1.21.0"
+  read_val "Istio 버전"           ISTIO_VERSION "1.31.3"
 
   echo -e "\n  ${BOLD}설치 프로파일 선택:${NC}"
   echo -e "    ${CYAN}1)${NC} default   — istiod + ingress gateway (권장)"
