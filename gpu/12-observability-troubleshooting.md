@@ -3,6 +3,19 @@
 > [목차로](CURRICULUM.md) · 작성 2026-10-22 · 기준 버전: DCGM Exporter 4.8.4(DCGM 4.6.1, `4.8.4` 태그 소스), GPU Operator v26.7.2(`v26.7.2` 태그 소스), NVIDIA k8s-device-plugin v0.20.1(`v0.20.1` 태그 소스), Kubernetes 1.37(`v1.37.0` 태그 소스), NCCL 2.32.3 문서, PyTorch 2.14(`v2.14.0` 태그 소스)
 > **[근거]** 출처에 그대로 있는 내용, **[추론]** 여러 출처를 엮어 내린 결론.
 > 앞 절: [11. 토폴로지 인지 배치](11-topology-aware-placement.md)
+>
+> **최신화 2026-11-10 (DCGM Exporter 4.9.0, 2026-11-06 · PyTorch 2.15.0 새 NCCL 구현).** 본문은 4.8.4·2.14 기준 그대로 두고, 이 절과 닿는 바뀐 점만 추린다. 함께 고친 것: 3.3·4절 경보 예시의 라벨 `Hostname`을 `hostname`으로 바꿨다. 4.8.3에서 소문자로 바뀌었고 4.8.4 소스(`internal/pkg/transformation/kubernetes.go`, 렌더링 시험의 `hostname="testhost"`)도 소문자다. 처음 쓸 때 틀렸던 부분이다.
+> - **[근거]** 4.9.0은 기본 지표 이름·단위·설정 형식을 바꾼다. 기본 CSV의 23개 필드가 DCGM 4.7 이름으로 바뀌고 그중 11개는 단위도 바뀐다(클럭 MHz→Hz, 에너지 mJ→J, 사용률 %→0~1 비율, 메모리 MiB→바이트, NVLink MB/s→B/s). GPU Operator가 쓰는 `dcp-metrics-included.csv`는 이제 `default-counters.csv`와 똑같은 사본이고 폐기 예정이다(4.9.0 태그에서 두 파일 diff 없음). 출처: [4.9.0 릴리스](https://github.com/NVIDIA/dcgm-exporter/releases/tag/4.9.0), `etc/default-counters.csv` 4.8.4↔4.9.0 비교, `etc/README.md`(4.9.0) (2026-11-10 확인)
+> - **[근거]** 이 절에서 쓰는 이름의 대응(같은 출처의 CSV 비교): `XID_ERRORS`→`DCGM_FI_DEV_XID_ERROR`, `GPU_UTIL`→`GPU_UTIL_RATIO`(0~1, Pod 귀속 값은 프로세스 합이라 1을 넘을 수 있음), `FB_USED`/`FB_FREE`→`FB_USED_BYTES`/`FB_FREE_BYTES`, `ROW_REMAP_FAILURE`→`ROW_REMAP_FAILED`, `(UN)CORRECTABLE_REMAPPED_ROWS`→`ROW_REMAP_(UN)CORRECTABLE_TOTAL`, `GPU_TEMP`→`GPU_TEMP_CELSIUS`, `POWER_USAGE`→`BOARD_POWER_WATTS`, `SM_CLOCK`→`SM_CLOCK_HERTZ`, `NVLINK_BANDWIDTH_TOTAL`→`NVLINK_THROUGHPUT_BYTES_PER_SECOND`, `PROF_PIPE_TENSOR_ACTIVE`→`PROF_TENSOR_UTIL_RATIO`, `PROF_GR_ENGINE_ACTIVE`→`PROF_GR_ENGINE_UTIL_RATIO`. 모든 지표의 드라이버 판 라벨은 `DCGM_FI_DRIVER_VERSION`→`DCGM_FI_SYSTEM_DRIVER_VERSION`, 새 기본 필드 `DCGM_FI_DEV_FB_CAPACITY_BYTES`. exporter 자체 필드 `DCGM_EXP_XID_ERRORS_COUNT`·`_TOTAL`은 이름이 그대로이고 여전히 주석(옵트인)이다.
+> - **[추론]** 스로틀링 시간은 4.9.0 CSV 주석에서 `DCGM_FI_DEV_GPU_THERMAL_THROTTLE_SECONDS_TOTAL`·`GPU_POWER_THROTTLE_SECONDS_TOTAL`(초 단위)로 보인다. 옛 `THERMAL_VIOLATION`(ns)과 같은 필드인지는 CSV에 적혀 있지 않아 확정하지 못했다. 새로 쓸 땐 4.9.0의 오프라인 명령 `config explain`으로 필드를 확인하고, 3.3의 `> 60e9`(ns 기준)를 초 기준 `> 60`으로 바꿔야 하는지 본다.
+> - **[근거]** 옛 이름은 사용자 CSV에서 계속 받는다. 소스 주석은 두 필드의 단위를 밝힌다: "Deprecated names stay supported for custom collector files. GPU utilization: the deprecated field reports a percent, the current field a ratio. Framebuffer used: the deprecated field reports MiB, the current field bytes." 출처: `internal/pkg/transformation/const.go` 44~46행(4.9.0 태그, 2026-11-10 확인). 시험 코드는 단위가 바뀌어 **DCGM 필드 ID까지 달라지는 옛 이름을 10개**로 적는다(`SM_CLOCK`·`MEM_CLOCK`·`TOTAL_ENERGY_CONSUMPTION`·`GPU_UTIL`·`MEM_COPY_UTIL`·`ENC_UTIL`·`DEC_UTIL`·`FB_FREE`·`FB_USED`·`FB_RESERVED`), 그리고 "이름만 바뀐 필드는 같은 ID를 유지한다"고 적는다. 출처: `internal/pkg/counters/default_counter_sources_test.go` 205~217행(4.9.0). 소스·시험 코드 판독이며 GPU에서 실측하지 않았다.
+> - **[추론]** 그러니 이 10개는 옛 이름으로 적으면 옛 단위로 나오고, 이름만 바뀐 필드(`XID_ERRORS`·`ROW_REMAP_FAILURE` 등)는 값이 같다. 11번째 단위 변경인 `NVLINK_BANDWIDTH_TOTAL`은 위 10개에 없어서 옛 이름으로 적어도 새 단위(B/s)로 나올 수 있다. 옛 이름 CSV를 고정해도 "단위까지 옛것"이라고 일반화하지 말고 필드마다 확인한다.
+> - **[추론]** 그래서 3.2처럼 옛 이름 CSV를 ConfigMap으로 고정한 곳은 3.3 경보식이 그대로 돈다(3.3이 쓰는 `XID_ERRORS`·`ROW_REMAP_FAILURE`·`THERMAL_VIOLATION`·`GPU_UTIL` 기준). 기본 CSV를 쓰는 곳은 이미지가 4.9.0으로 오르는 순간 이름이 바뀌어 3.3의 식이 빈 결과가 되고, **경보가 오류 없이 조용히 꺼진다**. 올리기 전에 경보·대시보드를 새 이름으로 고치거나 옛 이름 CSV를 고정한다. GPU Operator 최신 정식판은 아직 v26.7.2이고 기본 이미지는 `4.6.1-4.8.4-distroless`다(`deployments/gpu-operator/values.yaml` v26.7.2, `gh release list` 2026-11-10 확인). Operator가 4.9.0을 싣는 시점은 다음 Operator 릴리스 노트로 본다.
+> - **[근거]** 그 밖에 이 절과 닿는 것(4.9.0 릴리스 노트): Pod 라벨을 켤 때 허용 목록이 비면 4.8.4는 전부 붙였지만 4.9.0은 시작을 거부한다(전부면 `.*`). XID 건수·누적 지표를 MIG 인스턴스별로도 낸다. MIG를 켠 GPU에서 전력·온도·클럭 같은 GPU 전체 지표는 인스턴스마다 반복하지 않고 물리 GPU당 한 번 낸다. 누적 XID·clock-event `_TOTAL`은 CSV·SIGHUP 리로드, DRA 풀 변경, GPU 복구 때 0부터 다시 센다. GPU 복구 재시도는 6번 실패 뒤 exporter가 종료한다(4.8.4는 무한 재시도). 4.8.4의 미리보기 v2 YAML 설정은 4.9.0에서 시작에 실패하고, v1 YAML은 폐기 예정이며 4.10에서 지원이 끝난다. libdcgm과 호스트엔진 중 한쪽만 4.7.1이고 다른 쪽이 그보다 낮으면 일부 요청이 API 판 불일치로 실패한다(4.7.1을 쓰려면 둘 다 4.7.1로 맞춘다).
+> - **[추론]** `_TOTAL`이 0으로 돌아가도 Prometheus의 `increase()`는 카운터 리셋으로 처리하므로 3.3 주의 (1)의 `increase(DCGM_EXP_XID_ERRORS_TOTAL[5m]) > 0`은 그대로 쓸 수 있다. 반대로 리로드 직후 `_TOTAL` 값을 그대로 보는 대시보드는 숫자가 줄어든 것처럼 보인다.
+> - **[근거]** PyTorch 2.15에서 기본이 된 새 NCCL 구현(06절 머리 참고, 소스 `torch/csrc/distributed/c10d/nccl2/`)이 직접 읽는 `TORCH_NCCL_*`는 `ASYNC_ERROR_HANDLING`(기본 `SkipCleanUp`=3, 2.14와 같음)·`BLOCKING_WAIT`·`ENABLE_TIMING`·`HIGH_PRIORITY`·`CUDA_EVENT_CACHE`·`USE_COMM_NONBLOCKING`·`RANKS_PER_ROOT`, 그리고 프로세스를 끝내기 전 health-check·Flight Recorder 덤프를 기다리는 `WAIT_TIMEOUT_DUMP_MILSEC`(기본 15000ms, Flight Recorder 쪽 별칭 `TORCH_FR_WAIT_TIMEOUT_DUMP_MILSEC`)다. 1.7의 `TORCH_NCCL_ENABLE_MONITORING`·`TORCH_NCCL_HEARTBEAT_TIMEOUT_SEC`·`TORCH_NCCL_DESYNC_DEBUG`는 이 디렉터리 소스에 나오지 않는다. 출처: `v2.15.0` 태그 `nccl2/*.cpp·*.hpp` 판독(2026-11-10 확인, 실측 아님)
+> - **[추론]** 그러니 1.7의 heartbeat 모니터(8분) 설명은 `nccl-legacy`(`TORCH_DIST_USE_NCCL2=0`)에만 맞는다. 새 구현에서 이 변수를 Pod에 넣어도 효과가 없다고 보는 것이 안전하다. 2.15에 새로 생긴 `TORCH_NCCL_TEARDOWN_ON_TIMEOUT`도 릴리스 노트상 legacy 타임아웃용이다.
+> - **[근거]** Flight Recorder는 2.15에서 새 구현에도 붙는다(릴리스 노트 #192233·#199092·#192858, 새 구현의 health-check 실패 때도 덤프). 설정은 `TORCH_FR_*` 이름이고 옛 `TORCH_NCCL_*` 이름을 별칭으로 같이 받는다: `TORCH_FR_BUFFER_SIZE`(옛 `TORCH_NCCL_TRACE_BUFFER_SIZE`, 기본 2000), `TORCH_FR_DUMP_ON_TIMEOUT`(옛 `TORCH_NCCL_DUMP_ON_TIMEOUT`, 기본 켜짐), `TORCH_FR_DUMP_TEMP_FILE`. 덤프는 프로세스당 한 번만 쓴다. 출처: `v2.15.0` `torch/csrc/distributed/c10d/FlightRecorder.hpp` 110·350행, `hooks/FlightRecorderHook.cpp` `onAbort()`(2026-11-10 확인). 3.6의 `TORCH_FR_DUMP_TEMP_FILE` 설정은 그대로 쓰면 된다.
 
 ## 1. 개념
 
@@ -214,7 +227,7 @@ spec:
           or (DCGM_FI_DEV_XID_ERRORS unless DCGM_FI_DEV_XID_ERRORS offset 10m)
       labels: {severity: warning}
       annotations:
-        summary: "{{ $labels.Hostname }} GPU {{ $labels.gpu }} XID 새로 보고됨 (번호는 DCGM_FI_DEV_XID_ERRORS로 확인)"
+        summary: "{{ $labels.hostname }} GPU {{ $labels.gpu }} XID 새로 보고됨 (번호는 DCGM_FI_DEV_XID_ERRORS로 확인)"
     # 노드 재부팅·RMA 후보 번호만 따로 (48 DBE, 79 버스 이탈, 95 비격리 메모리 오류)
     - alert: GpuXidCritical
       expr: DCGM_FI_DEV_XID_ERRORS == 48 or DCGM_FI_DEV_XID_ERRORS == 79 or DCGM_FI_DEV_XID_ERRORS == 95
@@ -318,24 +331,24 @@ volumes:
    tests:
    - interval: 1m
      input_series:
-     - series: 'DCGM_FI_DEV_XID_ERRORS{gpu="3",Hostname="node-a"}'
+     - series: 'DCGM_FI_DEV_XID_ERRORS{gpu="3",hostname="node-a"}'
        values: '_ _ 79x30'          # 0~1분 없음, 2분부터 79가 계속 남음
      alert_rule_test:
      - eval_time: 4m
        alertname: GpuXidCritical
        exp_alerts:
-       - exp_labels: {severity: critical, gpu: "3", Hostname: "node-a"}
+       - exp_labels: {severity: critical, gpu: "3", hostname: "node-a"}
      - eval_time: 4m                # 새로 생겼으니 울린다
        alertname: GpuXidReported
        exp_alerts:
-       - exp_labels: {severity: warning, gpu: "3", Hostname: "node-a"}
+       - exp_labels: {severity: warning, gpu: "3", hostname: "node-a"}
          exp_annotations: {summary: "node-a GPU 3 XID 새로 보고됨 (번호는 DCGM_FI_DEV_XID_ERRORS로 확인)"}
      - eval_time: 30m               # 값은 남아 있지만 바뀐 게 없으니 꺼져 있어야 한다
        alertname: GpuXidReported
        exp_alerts: []
    ```
 
-   `promtool test rules test.yaml`. (2026-10-23 promtool 3.15.1로 실측: 3.3의 새 `GpuXidReported` 식으로 이 시험은 SUCCESS. 같은 시험을 옛 식 `DCGM_FI_DEV_XID_ERRORS != 0`에 대면 30분 시점에 `exp:[]`인데 경보가 남아 FAILED가 나서, 시험이 "한 번 나면 계속 울림"을 실제로 가르는 것을 확인했다. 번호가 13→43으로 바뀌는 시계열을 더해도 새 식은 바뀐 시점부터 10분간만 울렸다.) 3.3은 PrometheusRule 형식이니 `spec.groups` 아래만 떼어 `groups:`로 시작하는 파일로 만든다. `for:`가 있는 규칙은 `eval_time`을 조금씩 바꿔 보며 언제부터 뜨는지 확인한다.
+   `promtool test rules test.yaml`. (2026-10-23 promtool 3.15.1로 실측: 3.3의 새 `GpuXidReported` 식으로 이 시험은 SUCCESS. 같은 시험을 옛 식 `DCGM_FI_DEV_XID_ERRORS != 0`에 대면 30분 시점에 `exp:[]`인데 경보가 남아 FAILED가 나서, 시험이 "한 번 나면 계속 울림"을 실제로 가르는 것을 확인했다. 번호가 13→43으로 바뀌는 시계열을 더해도 새 식은 바뀐 시점부터 10분간만 울렸다. 2026-11-10 라벨을 `hostname`으로 고친 뒤 같은 promtool 3.15.1로 다시 돌려 SUCCESS를 확인했다.) 3.3은 PrometheusRule 형식이니 `spec.groups` 아래만 떼어 `groups:`로 시작하는 파일로 만든다. `for:`가 있는 규칙은 `eval_time`을 조금씩 바꿔 보며 언제부터 뜨는지 확인한다.
 2. **Unhealthy 흉내.** 01절처럼 kind 노드에 `nvidia.com/gpu` 용량을 패치하되, `capacity`는 8, `allocatable`은 7로 준다. 8장을 요청하는 Pod는 Pending(`Insufficient nvidia.com/gpu`)이 되고, 3.3의 `GpuAllocatableBelowCapacity` 식을 kube-state-metrics가 깔린 kind에서 조회하면 1이 나온다. 단 kubelet이 노드 상태를 다시 보고하면 패치가 덮일 수 있다(01절의 주의와 같다).
 3. **NCCL 없이 hang·타임아웃 보기.** CPU용 `gloo` 백엔드로 06절의 2-Pod torchrun Job을 띄우고, 한 Pod에서 `kill -STOP <python PID>`로 rank 하나를 얼린다. 다른 rank가 집합 연산에서 기다리다 타임아웃으로 죽는지, 그 뒤 Job·JobSet 재시작이 어떻게 도는지 본다. `init_process_group(timeout=timedelta(seconds=60))`처럼 타임아웃을 줄이면 빨리 볼 수 있다. Flight Recorder는 NCCL 프로세스 그룹 기능이라 gloo에서는 덤프가 나오지 않을 수 있다(이 절에서 실측하지 않았다).
 4. **dry-run.** 3.2의 ConfigMap과 3.3의 PrometheusRule은 해당 CRD가 깔린 클러스터에서 `kubectl apply --dry-run=server -f`로 필드 오타를 잡는다. PrometheusRule CRD만 필요하면 prometheus-operator의 CRD만 설치한다.
