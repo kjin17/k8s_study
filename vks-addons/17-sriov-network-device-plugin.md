@@ -6,7 +6,7 @@
 
 SR-IOV Network Device Plugin 은 노드에 있는 SR-IOV 가상 함수(VF) 같은 네트워크 장치를 찾아 `broadcom.com/brcm_sriov_bnxt` 같은 **확장 리소스**로 kubelet 에 알리고, Pod 가 `resources.limits` 로 그 리소스를 요청하면 장치 하나를 골라 준다. 쿠버네티스 device plugin 의 네트워크판이다.
 
-이 절에서 가장 먼저 잡을 것은 **이 플러그인이 하는 일의 경계**다. 장치를 세고 나눠 주는 것까지가 이 플러그인 몫이고, VF 를 Pod 의 네트워크 인터페이스로 붙이는 일은 하지 않는다. 그 일은 Multus 와 SR-IOV CNI 같은 CNI 쪽이 맡는다(DPDK 처럼 `vfio-pci` 장치를 사용자 공간에서 직접 쓰는 경우는 예외). 그리고 공식 참조 문서의 예시 values 를 그대로 붙이면 깨진다(5절 1번).
+이 절에서 가장 먼저 잡을 것은 **이 플러그인이 하는 일의 경계**다. 장치를 세고 나눠 주는 것까지가 이 플러그인 몫이고, VF 를 Pod 의 네트워크 인터페이스로 붙이는 일은 하지 않는다. 그 일은 Multus 와 보조 CNI 쪽이 맡는다. VKS 워커처럼 VF 가 VM 에 패스스루된 환경에서는 업스트림이 SR-IOV CNI 대신 host-device CNI 를 권한다([추론] DPDK 처럼 `vfio-pci` 장치를 사용자 공간에서 직접 쓰는 경우는 CNI 없이 쓴다). 그리고 공식 참조 문서의 예시 values 를 그대로 붙이면 깨진다(5절 1번).
 
 [근거] 이 절의 렌더링 결과는 공개 저장소(`3.8.0-20261021/vks-addons`)의 SR-IOV 패키지 원본과 bundle(`@sha256:afa8f37b…`)을 익명으로 받아 ytt v0.55.4 로 직접 돌린 것이다(2026-11-11). **SR-IOV NIC 가 붙은 VKS 클러스터에 설치해 보지는 못했다.** 3.3~3.4 의 클러스터 쪽 명령과 기대 출력은 문서와 렌더링에서 읽은 것이고 실측이 아니다.
 
@@ -23,7 +23,7 @@ flowchart LR
     VF["VF (PCI 장치)\n드라이버 bnxt_en / iavf / mlx5_core / vfio-pci"]
   end
   POD["Pod\nlimits: broadcom.com/brcm_sriov_bnxt: 1"]
-  CNI["Multus + SR-IOV CNI\n(이 애드온에 없음)"]
+  CNI["Multus + host-device CNI\n(VM 노드 권장, 이 애드온에 없음)"]
   CFG --> DP
   DP -->|"장치 검색"| VF
   DP -->|"리소스 등록·할당"| KUBELET
@@ -35,8 +35,8 @@ flowchart LR
 - [근거] 리소스 이름은 `resourcePrefix/resourceName` 이고, `resourcePrefix` 를 적지 않으면 명령행 기본값 `intel.com` 이 붙는다. (업스트림 v3.11.0 `cmd/sriovdp/main.go`·`manager.go`, README)
 - [근거] 장치가 할당되면 컨테이너에 `PCIDEVICE_<리소스 이름 대문자, . 과 / 는 _>` 환경 변수로 PCI 주소가 들어간다. 예: `PCIDEVICE_INTEL_COM_SRIOV=0000:03:02.1`. (업스트림 README)
 - [근거] `selectors` 는 객체 하나나 객체 목록을 받고, 목록이 권장이다. 목록은 순서대로 평가한다. (업스트림 README)
-- [근거] 9.0 문서의 Windows 표에서 SR-IOV Network Device Plugin 은 Linux 클러스터·하이브리드 클러스터에서 지원, Windows 워커 클러스터에서는 지원하지 않고, Windows 워크로드 지원은 NO 다. (vSphere Supervisor 9.0 Services and Standalone Components PDF 506쪽)
-- [근거] 3.5.0+20251218 에서 처음 들어왔고, 하드웨어 요구 사항은 「SR-IOV 가 켜진 하드웨어 가속 노드」다. (9.1 VKS Add-ons Release Notes)
+- [근거] 9.0 문서의 Windows 표에서 SR-IOV Network Device Plugin 은 Linux 클러스터·하이브리드 클러스터에서 지원, Windows 워커 클러스터에서는 지원하지 않고, Windows 워크로드 지원은 NO 다. (vSphere Supervisor 9.0 Services and Standalone Components PDF 507쪽)
+- [근거] 3.5.0+20251022 에서 처음 들어왔고(그 절의 「first release」 문구), 하드웨어 요구 사항은 「SR-IOV 가 켜진 하드웨어 가속 노드」다. (9.1 VKS Add-ons Release Notes)
 
 ### VKS 클러스터 쪽 기능과의 관계
 
@@ -54,8 +54,8 @@ flowchart LR
 | 이번 판의 변화 | Go 의존성·베이스 이미지 갱신(취약점 대응) | 같은 곳 |
 | 업스트림 | sriov-network-device-plugin v3.11.0 | Package `releaseNotes` |
 
-- [근거] 판 흐름: 3.10.0+vmware.1(3.5.0+20251218, 첫 판) → 3.10.0+vmware.3(DaemonSet 오버레이 문제 수정) → 3.11.0+vmware.1(vhost-net 감지 선택자 추가) → 3.11.0+vmware.3(VKr 1.34 이상에서 priority class 설정) → 3.11.0+vmware.6. (9.1 VKS Add-ons Release Notes)
-- [근거] Ecosystem 등급은 Broadcom 지원이 패키징·서명·수명 주기 문제로 한정되고, 런타임 버그·보안 패치·기능 요청은 업스트림 커뮤니티 몫이다. (같은 곳, VKS Add-ons Support Tiers)
+- [근거] 판 흐름(주요 변화만, 3.11.0+vmware.2·4·5 는 취약점 대응 갱신): 3.10.0+vmware.1(3.5.0+20251022, 첫 판) → 3.10.0+vmware.3(3.5.0+20251218, DaemonSet 오버레이 문제 수정) → 3.11.0+vmware.1(vhost-net 감지 선택자 추가) → 3.11.0+vmware.3(VKr 1.34 이상에서 priority class 설정) → 3.11.0+vmware.6. (9.1 VKS Add-ons Release Notes)
+- [근거] Ecosystem 등급은 Broadcom 지원이 패키징·서명·수명 주기 문제로 한정되고, 런타임 버그·보안 패치·기능 요청은 업스트림 커뮤니티 몫이다. 다만 커뮤니티가 수정을 내면 그 패치를 패키지로 묶는 일은 Broadcom 이 맡는다. (같은 곳, VKS Add-ons Support Tiers 와 Support Matrix 각주)
 - [추론] VF 가 안 보이거나 리소스가 0 으로 뜨는 문제는 대부분 런타임·설정 쪽이라 Broadcom 지원 범위 밖일 가능성이 크다. 업스트림 README 와 이슈를 먼저 본다.
 
 ## 2. VKS 에서 어떻게 들어가는가
@@ -100,17 +100,17 @@ flowchart LR
 - `config` 안의 JSON 문법은 검사하지 않는다. 문자열이기만 하면 통과한다(5절 1번).
 - 여러 nodepool 의 `nodeSelector` 가 겹쳐도 막지 않는다.
 
-[근거] 업스트림 v3.11.0 의 `main()` 은 config 파일을 읽거나 JSON 으로 풀지 못하면 오류 로그를 남기고 `return` 한다. (`cmd/sriovdp/main.go`) [추론] 프로세스가 종료 코드 0 으로 끝나고 DaemonSet 이 다시 띄우므로, Pod 가 `Completed` 와 `CrashLoopBackOff` 를 오가며 재시작 횟수만 늘어난다. 「에러로 죽었다」가 아니라 「정상 종료했다」로 보이니 로그를 봐야 한다.
+[근거] 업스트림 v3.11.0 의 `main()` 은 config 파일을 읽거나 JSON 으로 풀지 못하면 오류 로그를 남기고 `return` 하고, 업스트림 이미지의 `images/entrypoint.sh` 는 `exec` 로 sriovdp 를 띄워 종료 코드를 그대로 넘긴다. (`cmd/sriovdp/main.go`, `images/entrypoint.sh`) [추론] VKS 이미지도 같은 entrypoint 라면 프로세스가 종료 코드 0 으로 끝나고 DaemonSet 이 다시 띄우므로, Pod 가 `Completed` 와 `CrashLoopBackOff` 를 오가며 재시작 횟수만 늘어난다. 「에러로 죽었다」가 아니라 「정상 종료했다」로 보이니 로그를 봐야 한다.
 
 ### 2.3 Add-on 경로: 9.0 문서가 안내하는 방법
 
-[근거] 9.0 「Install SR-IOV Network Device Plugin」은 Add-on 경로만 안내한다. VCF CLI(`vcf addon available list`·`vcf addon available get … -o sriov-data-values.yaml`·`vcf addon install create`)와 kubectl(AddonConfig `<cluster-name>-sriov-network-device-plugin` + AddonInstall) 두 방법이다. 문서 예시의 판은 `3.11.0+vmware.1-vks.1` 이다. (9.0 PDF 「vSphere Supervisor 9.0 Services and Standalone Components」 609~611쪽)
+[근거] 9.0 「Install SR-IOV Network Device Plugin」은 Add-on 경로만 안내한다. VCF CLI(`vcf addon available list`·`vcf addon available get … -o sriov-data-values.yaml`·`vcf addon install create`)와 kubectl(AddonConfig `<cluster-name>-sriov-network-device-plugin` + AddonInstall) 두 방법이다. 문서 예시의 판은 `3.11.0+vmware.1-vks.1` 이다. (9.0 PDF 「vSphere Supervisor 9.0 Services and Standalone Components」 609~612쪽)
 
 [근거] AddonConfigDefinition(패키지 어노테이션에 gzip+base64 로 들어 있음)을 풀어 보면 (패키지 원본, 2026-11-11 확인):
 
 - 정의 이름은 `sriov-network-device-plugin.kubernetes.vmware.com.3.11.0---vmware.6-vks.1` 이다(`+` 가 `---`). AddonRelease 이름은 문서 예시대로 `...3.11.0-vmware.1-vks.1` 처럼 `+` 가 `-` 하나다. 두 이름 규칙이 다르다.
 - 입력은 Cluster CR 하나뿐이다. AKO([15절](15-ako.md))처럼 Supervisor 쪽 Secret 을 읽지 않는다.
-- 출력은 워크로드 클러스터의 `vmware-system-tkg` 네임스페이스에 Secret `<cluster>-sriov-network-device-plugin-values` 로 쓰이고, Cluster CR 의 `spec.topology.version` 을 `vks_cluster_version` 으로 덧붙인다. 그래서 Add-on 경로에서는 VKr 1.34 이상이면 priority class 가 자동으로 들어간다.
+- 출력은 워크로드 클러스터의 `vmware-system-tkg` 네임스페이스에 Secret `<cluster>-sriov-network-device-plugin-values` 로 쓰이고, Cluster CR 의 `spec.topology.version` 을 `vks_cluster_version` 으로 덧붙인다. 그래서 Add-on 경로에서는 VKr 1.34 이상이면 priority class 가 자동으로 들어간다(`vks_cluster_version: v1.35.0+vmware.2` 로 렌더링하면 `priorityClassName: vmware-system-important` 가 나온다, 직접 렌더링).
 - OpenAPI 스키마는 `nodepools` 항목의 속성으로 `config`·`configFromHostPath`·`nodeSelector` 만 적고 `name` 이 없으며, 대신 최상위에 `name` 이 있다. ytt 스키마(`values-schema.yaml`)에는 `nodepools[].name` 이 있다. [추론] 두 스키마가 어긋나 있다. 문서 예시처럼 nodepool 마다 `name` 을 주는 것이 렌더링 쪽 기준에 맞다.
 
 ### 2.4 레거시 경로
@@ -138,7 +138,7 @@ ytt -f bundle/config --data-values-file sriov-data-values.yaml > rendered.yaml
 grep -E '^kind:' rendered.yaml          # 기대: Secret, ConfigMap, DaemonSet, ServiceAccount
 
 # config.json 이 실제 JSON 인지 따로 검사한다 (ytt 는 검사하지 않는다)
-yq '.nodepools[].config' sriov-data-values.yaml | jq . > /dev/null && echo json-ok
+yq -r '.nodepools[].config' sriov-data-values.yaml | jq . > /dev/null && echo json-ok   # -r 이 없으면 깨진 JSON 도 통과할 수 있다
 ```
 
 ### 3.2 values (공통)
@@ -221,7 +221,7 @@ kubectl apply -f addonconfig.yaml -f addoninstall.yaml
 kubectl get clusteraddon -n <supervisor-namespace> | grep sriov   # 기대: READY True
 ```
 
-[근거] 이름 규칙, `owned-for-deletion` 어노테이션, `releaseFilter`·`addonRef`·`clusters` 구조는 9.0 문서 예시(610~611쪽)를 따랐고 판만 3.8.0 저장소의 것으로 바꿨다.
+[근거] 이름 규칙, `owned-for-deletion` 어노테이션, `releaseFilter`·`addonRef`·`clusters` 구조는 9.0 문서 예시(611~612쪽)를 따랐고 판만 3.8.0 저장소의 것으로 바꿨다.
 
 ### 3.4 워크로드 클러스터에서 확인
 
@@ -235,7 +235,8 @@ kubectl -n kube-system logs ds/sriov-device-plugin-np-sriov | grep -i -E 'unmars
 kubectl get node <worker> -o jsonpath='{.status.allocatable}{"\n"}'
 # 기대: "broadcom.com/brcm_sriov_bnxt":"<VF 수>" 가 보인다. 0 이면 selectors 가 장치를 못 찾은 것
 
-# 리소스를 요청하는 Pod (인터페이스를 붙이려면 Multus + SR-IOV CNI 가 따로 필요)
+# 리소스를 요청하는 Pod (인터페이스를 붙이려면 Multus + 보조 CNI 가 따로 필요)
+kubectl create namespace demo
 kubectl apply -f - <<'EOF'
 apiVersion: v1
 kind: Pod
@@ -273,7 +274,7 @@ kubectl -n demo logs vf-check   # 기대: PCIDEVICE_BROADCOM_COM_BRCM_SRIOV_BNXT
 | 이미지 | `v3.11.0` 태그를 Broadcom 저장소 digest 로 고정(kbld), pull secret 자동 | `ghcr.io/...:latest` |
 | 검증 | nodepool 비었음·둘 다/둘 다 없음·경로 끝 검사, 스키마 밖 키 거절 | 없음 |
 | 우선순위 | VKr 1.34 이상이면 `vmware-system-important` | 없음 |
-| 설정 변경 반영 | kapp versioned ConfigMap 으로 Pod 재시작 | ConfigMap 을 고친 뒤 Pod 를 직접 지워야 함 |
+| 설정 변경 반영 | kapp versioned ConfigMap 으로 Pod 재시작 | [추론] ConfigMap 을 고친 뒤 Pod 를 직접 다시 띄워야 함 |
 | 지원 | Ecosystem 등급(패키징·수명 주기만) | 커뮤니티 |
 
 - [근거] 업스트림 매니페스트의 DaemonSet 이름은 `kube-sriov-device-plugin`, 이미지는 `:latest` 다. VKS bundle 안의 `upstream/` 사본은 이름이 `kube-sriov-device-plugin-amd64`, 이미지가 `:v3.11.0` 이고, 오버레이가 이것을 지운다. (v3.11.0 태그의 `deployments/sriovdp-daemonset.yaml`, 패키지 원본)
@@ -282,13 +283,13 @@ kubectl -n demo logs vf-check   # 기대: PCIDEVICE_BROADCOM_COM_BRCM_SRIOV_BNXT
 
 ## 5. 흔한 실수
 
-1. **Package Reference 예시를 그대로 붙인다.** [근거] 9.0 SR-IOV Package Reference(HTML, Last Updated October 6, 2026) 예시의 `config: |` 블록 안에 `"selectors": [   #Which network interface devices ...` 주석이 들어 있다. YAML 리터럴 블록 안이라 주석이 아니라 문자열이 된다. 그대로 렌더링하면 ytt 는 성공(rc=0)하지만 결과 `config.json` 은 `Expecting value: line 6 column 24` 로 JSON 이 아니다(직접 렌더링 + `json.loads`, 2026-11-11). 같은 예시가 PDF 판(609쪽)에는 주석 없이 실려 있다. [추론] 플러그인은 2.2 처럼 종료 코드 0 으로 끝나며 재시작을 되풀이한다. 붙이기 전에 `jq .` 로 한 번 통과시킨다.
+1. **Package Reference 예시를 그대로 붙인다.** [근거] 9.0 SR-IOV Package Reference(HTML, Last Updated October 6, 2026) 예시의 `config: |` 블록 안에 `"selectors": [   #Which network interface devices ...` 주석이 들어 있다. YAML 리터럴 블록 안이라 주석이 아니라 문자열이 된다. 그대로 렌더링하면 ytt 는 성공(rc=0)하지만 결과 `config.json` 은 `Expecting value: line 6 column 24` 로 JSON 이 아니다(직접 렌더링 + `json.loads`, 2026-11-11). 같은 예시가 PDF 판(609~610쪽)에는 주석 없이 실려 있다. [추론] 플러그인은 2.2 처럼 종료 코드 0 으로 끝나며 재시작을 되풀이한다. 붙이기 전에 `jq .` 로 한 번 통과시킨다.
 2. **nodepool `name` 을 뺀다.** [근거] 렌더링은 성공하고 이름이 하이픈으로 끝난다(2.2). [추론] DaemonSet 생성이 거절된다. 이름은 소문자·숫자·하이픈으로, 하이픈으로 끝나지 않게 준다.
 3. **`resourcePrefix` 를 빼고 `broadcom.com/...` 를 요청한다.** [근거] 빼면 `intel.com` 이 붙는다(업스트림 기본값). Pod 는 존재하지 않는 리소스를 기다리며 Pending 이 된다. `kubectl get node -o jsonpath='{.status.allocatable}'` 로 실제 이름을 본다.
-4. **PF 의 장치 ID 를 적는다.** [추론] 선택자는 노드에서 보이는 장치에 대해 평가되고, 할당할 것은 VF 다. VF 의 벤더·장치 ID 와 드라이버(`iavf`·`bnxt_en`·`mlx5_core`·`vfio-pci` 등)를 `lspci -nnk` 로 확인한다. 리소스 수가 0 이면 이것부터 의심한다.
+4. **베어메탈 예시의 선택자를 VM 노드에 그대로 쓴다.** [근거] 가상 환경에서는 VF 가 PF 와의 연결 없이 VM 에 패스스루되므로 PF 에 기대는 `pfNames`·`rootDevices` 선택자가 동작하지 않고, 대신 PCI 주소로 고르는 `pciAddresses` 선택자를 쓸 수 있다(업스트림 README 가상 환경 절, 설정 표의 키 이름은 `pciAddresses`). [추론] VKS 워커는 VM 이라 업스트림 README 의 `pfNames` 예시를 옮기면 리소스가 0 으로 뜬다. 워커 안에서 `lspci -nnk` 로 보이는 VF 의 벤더·장치 ID 와 드라이버(`iavf`·`bnxt_en`·`mlx5_core`·`vfio-pci` 등)로 선택자를 쓴다.
 5. **nodepool 의 nodeSelector 가 겹친다.** [근거] 패키지는 겹침을 막지 않는다(2.2). [추론] 한 노드에 플러그인 Pod 가 둘 뜨고 같은 VF 를 두 설정이 각각 세게 된다. 같은 `resourcePrefix/resourceName` 을 두 플러그인이 등록할 때 kubelet 이 어느 쪽을 남기는지는 확인하지 않았다. 노드 라벨을 nodepool 마다 서로 겹치지 않게 나눈다.
-6. **장치만 받으면 네트워크가 붙는 줄 안다.** [근거] 이 플러그인은 장치를 찾고 할당하고 `PCIDEVICE_*` 로 알려 줄 뿐이다(업스트림 README). 3.8.0 애드온 목록에 SR-IOV CNI 는 없다(9.1 릴리스 노트 지원 표). [추론] 커널 네트워크 인터페이스로 쓰려면 Multus(20절)와 SR-IOV CNI 가 따로 필요하다. DPDK 처럼 `vfio-pci` 장치를 사용자 공간에서 직접 쓰면 CNI 없이 장치만으로 된다. 그런 Pod 는 보통 hugepage·`IPC_LOCK` 이 필요해 VKr 1.26 이상 기본 `enforce: restricted` 네임스페이스에서 거절되므로, 그 네임스페이스의 PSA 라벨을 먼저 정한다(루트 [`../podsecurity_admission.md`](../podsecurity_admission.md)).
-7. **Windows 워커에 기대한다.** [근거] Windows 워커 클러스터에서는 지원하지 않는다(9.0 PDF 506쪽 표). nodeSelector 에 `kubernetes.io/os: linux` 를 넣어 두면 하이브리드 클러스터에서도 안전하다.
+6. **장치만 받으면 네트워크가 붙는 줄 안다.** [근거] 이 플러그인은 장치를 찾고 할당하고 `PCIDEVICE_*` 로 알려 줄 뿐이다(업스트림 README). 3.8.0 애드온 목록에 SR-IOV CNI 는 없다(9.1 릴리스 노트 지원 표). [근거] 업스트림 README 는 SR-IOV CNI 가 PF 에 접근해야 해서 가상 환경에서 돌지 않으며, 가상 환경에는 host-device CNI 를 권한다고 적는다. [추론] VKS 워커(VM)에서 VF 를 커널 네트워크 인터페이스로 쓰려면 Multus(20절)와 host-device CNI 가 따로 필요하다. DPDK 처럼 `vfio-pci` 장치를 사용자 공간에서 직접 쓰면 CNI 없이 장치만으로 된다. 그런 Pod 는 보통 hugepage·`IPC_LOCK` 이 필요해 VKr 1.26 이상 기본 `enforce: restricted` 네임스페이스에서 거절되므로, 그 네임스페이스의 PSA 라벨을 먼저 정한다(루트 [`../podsecurity_admission.md`](../podsecurity_admission.md)).
+7. **Windows 워커에 기대한다.** [근거] Windows 워커 클러스터에서는 지원하지 않는다(9.0 PDF 507쪽 표). nodeSelector 에 `kubernetes.io/os: linux` 를 넣어 두면 하이브리드 클러스터에서도 안전하다.
 8. **Product 등급처럼 지원을 기대한다.** [근거] Ecosystem 등급이라 런타임 버그는 업스트림 몫이다(1절). 문제를 올리기 전에 업스트림 v3.11.0 README 의 설정 표와 로그를 먼저 본다.
 
 ## 6. 확인 문제
@@ -300,9 +301,9 @@ kubectl -n demo logs vf-check   # 기대: PCIDEVICE_BROADCOM_COM_BRCM_SRIOV_BNXT
 <details>
 <summary>답</summary>
 
-1. 예시의 `config` 문자열 안에 `#Which network interface ...` 가 그대로 들어가 JSON 이 깨졌다. 플러그인은 config 를 못 풀면 오류 로그만 남기고 정상 종료(코드 0)하므로 DaemonSet 이 계속 다시 띄운다. `kubectl -n kube-system logs ds/sriov-device-plugin-<name>` 에서 `error unmarshalling raw bytes` 를 보고, values 의 `config` 를 `jq .` 로 검사한다. [근거] 9.0 Package Reference HTML 예시, 업스트림 `main.go`, 직접 렌더링.
+1. 예시의 `config` 문자열 안에 `#Which network interface ...` 가 그대로 들어가 JSON 이 깨졌다. 플러그인은 config 를 못 풀면 오류 로그만 남기고 `return` 하므로(업스트림 이미지 기준 종료 코드 0) DaemonSet 이 계속 다시 띄운다. `kubectl -n kube-system logs ds/sriov-device-plugin-<name>` 에서 `error unmarshalling raw bytes` 를 보고, values 의 `config` 를 `jq .` 로 검사한다. [근거] 9.0 Package Reference HTML 예시, 업스트림 `main.go`·`entrypoint.sh`, 직접 렌더링. [추론] VKS 이미지도 같은 동작이라는 점.
 2. 설정에 `"resourcePrefix": "broadcom.com"` 을 빠뜨려 기본값 `intel.com` 이 붙었다. 설정에 접두어를 넣거나 Pod 요청을 실제 이름에 맞춘다. [근거] 업스트림 README·`main.go`.
-3. device plugin 은 장치를 할당만 하고 Pod 네트워크 네임스페이스로 VF 를 옮기지 않는다. 그 일은 Multus 와 SR-IOV CNI 가 `NetworkAttachmentDefinition` 으로 한다. DPDK 용 `vfio-pci` 장치라면 인터페이스가 아니라 `/dev/vfio/*` 로 쓰는 것이 맞다. [근거] 업스트림 README, [추론] CNI 역할 구분.
+3. device plugin 은 장치를 할당만 하고 Pod 네트워크 네임스페이스로 VF 를 옮기지 않는다. 그 일은 Multus 와 보조 CNI 가 `NetworkAttachmentDefinition` 으로 한다. VKS 워커처럼 VM 노드라면 SR-IOV CNI 는 돌지 않으니 host-device CNI 를 쓴다. DPDK 용 `vfio-pci` 장치라면 인터페이스가 아니라 `/dev/vfio/*` 로 쓰는 것이 맞다. [근거] 업스트림 README, [추론] CNI 역할 구분.
 
 </details>
 
@@ -310,10 +311,11 @@ kubectl -n demo logs vf-check   # 기대: PCIDEVICE_BROADCOM_COM_BRCM_SRIOV_BNXT
 
 - VKS Add-ons Release Notes (9.1, Last Updated November 11, 2026): <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-1/release-notes/vks-addons-release-notes.html> (가장 높은 판 3.8.0+20261021)
 - SR-IOV Network Device Plugin Package Reference (9.0, Last Updated October 6, 2026): <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-0/managing-vsphere-kuberenetes-service-clusters-and-workloads/installing-standard-packages-on-tkg-service-clusters/standard-package-reference/sriov-network-device-plugin-package-reference.html>
-- vSphere Supervisor 9.0 Services and Standalone Components PDF (Install SR-IOV Network Device Plugin 609~611쪽, Windows 지원 표 506쪽): <https://techdocs.broadcom.com/content/dam/broadcom/techdocs/us/en/pdf/vmware/vcf/Supervisor-Async/vmware-cloud-foundation-service-administration-and-development-9-0.pdf>
+- vSphere Supervisor 9.0 Services and Standalone Components PDF (Install SR-IOV Network Device Plugin 609~612쪽, Windows 지원 표 507쪽): <https://techdocs.broadcom.com/content/dam/broadcom/techdocs/us/en/pdf/vmware/vcf/Supervisor-Async/vmware-cloud-foundation-service-administration-and-development-9-0.pdf>
 - VMware Cloud Foundation Service Administration and Development 9.1 PDF (VKS 3.7 What's New, 35쪽): <https://techdocs.broadcom.com/content/dam/broadcom/techdocs/us/en/pdf/vmware/vcf/Supervisor-Async/vmware-cloud-foundation-service-administration-and-development-9-1.pdf>
 - Configure PSA for VKr 1.25 and Later (9.0): <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-0/managing-vsphere-kuberenetes-service-clusters-and-workloads/managing-security-for-tkg-service-clusters/configure-psa-for-tkr-1-25-and-later.html>
 - 업스트림 sriov-network-device-plugin v3.11.0 (README, `cmd/sriovdp/main.go`·`manager.go`, `deployments/`): <https://github.com/k8snetworkplumbingwg/sriov-network-device-plugin/tree/v3.11.0>
+- host-device CNI: <https://www.cni.dev/plugins/current/main/host-device/>
 - Kubernetes Object Names and IDs: <https://kubernetes.io/docs/concepts/overview/working-with-objects/names/>
 - Kubernetes Device Plugins: <https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/device-plugins/>
 - 패키지 원본: `projects.packages.broadcom.com/vsphere/supervisor/vks-standard-packages/3.8.0-20261021/vks-addons:3.8.0-20261021` 의 `packages/sriov-network-device-plugin.kubernetes.vmware.com/3.11.0+vmware.6-vks.1.yml`, bundle `@sha256:afa8f37bdd16b1c02692667d4ed46919a0f675622390046120493f6698ece9c9`
