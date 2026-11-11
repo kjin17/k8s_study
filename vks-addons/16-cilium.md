@@ -181,8 +181,8 @@ grep -E '^  (kube-proxy-replacement|routing-mode|tunnel-protocol|enable-l7-proxy
 
 - [근거] 업스트림 차트의 `l7Proxy` 기본값은 `true` 이고, `targetClusterOutput` 은 `l7Proxy` 를 넣지 않는다. (차트 `values.yaml` 2449행, 위 정의)
 - [추론] 그래서 **kube-proxy 를 켠 클러스터에서는 공식 표의 「l7Proxy 기본 false」와 달리 Envoy DaemonSet 이 기본으로 뜬다.** 반대로 kube-proxy 를 끈 클러스터는 Supervisor 출력이 `l7Proxy: false` 를 명시하므로 Ingress·Gateway API 를 켜지 않는 한 Envoy 가 없다. 실제 클러스터에서 확인하지 못했으니 3.5 의 명령으로 볼 것.
-- [근거] `cilium` 에이전트 컨테이너에는 `NET_ADMIN`·`SYS_ADMIN` 같은 권한이 들어간다(렌더링 결과). Broadcom 의 PSA 문서는 `kube-system`·`tkg-system`·`vmware-system-cloud-provider` 를 pod security 에서 제외하고, 시스템 네임스페이스의 pod security 는 바꿀 수 없다고 적는다. (Configure PSA for TKR 1.25 and Later, vSphere Supervisor 8.0 문서, 2026-11-11 확인)
-- [추론] 9.x 문서에서 같은 제외 목록을 찾지는 못했다. 위 8.0 문서 기준이면 `kube-system` 에 뜨는 Cilium Pod 는 VKr 1.26 이상의 기본 enforce restricted 에 걸리지 않는다. `cilium-secrets` 네임스페이스에는 Pod 가 없다.
+- [근거] `cilium` 에이전트 컨테이너에는 `NET_ADMIN`·`SYS_ADMIN` 같은 권한이 들어간다(렌더링 결과). Broadcom 의 PSA 문서는 VKS 릴리스 v1.26 이상으로 만든 클러스터의 비시스템 네임스페이스에 기본 enforce restricted 가 걸리고, `kube-system`·`tkg-system`·`vmware-system-cloud-provider` 는 pod security 에서 제외되며, 시스템 네임스페이스의 pod security 는 바꿀 수 없다고 적는다. (Configure PSA for VKr 1.25 and Later, VKS 9.0 문서, Last Updated October 6, 2026, 2026-11-11 확인. 8.0 문서에도 같은 문장)
+- [추론] 그래서 `kube-system` 에 뜨는 Cilium Pod 는 VKr 1.26 이상의 기본 enforce restricted 에 걸리지 않는다. `cilium-secrets` 네임스페이스에는 Pod 가 없다. (9.1 판에는 이 안내 페이지가 없고(404, 2026-11-11), 같은 제외 목록은 9.1 「VMware VKr Release Notes」의 TKr 1.25.7 항목에만 있다)
 
 ### 3.2 Supervisor 에 AddonInstall 과 AddonConfig 만들기
 
@@ -329,7 +329,8 @@ kubectl -n kube-system exec ds/cilium -c cilium-agent -- cilium-dbg status --bri
 - VKS Add-ons Release Notes (9.1, Last Updated November 11, 2026): <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-1/release-notes/vks-addons-release-notes.html> (가장 높은 판 3.8.0+20261021)
 - Create a VKS Cluster by Using the Cilium CNI Add-On for VKS 3.7 and later (Last Updated November 6, 2026): <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-consumption/latest/managing-vsphere-kuberenetes-service-clusters-and-workloads/provisioning-tkg-service-clusters/create-a--cluster-using-the-cilium-cni-addon-package-for-vks/cilium-37.html>
 - Create a VKS Cluster Using the Cilium CNI Add-On Package for VKS 3.6: <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-consumption/latest/managing-vsphere-kuberenetes-service-clusters-and-workloads/provisioning-tkg-service-clusters/create-a--cluster-using-the-cilium-cni-addon-package-for-vks/using-the-cilium-cni-addon-package(2).html>
-- Configure PSA for TKR 1.25 and Later (vSphere Supervisor 8.0): <https://techdocs.broadcom.com/us/en/vmware-cis/vsphere/vsphere-supervisor/8-0/using-tkg-service-with-vsphere-supervisor/managing-security-for-tkg-service-clusters/configure-psa-for-tkr-1-25-and-later.html>
+- Configure PSA for VKr 1.25 and Later (VKS 9.0, Last Updated October 6, 2026): <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-0/managing-vsphere-kuberenetes-service-clusters-and-workloads/managing-security-for-tkg-service-clusters/configure-psa-for-tkr-1-25-and-later.html>
+- 같은 문장, 8.0 판 Configure PSA for TKR 1.25 and Later (vSphere Supervisor 8.0): <https://techdocs.broadcom.com/us/en/vmware-cis/vsphere/vsphere-supervisor/8-0/using-tkg-service-with-vsphere-supervisor/managing-security-for-tkg-service-clusters/configure-psa-for-tkr-1-25-and-later.html>
 - Cilium Gateway API Support (v1.20): <https://docs.cilium.io/en/v1.20/network/servicemesh/gateway-api/gateway-api/>
 - Cilium Policy Enforcement Modes: <https://docs.cilium.io/en/latest/security/policy/intro/>
 - Cilium v1.20.1 소스(`go.mod`, `install/kubernetes/cilium/values.yaml`): <https://github.com/cilium/cilium/tree/v1.20.1>
