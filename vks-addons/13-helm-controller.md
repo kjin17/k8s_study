@@ -308,7 +308,7 @@ subjects:
   namespace: apps
 ```
 
-[근거] 이 리포의 [`../vks-cluster-management.md`](../vks-cluster-management.md) PSA 절에 따르면 VKr 1.26 이상은 기본이 enforce restricted 다. [근거] podinfo 6.17.0 차트의 Deployment 에는 `securityContext` 가 없다(`helm template` 실측). [추론] 그래서 네임스페이스 라벨 없이 넣으면 Pod 가 거절되고 HelmRelease 가 건강 확인 타임아웃으로 실패한다. 실습이니 baseline 으로 낮췄다. 이 실습은 Namespace·RoleBinding·Flux 리소스를 만들 수 있는 관리자 계정으로 돌린다(패키지에 aggregate ClusterRole 이 없어 `admin`·`edit` 로는 HelmRelease 를 만들지 못한다). 운영이라면 라벨을 낮추지 말고 차트 values 로 restricted 를 맞춘다.
+[근거] VKS 릴리스 v1.26 이상으로 만든 클러스터는 비시스템 네임스페이스의 기본이 enforce restricted 다(`kube-system`·`tkg-system`·`vmware-system-cloud-provider` 제외). ([Configure PSA for VKr 1.25 and Later, VKS 9.0 문서, Last Updated October 6, 2026](https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-0/managing-vsphere-kuberenetes-service-clusters-and-workloads/managing-security-for-tkg-service-clusters/configure-psa-for-tkr-1-25-and-later.html), 2026-11-11 확인. 9.1 판에는 이 페이지가 없고 VKr Release Notes 에만 있다. 이 리포 [`../vks-cluster-management.md`](../vks-cluster-management.md) PSA 절도 참고) [근거] podinfo 6.17.0 차트의 Deployment 에는 `securityContext` 가 없다(`helm template` 실측). [추론] 그래서 네임스페이스 라벨 없이 넣으면 Pod 가 거절되고 HelmRelease 가 건강 확인 타임아웃으로 실패한다. 실습이니 baseline 으로 낮췄다. 이 실습은 Namespace·RoleBinding·Flux 리소스를 만들 수 있는 관리자 계정으로 돌린다(패키지에 aggregate ClusterRole 이 없어 `admin`·`edit` 로는 HelmRelease 를 만들지 못한다). 운영이라면 라벨을 낮추지 말고 차트 values 로 restricted 를 맞춘다.
 
 ```bash
 kubectl apply -f rbac.yaml      # Namespace 가 먼저 있어야 한다
