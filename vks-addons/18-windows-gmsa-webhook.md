@@ -24,7 +24,7 @@ flowchart LR
     CS["GMSACredentialSpec myservice\n(클러스터 범위, 비밀값 없음)"]
     RB["ClusterRole + RoleBinding\nverb: use, resourceNames: myservice"]
     subgraph lin["Linux 노드"]
-      WH["windows-gmsa-webhook\nDeployment 2개 (8443/TLS)"]
+      WH["windows-gmsa-webhook\nDeployment 1개·Pod 2개 (8443/TLS)"]
     end
     subgraph win["Windows 노드 (도메인 가입)"]
       POD["Pod\nwindowsOptions.gmsaCredentialSpecName: myservice"]
@@ -34,7 +34,8 @@ flowchart LR
   POD -->|"생성 요청"| API
   API -->|"/mutate: 이름 → credspec JSON"| WH
   API -->|"/validate: 서비스 계정에 use 권한?"| WH
-  WH -->|"읽기·LocalSubjectAccessReview"| CS
+  WH -->|"credspec 읽기"| CS
+  WH -->|"LocalSubjectAccessReview"| API
   WH -.-> RB
   win -->|"VKS 가 도메인 가입·그룹 등록"| SG
   SG -.-> GMSA
@@ -50,7 +51,7 @@ flowchart LR
 ### VKS 쪽 전제: 도메인에 가입한 Windows 노드 풀
 
 - [근거] VKS Service 3.3 부터 Windows 노드를 온프레미스 Active Directory 에 가입시켜 gMSA 를 쓸 수 있다. VKS 는 노드를 지정한 OU 에 가입시키고, gMSA 접근용 보안 그룹에 노드를 넣는 일을 자동으로 한다. (9.0 PDF 264쪽 「Configuring a Windows Node Pool to Use Group Managed Service Accounts」)
-- [근거] 노드 풀 `variables.overrides` 의 `osConfiguration.directoryJoin` 에 `credentialSecretRef`(가입 계정 Secret, `username`·`password`), `domain`, `gmsaControlSecurityGroupDN`, `organizationalUnitDN` 을 준다. 도메인 가입에는 `builtin-generic-v3.3.0` 이상의 ClusterClass 가 필요하다. (9.0 PDF 266~268쪽)
+- [근거] 노드 풀 `variables.overrides` 의 `osConfiguration.directoryJoin` 에 `credentialSecretRef`(가입 계정 Secret, `username`·`password`), `domain`, `gmsaControlSecurityGroupDN`, `organizationalUnitDN` 을 준다. 도메인 가입에는 `builtin-generic-v3.3.0` 이상의 ClusterClass 가 필요하다. (9.0 PDF 266~268쪽, `directoryJoin` 입력 표 325쪽)
 - [근거] Windows 노드 풀은 Antrea CNI 만 지원하고, 컨테이너는 Windows Server 2022 기반이어야 하며, VKS 는 교체·삭제된 Windows 노드의 컴퓨터 객체를 AD 에서 지우지 않는다. Kubernetes 1.32 에서는 gMSA 웹훅과 cert-manager 를 돌릴 Linux VM 이 하나 이상 있어야 한다. (9.0 PDF 276쪽)
 - 이 리포의 VKS 클러스터 관리 개요는 루트 [`../vks-cluster-management.md`](../vks-cluster-management.md)에 있다. 이 절은 노드 풀 설정을 되풀이하지 않고 애드온만 다룬다.
 
@@ -66,8 +67,8 @@ flowchart LR
 | 업스트림 | kubernetes-sigs/windows-gmsa v0.14.1 | Package `releaseNotes` |
 | 의존 | `addons.kubernetes.vmware.com/depends-on: cert-manager` | Package 어노테이션 |
 
-- [근거] 판 흐름: 0.11.0+vmware.1-tkg.1·0.13.0+vmware.2-vks.1 은 3.5.0+20251218 에서 「Packages Removed」로 빠졌다. 0.13.0+vmware.3(3.5.0+20251022, 컨테이너 resources·네임스페이스 ResourceQuota·LimitRange 설정 추가) → 0.13.0+vmware.4(3.5.0+20251218, 클러스터 갱신 때 reconcile 실패 상태에 머무는 문제 수정) → 0.13.0+vmware.5(3.6.0+20260211) → 0.14.1+vmware.1(3.8.0+20261021). (9.1 VKS Add-ons Release Notes)
-- [근거] 3.7.0+20260924 저장소에 실제로 들어 있는 판은 `0.13.0+vmware.9-vks.1` 이다(`crane export .../3.7.0-20260924/vks-addons:3.7.0-20260924`, `packages/windows-gmsa-webhook.kubernetes.vmware.com/` 의 파일, 2026-11-13). 9.1 릴리스 노트는 0.13.0+vmware.5 뒤로 vmware.6~9 를 따로 적지 않고, 3.5.0+20251022 부터 3.7.0+20260924 까지 열 개 「Supported VKr Versions」 표에는 이 애드온 줄이 없다. 표에 처음 나오는 것은 3.8.0+20261021 이다. [추론] 표에 없다고 그 저장소에 패키지가 없는 것은 아니다. 판을 고를 땐 표보다 저장소의 `kubectl get packages`·`addonreleases` 를 먼저 본다.
+- [근거] 판 흐름: 0.13.0+vmware.1 은 3.5.0+20251022 에서, 0.11.0+vmware.1-tkg.1·0.13.0+vmware.2-vks.1 은 3.5.0+20251218 에서 「Packages Removed」로 빠졌다. 0.13.0+vmware.3(3.5.0+20251022, 컨테이너 resources·네임스페이스 ResourceQuota·LimitRange 설정 추가) → vmware.4(3.5.0+20251218, 클러스터 갱신 때 reconcile 실패 상태에 머무는 문제 수정) → vmware.5(3.6.0+20260211) → vmware.6(3.6.0+20260416) → vmware.7(3.7.0+20260618, VKr 1.34 이상에서 PriorityClass 설정) → vmware.8(3.7.0+20260723) → vmware.9(3.7.0+20260827, 기본 인증서 유효 기간 1년·기간 설정 가능) → 0.14.1+vmware.1(3.8.0+20261021). (9.1 VKS Add-ons Release Notes)
+- [근거] 3.8.0 이전 판의 릴리스 노트와 지원 표는 이 애드온 이름을 「Windows **GSMA** Webhook」으로 적는다(9.1 릴리스 노트 본문에 15곳). 3.7.0+20260924 저장소에 들어 있는 `0.13.0+vmware.9-vks.1`(`crane export .../3.7.0-20260924/vks-addons:3.7.0-20260924`, 2026-11-13)은 그 판 지원 표의 GSMA 줄과 맞는다. [추론] 릴리스 노트에서 이 애드온을 찾을 땐 `gmsa` 와 `gsma` 를 같이 검색한다.
 - [근거] 업스트림 v0.14.1 은 웹훅의 GMSA 권한 검사와 변경을 **init 컨테이너에도** 적용한다(PR #179, 2026-09-03 머지). (업스트림 v0.14.1 릴리스 노트) Broadcom 릴리스 노트의 0.14.1 문구에는 이 변화가 없다. [추론] 0.13 에서 init 컨테이너에만 gMSA 이름을 적어 두던 워크로드는 0.14.1 로 올린 뒤 그 서비스 계정에 `use` 권한이 없으면 새 Pod 생성이 거절된다.
 
 ---
@@ -99,13 +100,13 @@ webhooks:
 - [근거] 두 웹훅 모두 `objectSelector` 가 없고, 빠지는 네임스페이스는 웹훅 자신의 네임스페이스와 `windows.k8s.io/disabled=true` 레이블이 붙은 곳뿐이다. 업스트림 Helm 차트(v0.14.1 태그의 `charts/gmsa`)도 같다. (렌더링 결과, 업스트림 `mutatingwebhook.yaml`)
 - [근거] `failurePolicy: Fail` 은 웹훅 호출 오류가 승인 실패로 이어진다는 뜻이다. (Kubernetes API reference, MutatingWebhookConfiguration v1)
 - [근거] `certificates.certManager.enabled: true`(기본)이면 selfSigned ClusterIssuer `windows-gmsa-webhook-ca` → CA Certificate(기본 `caDuration: 26280h`, `caRenewBefore: 8760h`) → CA Issuer → 서빙 Certificate(기본 `leafDuration: 8760h`, `leafRenewBefore: 720h`, DNS 이름 `windows-gmsa-webhook.<ns>.svc`·`.svc.cluster.local`) 사슬을 만들고, 웹훅 설정에 `cert-manager.io/inject-ca-from` 어노테이션을 단다. (bundle `config/issuer.yaml`·`mutatingwebhook.yaml`)
-- [근거] 네 기간 값은 0.14.1 패키지 스키마에 있지만 9.0 Package Reference 의 표와 예시에는 없다. (패키지 스키마, 9.0 Windows gMSA Webhook Package Reference, Last Updated October 6, 2026)
+- [근거] 네 기간 값은 0.13.0+vmware.9 에서 들어왔고(「기본 인증서 유효 기간 1년, 기간 설정 지원」, 9.1 릴리스 노트), 0.14.1 패키지 스키마에 있지만 9.0 Package Reference 의 표와 예시에는 없다. (패키지 스키마, 9.0 Windows gMSA Webhook Package Reference, Last Updated October 6, 2026)
 
 ### 2.2 Deployment·PDB·네임스페이스 한도
 
 - [근거] 컨테이너는 Pod `runAsUser: 1000`, 컨테이너 `allowPrivilegeEscalation: false`·`capabilities.drop: [ALL]`·`runAsNonRoot: true`·`seccompProfile: RuntimeDefault`, 볼륨은 서빙 인증서 Secret 하나다. `nodeSelector` 에는 사용자 값과 상관없이 `kubernetes.io/os: linux` 가 덧씌워진다. 기본 tolerations 는 컨트롤 플레인 NoSchedule 두 개, 기본 affinity 는 「컨트롤 플레인이 아닌 노드를 선호」다. (bundle `config/deployment.yaml`·`schema.yaml`)
-- [근거] `vks_cluster_version` 이 1.34.0 이상이고 `priorityClassName` 이 비어 있으면 `vmware-system-important` 를 넣는다. 이 값은 패키지 스키마에 없고, Add-on 정의의 출력 템플릿이 Cluster 의 `spec.topology.version` 을 넣어 준다. (bundle `deployment.yaml`, AddonConfigDefinition `templateOutputResources`) 렌더링으로 확인: `v1.35.0+vmware.2-fips` → `vmware-system-important`, `v1.33.6+vmware.1-fips` 와 값 없음(레거시 경로) → 넣지 않음.
-- [근거] `podDisruptionBudget` 은 스키마에서 nullable 이라 기본값이 `null` 이고, 그래서 값 파일 없이 렌더링하면 PDB 가 없다. 값을 주면 `minAvailable` 이 있을 때 그것만 쓰고, `maxUnavailable` 은 `minAvailable` 이 `null` 일 때만 쓴다. Package Reference 예시처럼 둘 다 1 로 주면 결과는 `minAvailable: 1` 하나다. (렌더링 `r-doc-fixed.yaml`·`r-pdbmax.yaml`)
+- [근거] `vks_cluster_version` 이 1.34.0 이상이고 `priorityClassName` 이 비어 있으면 `vmware-system-important` 를 넣는다. 이 값은 Package `valuesSchema`(OpenAPI)에는 없고 bundle ytt 스키마에만 빈 문자열 기본값으로 있으며, Add-on 경로에서는 AddonConfigDefinition 의 출력 템플릿이 Cluster 의 `spec.topology.version` 을 넣어 준다. 이 자동 설정은 0.13.0+vmware.7 에서 들어왔다. (bundle `deployment.yaml`·`schema.yaml`, AddonConfigDefinition `templateOutputResources`, 9.1 릴리스 노트) 렌더링으로 확인: `v1.35.0+vmware.2-fips` → `vmware-system-important`, `v1.33.6+vmware.1-fips` 와 값 없음(레거시 경로) → 넣지 않음.
+- [근거] `podDisruptionBudget` 은 스키마에서 nullable 이라 기본값이 `null` 이고, 그래서 값 파일 없이 렌더링하면 PDB 가 없다. 값을 주면 `minAvailable` 이 있을 때 그것만 쓰고, `maxUnavailable` 은 `minAvailable` 이 `null` 일 때만 쓴다(bundle `config/pdb.yaml`). 두 키도 각각 nullable 이라 하나만 주면 다른 하나는 `null` 이 된다. 렌더링으로 확인: Package Reference 예시처럼 둘 다 1 → `minAvailable: 1` 하나, `{maxUnavailable: 1}` 만 → `maxUnavailable: 1`, `{minAvailable: null}` 만 → 두 값 모두 없는 PDB.
 - [근거] 기본 ResourceQuota 는 네임스페이스의 `requests.cpu: 1000m`·`requests.memory: 1024Mi`, LimitRange 기본 요청은 컨테이너당 300m·256Mi, Deployment 요청도 300m·256Mi 다. (렌더링 결과)
 - [근거] 패키지는 이 네임스페이스에 PSA 레이블을 달지 않는다. Broadcom 의 PSA 문서는 VKr 1.26 이상에서 시스템이 아닌 네임스페이스의 기본을 `enforce: restricted` 로 적는다. (bundle `namespace.yaml`, Configure PSA for VKr 1.25 and Later, 9.0) [추론] 위 securityContext 는 restricted 프로필의 요구(권한 상승 금지, ALL 제거, non-root, RuntimeDefault seccomp, Secret 볼륨)를 모두 맞추므로 웹훅 Pod 는 기본 PSA 에 걸리지 않는다.
 
@@ -315,7 +316,8 @@ kubectl get mutatingwebhookconfiguration,validatingwebhookconfiguration windows-
   -o jsonpath='{range .items[*]}{.metadata.name}{" caBundle="}{.webhooks[0].clientConfig.caBundle}{"\n"}{end}' | cut -c1-80
 kubectl -n windows-gmsa-webhook get certificate          # READY True 두 개
 # 권한이 맞는지 Pod 를 만들기 전에 확인
-kubectl auth can-i use gmsacredentialspecs.windows.k8s.io/webapp1 --as=system:serviceaccount:demo:webapp1
+# RoleBinding 이 있는 Pod 네임스페이스를 -n 으로 준다(없으면 현재 컨텍스트의 네임스페이스로 묻는다)
+kubectl auth can-i use gmsacredentialspecs.windows.k8s.io/webapp1 -n demo --as=system:serviceaccount:demo:webapp1
 # Pod 가 credspec 을 받았는지: 변경 웹훅이 이름 옆에 JSON 내용을 채운다
 kubectl -n demo get pod gmsa-check -o jsonpath='{.spec.securityContext.windowsOptions.gmsaCredentialSpec}' | head -c 200
 # 도메인 연결 확인 (Kubernetes 문서의 문제 해결 순서)
@@ -355,9 +357,9 @@ kubectl -n demo exec gmsa-check -- nltest /query
 4. **credential spec 이름과 Pod 의 참조가 다르다.** [근거] 9.0 PDF 의 절차는 `myservice` 라는 GMSACredentialSpec 을 만들고 ClusterRole 의 `resourceNames` 도 `myservice` 로 주지만, 마지막 Pod 예시는 `gmsaCredentialSpecName: myserv` 를 적는다. (9.0 PDF 269~270쪽) Kubernetes 문서 예시도 리소스 이름 `gmsa-WebApp1` 과 Pod 참조 `gmsa-webapp1`·`gmsa-Webapp1` 이 섞여 있다. [근거] 쿠버네티스 객체 이름은 소문자 DNS 하위 도메인 규칙을 따른다(Object Names and IDs). 이름은 소문자 하나로 정하고 credential spec·ClusterRole·Pod 에 똑같이 적는다.
 5. **`replicaCount` 만 올린다.** [근거] 네임스페이스 ResourceQuota 기본 `requests.cpu: 1000m`, 웹훅 요청은 Pod 당 300m 다(2.2). [추론] 4개(1200m)면 네 번째 Pod 가 할당량에 막혀 만들어지지 않고, 3개(900m)여도 롤링 업데이트 때 새 Pod 하나가 더해지면 1200m 라 진행이 멈출 수 있다. `replicaCount` 를 올릴 땐 `resourceQuota.requests.cpu` 도 함께 올린다.
 6. **애드온을 지웠다 다시 깔면 credential spec 이 남아 있을 줄 안다.** [근거] GMSACredentialSpec CRD 는 이 패키지가 깔고(`config/crds.yaml`, kapp 삭제 전략 어노테이션 없음), CRD 를 지우면 그 안의 사용자 객체도 모두 지워진다(Kubernetes CRD 문서). [추론] 애드온 삭제는 손으로 만든 credential spec 까지 지운다. 지우기 전에 `kubectl get gmsacredentialspecs -o yaml` 로 받아 둔다.
-7. **Windows 노드 풀만 만들고 도메인 가입을 빼먹는다.** [근거] 웹훅은 Pod 명세를 채우고 권한을 볼 뿐이고, gMSA 비밀번호를 읽는 것은 도메인에 가입해 보안 그룹에 들어간 Windows 노드다(1절). `directoryJoin` 은 `builtin-generic-v3.3.0` 이상이 필요하다. 또 9.0 PDF 266쪽 설명 목록은 키를 `credentialSecurityRef` 로 적고 바로 아래 예시는 `credentialSecretRef` 로 적는다. [추론] 예시 쪽 `credentialSecretRef` 가 맞는 이름으로 보이지만 ClusterClass 변수 스키마로 확인하지는 못했다.
+7. **Windows 노드 풀만 만들고 도메인 가입을 빼먹는다.** [근거] 웹훅은 Pod 명세를 채우고 권한을 볼 뿐이고, gMSA 비밀번호를 읽는 것은 도메인에 가입해 보안 그룹에 들어간 Windows 노드다(1절). `directoryJoin` 은 `builtin-generic-v3.3.0` 이상이 필요하다. 또 9.0 PDF 266쪽 설명 목록은 키를 `credentialSecurityRef` 로 적지만, 325쪽 `directoryJoin` 입력 표와 267·348쪽 예시는 `credentialSecretRef` 다. 266쪽 표기는 오타이므로 `credentialSecretRef` 를 쓴다.
 8. **옛 문서의 패키지 이름·판으로 설치한다.** [근거] 9.0 PDF 269쪽 절차는 `windows-gmsa-webhook.tanzu.vmware.com` `0.11.0+vmware.1-tkg.1` 로 설치하고 확인 명령에 공백이 빠져 있다(`kubectl -n windows-gmsa-webhookget pod`). 0.11.0 은 3.5.0+20251218 에서 저장소에서 빠졌다. 9.0 kubectl 설치 문서의 AddonConfig 주석은 「cert-manager-data-values.yaml 을 붙여 넣으라」고 적는다(복사 오류). 판과 이름은 3.8.0 저장소의 `kubectl get packages`·`addonreleases` 로 고른다.
-9. **0.14.1 로 올린 뒤 init 컨테이너 Pod 가 막힌다.** [근거] 업스트림 v0.14.1 부터 init 컨테이너의 GMSA 참조도 권한 검사·변경을 받는다(1절 표 아래). 올리기 전에 init 컨테이너에 `gmsaCredentialSpecName` 을 쓰는 워크로드의 서비스 계정 권한을 4.5 의 `kubectl auth can-i` 로 점검한다.
+9. **0.14.1 로 올린 뒤 init 컨테이너 Pod 가 막힌다.** [근거] 업스트림 v0.14.1 부터 init 컨테이너의 GMSA 참조도 권한 검사·변경을 받는다(1절 표 아래). 올리기 전에 init 컨테이너에 `gmsaCredentialSpecName` 을 쓰는 워크로드의 서비스 계정 권한을 4.5 의 `kubectl auth can-i ... -n <Pod 네임스페이스>` 로 점검한다.
 10. **`randomHostname` 을 모든 Pod 에 적용되는 설정으로 안다.** [근거] 이 값은 GMSA 를 쓰는 Pod 이면서 `spec.hostname` 이 비어 있을 때만 무작위 UUID 를 hostname 으로 넣는다. 이미 hostname 이 있으면 그대로 두고 경고만 남긴다. (업스트림 v0.14.1 `webhook.go` 409~422행) 업스트림 PR #155 는 이 기능의 목적을 적지 않는다.
 
 ---
@@ -372,7 +374,7 @@ kubectl -n demo exec gmsa-check -- nltest /query
 
 1. 새 Pod 가 만들어지지 않는다. 웹훅이 `objectSelector` 없이 자기 네임스페이스를 뺀 모든 네임스페이스의 Pod CREATE 에 걸리고(Windows 여부와 무관), `failurePolicy: Fail` 이라 TLS 오류가 곧 거절이다. 그 네임스페이스에 `windows.k8s.io/disabled=true` 가 있었다면 빠진다.
 2. 롤링 업데이트의 추가 Pod 하나까지 4개(1200m)가 되어 ResourceQuota `requests.cpu: 1000m` 를 넘을 수 있다(6절 5번, 추론). `resourceQuota.requests.cpu` 를 함께 올린다.
-3. GMSACredentialSpec 이름(소문자, Pod 참조와 같은지), ClusterRole 의 `verbs: [use]`·`resourceNames`, 그 ClusterRole 을 서비스 계정에 묶는 RoleBinding(네임스페이스·서비스 계정 이름). 명령: `kubectl auth can-i use gmsacredentialspecs.windows.k8s.io/<이름> --as=system:serviceaccount:demo:webapp1`.
+3. GMSACredentialSpec 이름(소문자, Pod 참조와 같은지), ClusterRole 의 `verbs: [use]`·`resourceNames`, 그 ClusterRole 을 서비스 계정에 묶는 RoleBinding(네임스페이스·서비스 계정 이름). 명령: `kubectl auth can-i use gmsacredentialspecs.windows.k8s.io/<이름> -n demo --as=system:serviceaccount:demo:webapp1`(`-n` 을 빼면 현재 컨텍스트 네임스페이스로 물어 RoleBinding 이 안 보인다).
 
 </details>
 
@@ -386,7 +388,7 @@ kubectl -n demo exec gmsa-check -- nltest /query
   - Addon using Kubectl: <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-0/managing-vsphere-kuberenetes-service-clusters-and-workloads/installing-standard-packages-on-tkg-service-clusters/installing-standard-packages-on-tkg-cluster-using-tkr-for-vsphere-8-x/install-windows-gmsa-webhook/install-windows-gmsa-webhook-addon-using-kubectl.html>
   - Package: <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-0/managing-vsphere-kuberenetes-service-clusters-and-workloads/installing-standard-packages-on-tkg-service-clusters/installing-standard-packages-on-tkg-cluster-using-tkr-for-vsphere-8-x/install-windows-gmsa-webhook/install-windows-gmsa-webhook-package.html>
 - 9.0 Windows gMSA Webhook Package Reference (Last Updated October 6, 2026): <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-0/managing-vsphere-kuberenetes-service-clusters-and-workloads/installing-standard-packages-on-tkg-service-clusters/standard-package-reference/windows-gmsa-webhook-package-reference.html>
-- vSphere Supervisor 9.0 Services and Standalone Components PDF (Windows 노드 풀·gMSA 264~270쪽, Windows 노드 풀 요구 사항 276쪽, Linux/Windows 표 507쪽): <https://techdocs.broadcom.com/content/dam/broadcom/techdocs/us/en/pdf/vmware/vcf/Supervisor-Async/vmware-cloud-foundation-service-administration-and-development-9-0.pdf>
+- vSphere Supervisor 9.0 Services and Standalone Components PDF (Windows 노드 풀·gMSA 264~270쪽, Windows 노드 풀 요구 사항 276쪽, `directoryJoin` 입력 표 325쪽, Linux/Windows 표 507쪽): <https://techdocs.broadcom.com/content/dam/broadcom/techdocs/us/en/pdf/vmware/vcf/Supervisor-Async/vmware-cloud-foundation-service-administration-and-development-9-0.pdf>
 - Configure PSA for VKr 1.25 and Later (9.0): <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-0/managing-vsphere-kuberenetes-service-clusters-and-workloads/managing-security-for-tkg-service-clusters/configure-psa-for-tkr-1-25-and-later.html>
 - 패키지 원본: `projects.packages.broadcom.com/vsphere/supervisor/vks-standard-packages/3.8.0-20261021/vks-addons:3.8.0-20261021` 의 `packages/windows-gmsa-webhook.kubernetes.vmware.com/0.14.1+vmware.1-vks.1.yml`, bundle `@sha256:b534986378bb7a9c1b065c8bd5d53188c52be69ee92e0b93e17cb9d06c67ad68`. 비교용 `3.7.0-20260924/vks-addons:3.7.0-20260924` 의 `0.13.0+vmware.9-vks.1.yml`
 - 업스트림 kubernetes-sigs/windows-gmsa v0.14.1 릴리스: <https://github.com/kubernetes-sigs/windows-gmsa/releases/tag/v0.14.1>, 차트 <https://github.com/kubernetes-sigs/windows-gmsa/tree/v0.14.1/charts/gmsa>, 웹훅 소스 <https://github.com/kubernetes-sigs/windows-gmsa/tree/v0.14.1/admission-webhook>, PR #179 <https://github.com/kubernetes-sigs/windows-gmsa/pull/179>, PR #155 <https://github.com/kubernetes-sigs/windows-gmsa/pull/155>
