@@ -60,7 +60,7 @@ flowchart LR
 
 ### 판과 지원 등급 (3.8.0+20261021 기준)
 
-- [근거] 3.8.0+20261021 에서 Telegraf 는 **Product** 등급이고 `1.39.3+vmware.2-vks.1` **한 판**이며, 지원 표의 VKr 다섯 칸(1.33~1.37) 모두 「Yes」다. 변경 내용은 「Go dependencies and base images bump to address vulnerabilities」. (9.1 VKS Add-ons Release Notes)
+- [근거] 3.8.0+20261021 에서 Telegraf 는 **Product** 등급이고 `1.39.3+vmware.2-vks.1` **한 판**이다. VKr 과의 짝은 [공식 호환 매트릭스](https://interopmatrix.broadcom.com/)로 확인한다. 변경 내용은 「Go dependencies and base images bump to address vulnerabilities」. (9.1 VKS Add-ons Release Notes)
 - [근거] 업스트림 Telegraf v1.39.3 은 2026-08-10 에 나왔고, 2026-10-31 현재 업스트림 최신은 v1.40.2(2026-10-12)다. (`gh release list -R influxdata/telegraf`, 2026-10-31)
 
 묶음마다 Telegraf 애드온 판이 어떻게 움직였는지 (모두 같은 9.1 릴리스 노트):

@@ -40,7 +40,7 @@ flowchart LR
 
 ### 판과 지원 등급 (3.8.0+20261021 기준)
 
-[근거] 9.1 VKS Add-ons Release Notes 의 저장소별 표. 3.8.0+20261021 은 VKr 1.33~1.37 다섯 마이너 모두 Yes 이고 Product 등급이다.
+[근거] 9.1 VKS Add-ons Release Notes 의 저장소별 표. 3.8.0+20261021 에서 Product 등급이다. VKr 과의 짝은 [공식 호환 매트릭스](https://interopmatrix.broadcom.com/)로 확인한다.
 
 | 처음 실린 저장소 | Helm Controller 판 | Helm SDK | source-controller | 바뀐 점(릴리스 노트) |
 |---|---|---|---|---|

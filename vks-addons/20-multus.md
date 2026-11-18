@@ -1,6 +1,6 @@
 # 20. Multus
 
-> 커리큘럼: [CURRICULUM.md](CURRICULUM.md) · 앞 절: [19. Headlamp](19-headlamp.md) · 이어지는 절: [17. SR-IOV Network Device Plugin](17-sriov-network-device-plugin.md), 21. Whereabouts(작성 예정) · 작성 2026-11-14
+> 커리큘럼: [CURRICULUM.md](CURRICULUM.md) · 앞 절: [19. Headlamp](19-headlamp.md) · 이어지는 절: [17. SR-IOV Network Device Plugin](17-sriov-network-device-plugin.md), [21. Whereabouts](21-whereabouts.md) · 작성 2026-11-14
 > 등급: **[근거]** 출처에 그대로 있는 것, **[추론]** 여러 출처를 엮어 직접 내린 결론.
 > 기준 판: VKS Add-ons `3.8.0+20261021` (9.1 VKS Add-ons Release Notes, 2026-11-14 확인, 페이지 표기 Last Updated November 11, 2026, 이 날 기준 가장 높은 판). 판 호환은 이 문서에서 정리하지 않는다. [공식 호환 매트릭스](https://interopmatrix.broadcom.com/)와 릴리스 노트를 직접 볼 것.
 
@@ -44,7 +44,9 @@ flowchart LR
 - [근거] Multus 는 쿠버네티스 Pod 에 여러 네트워크 인터페이스를 붙이는 CNI 메타 플러그인이고, 먼저 Pod 간 통신을 맡는 기본 CNI 가 깔려 있어야 한다. 모든 Pod 는 기본 네트워크 인터페이스를 갖고, Multus 가 붙이는 것은 그에 더한 것이다. (업스트림 README v4.3.1)
 - [근거] thick plugin 은 클라이언트·서버 구조다. 노드의 shim 실행 파일이 런타임에서 CNI 호출을 받아 유닉스 소켓으로 multus-daemon 에 넘기고, 데몬이 NAD 에서 위임할 CNI 설정을 읽어 실제 플러그인을 부른다. (업스트림 `docs/thick-plugin.md`)
 - [근거] 패키지 설명은 「sriov·macvlan 처럼 다른 종류의 CNI 로 Pod 에 여러 인터페이스를 붙이게 한다」이다. (PackageMetadata `longDescription`)
-- [추론] 이 애드온이 까는 것은 Multus 자신(shim·데몬)뿐이다. bundle 의 이미지는 `multus-cni` 하나이고(`.imgpkg/images.yml`), 초기화 컨테이너는 `install_multus -t thick` 으로 shim 만 `/opt/cni/bin` 에 복사한다. macvlan 같은 보조 CNI 실행 파일은 노드에 이미 있어야 하는데, VKr 노드 이미지에 무엇이 들어 있는지는 확인하지 못했다. 쓰기 전에 노드에서 `ls /opt/cni/bin` 으로 본다(4.5).
+- [추론] 이 애드온이 까는 것은 Multus 자신(shim·데몬)뿐이다. bundle 의 이미지는 `multus-cni` 하나이고(`.imgpkg/images.yml`), 초기화 컨테이너는 `install_multus -t thick` 으로 shim 만 `/opt/cni/bin` 에 복사한다. macvlan 같은 보조 CNI 실행 파일은 노드에 이미 있어야 한다.
+- [근거] 공개 vks-image-builder 의 빌드 경로에서 VKr 노드 이미지는 containernetworking plugins 묶음(tgz)을 골라내지 않고 통째로 `/opt/cni/bin` 에 푼다. 공개 vks-image-builder 의 `packer-variables/default-args.j2` 가 CNI 소스를 `http`(아티팩트 서버의 `cni_plugins`)로 정하고, upstream image-builder `images/capi/ansible/roles/kubernetes/tasks/url.yml` 이 그 tgz 를 `dest: /opt/cni/bin` 으로 푼다. 공개된 VKr 1.34.9 아티팩트 서버 이미지의 묶음(`cni-plugins-linux-amd64-v1.7.1+vmware.9-fips.tgz`) 안에는 `macvlan`·`ipvlan`·`host-device`·`bridge`·`vlan`·`host-local`·`static`·`dhcp` 등이 들어 있다. (2026-11-14 확인)
+- [추론] VKr 1.35~1.37 의 VMware 묶음은 직접 열지 못했지만 같은 빌드 경로이고 upstream 의 같은 판 구성에도 이 플러그인들이 있으니 같다고 본다. Windows 노드는 대상 밖이다. 그래도 쓰기 전에 노드에서 `ls /opt/cni/bin` 으로 본다(4.5).
 
 ### 판과 지원 등급 (3.8.0+20261021 기준)
 
@@ -53,7 +55,7 @@ flowchart LR
 | 패키지 이름 | `multus-cni.kubernetes.vmware.com` | 패키지 원본 |
 | 판 | `4.3.1+vmware.1-vks.1` 한 판, `releasedAt: 2026-10-20` | 패키지 원본, 9.1 릴리스 노트 |
 | 지원 등급 | **Product** | 9.1 릴리스 노트 지원 표 |
-| VKr | 1.37·1.36·1.35·1.34·1.33 모두 Yes | 같은 표 |
+| VKr | 이 문서에서 정리하지 않는다 | [공식 호환 매트릭스](https://interopmatrix.broadcom.com/) |
 | 업스트림 | multus-cni v4.3.1 (2026-09-08 UTC 릴리스) | 패키지 `releaseNotes`, 업스트림 릴리스 |
 | 이미지 | `multus-cni:v4.3.1_vmware.1` 하나 | bundle `.imgpkg/images.yml` |
 
@@ -139,8 +141,9 @@ spec:
 
 - [근거] 데몬 설정(`daemon-config.json`)은 ytt 함수가 만든다. 바꿀 수 있는 것은 `cniVersion`·`logLevel`·`multusConfigFile` 셋이고, 나머지(`chrootDir: /hostroot`, `logToStderr: true`, `cniConfigDir`·`multusAutoconfigDir: /host/etc/cni/net.d`, `socketDir: /host/run/multus/`)는 고정이다. (bundle `overlay-multus-cni.yaml`)
 - [근거] 업스트림 데몬 설정은 `namespaceIsolation`(기본 false)·`globalNamespaces`·`readinessindicatorfile`·`defaultNetworks`·`metricsPort` 등을 더 받는다. (업스트림 `docs/configuration.md`, `docs/thick-plugin.md`)
-- [근거] values 에 없는 키를 넣으면 ytt 가 거절한다. `configmap.namespaceIsolation: true` 와 맨 위 `namespaceIsolation: true` 둘 다 `Overlaying data values … Map item … ` 오류로 rc=1 이다. (렌더링, 2026-11-14)
-- [추론] 그래서 패키지 values 로는 namespace isolation 이나 readiness indicator 를 켤 수 없다. 켜려면 패키지 밖에서 데몬 설정을 고쳐야 하는데, kapp 이 다음 조정 때 되돌리고 Broadcom 지원 범위(1절)에서도 벗어난다.
+- [근거] values 에 없는 키를 `#@data/values` 파일로 만들어 `ytt -f` 로 넘기면 거절된다. `configmap.namespaceIsolation: true` 와 맨 위 `namespaceIsolation: true` 둘 다 `Overlaying data values … Map item … ` 오류로 rc=1 이다. (렌더링, 2026-11-14)
+- [근거] 그런데 kapp-controller 는 values Secret 을 `--data-values-file` 로 넘긴다(`pkg/template/ytt.go`). 이 bundle 에는 `#@data/values-schema` 가 없어서, 같은 키를 그 방식으로 넘기면 rc=0 이고 출력에 그 키가 하나도 나타나지 않는다. 즉 실제 설치 경로에서는 오타·없는 키가 거절되지 않고 조용히 무시된다. (렌더링, 2026-11-14·2026-11-18 재현)
+- [추론] 어느 쪽이든 데몬 설정에 들어가는 키는 고정이라, 패키지 values 로는 namespace isolation 이나 readiness indicator 를 켤 수 없다. 켜려면 패키지 밖에서 데몬 설정을 고쳐야 하는데, kapp 이 다음 조정 때 되돌리고 Broadcom 지원 범위(1절)에서도 벗어난다.
 
 렌더링으로 확인한 경우(ytt v0.55.4, 2026-11-14):
 
@@ -151,7 +154,7 @@ spec:
 | `nads[].spec.config: '{"type": "macvlan", '`(깨진 JSON) | **rc=0**, NAD 가 그대로 렌더링된다 |
 | `nads: []` | rc=0, NAD 없음 |
 | `createNamespace: false` | rc=0, Namespace·LimitRange 없음(일곱 종류) |
-| `configmap.namespaceIsolation: true` / `namespaceIsolation: true` | rc=1 (모르는 키) |
+| `configmap.namespaceIsolation: true` / `namespaceIsolation: true` | `-f` 로 넘기면 rc=1(모르는 키), `--data-values-file` 로 넘기면 rc=0·출력에 반영 0건 |
 | `vks_cluster_version` = v1.35.2 / v1.34.0 | `priorityClassName: vmware-system-important` |
 | `vks_cluster_version` = v1.33.1 / 없음 | priority class 없음 |
 
@@ -166,7 +169,8 @@ spec:
 - [추론] 위 세 가지를 합치면, 데몬 Pod 가 정상 종료된 노드에서는 `00-multus.conf` 가 사라지고 런타임이 바로 `10-antrea.conflist` 같은 기본 CNI 를 쓴다. 이때 만들어지는 Pod 는 **오류 없이 `eth0` 만 갖고 뜬다.** DaemonSet 롤링 업데이트·애드온 업그레이드 중 그 노드에 뜬 Pod 가 보조 인터페이스 없이 떠 있을 수 있다. 반대로 노드가 갑자기 죽는 등 정상 종료가 아니면 파일이 남아, 데몬이 없는 동안 shim 이 소켓에 못 붙어 Pod 생성이 실패할 수 있다.
 - [근거] `configmap.cniVersion` 을 `0.4.0` 이상으로 올리면 데몬은 기본 CNI 설정의 `cniVersion` 도 0.4.0 이상인지 검사하고, 아니면 `delegate cni version is … while top level cni version is …` 오류를 낸다. (업스트림 `pkg/server/config/generator.go` `CheckVersionCompatibility`) 업스트림 Antrea v2.7.0 의 `antrea-cni.conflist` 는 `"cniVersion":"0.3.0"` 이다. (Antrea `build/charts/antrea/conf/antrea-cni.conflist`)
 - [근거] 이 검사는 설정 관리자를 만드는 단계에서 돌고, 실패하면 데몬은 `failed to create the configuration manager for the primary CNI plugin` 로그를 남기고 종료 코드 2로 끝난다. (`cmd/multus-daemon/main.go`)
-- [추론] VKS 의 Antrea 가 업스트림과 같은 conflist 를 쓴다면 `cniVersion` 을 올리는 순간 데몬 Pod 가 종료 코드 2로 재시작을 되풀이하고 `00-multus.conf` 는 생기지 않는다. VKS 노드의 실제 값은 확인하지 않았다. 바꾸기 전에 노드의 `/etc/cni/net.d/10-antrea.conflist` 를 먼저 본다.
+- [근거] 공개된 VMware Antrea 번들 `antrea:v2.6.1_vmware.1-tkg.2` 의 `antrea-cni.conflist` 는 `"cniVersion":"0.3.0"` 이고, VMware 오버레이는 `antrea-config` ConfigMap 만 바꾸며 conflist 는 건드리지 않고, AntreaConfig 에도 `cniVersion` 을 바꿀 자리가 없다. 현행 VKr 1.34~1.37 이 싣는 Antrea 판(2.4.5·2.5.3·2.6.3·2.7.0)의 upstream conflist 도 모두 0.3.0 이다. 다만 VKr 이 싣는 VMware 번들 그 자체(예: 2.7.0+vmware.1)는 공개 태그가 없어 직접 열지 못했다. (2026-11-14 확인)
+- [추론] 그러니 VKS 노드의 Antrea conflist 도 0.3.0 이라고 본다. 그래서 `cniVersion` 을 올리면 코드상 데몬 Pod 가 종료 코드 2로 끝나고 `00-multus.conf` 는 생기지 않는다. 실제로 재시작을 되풀이하는지는 실측하지 않았다. 바꾸기 전에 노드의 `/etc/cni/net.d/10-antrea.conflist` 를 먼저 본다.
 
 ---
 
@@ -362,11 +366,11 @@ ls /opt/cni/bin/          # multus-shim 과, NAD 가 쓰는 ipvlan·macvlan·hos
 ## 6. 흔한 실수
 
 1. **Multus 만 깔면 보조 네트워크가 생기는 줄 안다.** [근거] 이 애드온은 shim·데몬만 깐다(1절). [추론] NAD 가 쓰는 CNI 실행 파일이 노드 `/opt/cni/bin` 에 있어야 하고, 워커 VM 에 그 네트워크로 나가는 부모 인터페이스(보조 NIC)가 있어야 한다. 둘 다 Multus 밖의 일이다.
-2. **NAD 를 `multus-cni` 네임스페이스에 두면 그 네임스페이스 사람만 쓰는 줄 안다.** [근거] 업스트림 `namespaceIsolation` 기본값은 false 이고, 패키지 데몬 설정에 그 키가 없으며 values 로 넣으면 ytt 가 거절한다(2.3). [추론] 어느 네임스페이스의 Pod 든 `<ns>/<name>` 으로 다른 네임스페이스의 NAD 를 쓸 수 있다. 특정 망(관리망·스토리지망)에 붙는 NAD 는 Pod 를 만들 수 있는 모든 사람에게 열린 셈이다. 막아야 하면 승인 정책(12절 Gatekeeper)으로 `k8s.v1.cni.cncf.io/networks` 어노테이션 값을 검사하는 방법을 생각한다(검증 안 함).
+2. **NAD 를 `multus-cni` 네임스페이스에 두면 그 네임스페이스 사람만 쓰는 줄 안다.** [근거] 업스트림 `namespaceIsolation` 기본값은 false 이고, 패키지 데몬 설정에 그 키가 없으며 values 로 넣어도 반영되지 않는다(kapp-controller 경로에서는 rc=0 으로 무시, 2.3). [추론] 어느 네임스페이스의 Pod 든 `<ns>/<name>` 으로 다른 네임스페이스의 NAD 를 쓸 수 있다. 특정 망(관리망·스토리지망)에 붙는 NAD 는 Pod 를 만들 수 있는 모든 사람에게 열린 셈이다. 막아야 하면 승인 정책(12절 Gatekeeper)으로 `k8s.v1.cni.cncf.io/networks` 어노테이션 값을 검사하는 방법을 생각한다(검증 안 함).
 3. **NAD `config` 의 JSON 오류를 설치 때 잡을 줄 안다.** [근거] 깨진 JSON 도 렌더링 rc=0 이고, CRD 스키마는 `string` 이다(2.3). [추론] 오류는 그 NAD 를 쓰는 Pod 가 `ContainerCreating` 에서 멈출 때 처음 보인다. values 에 넣기 전에 JSON 을 따로 검사한다(4.2).
 4. **애드온을 지워도 NAD 는 남는 줄 안다.** [근거] NAD CRD 는 패키지가 깔고(렌더링 결과), bundle 에 kapp `delete-strategy` 어노테이션은 없다. CRD 를 지우면 API 서버가 그 CRD 의 모든 사용자 객체를 지운다. (Kubernetes 「Extend the Kubernetes API with CustomResourceDefinitions」 Delete a CustomResourceDefinition) [추론] 애드온 삭제는 패키지 values 로 만든 NAD 뿐 아니라 사용자가 다른 네임스페이스에 직접 만든 NAD 까지 지운다. 지우기 전에 `kubectl get net-attach-def -A -o yaml` 로 백업한다. 다른 구성 요소가 같은 CRD 를 먼저 깔아 두었다면 kapp 의 소유·삭제 동작이 달라질 수 있는데, 이 경우는 확인하지 않았다.
 5. **롤링 업데이트 중 뜬 Pod 를 믿는다.** [추론] 데몬이 정상 종료하면 `00-multus.conf` 를 지우므로(2.4) 그 사이 뜬 Pod 는 오류 없이 `eth0` 만 가질 수 있다. 애드온 업그레이드 뒤에는 보조 인터페이스가 필요한 Pod 의 `network-status` 어노테이션을 다시 확인하고, 없으면 그 Pod 를 다시 만든다.
-6. **`configmap.cniVersion` 을 최신(1.0.0 등)으로 올린다.** [근거] 0.4.0 이상이면 기본 CNI 설정의 판도 0.4.0 이상이어야 하고, 업스트림 Antrea conflist 는 0.3.0 이다(2.4). [추론] VKS Antrea 가 같다면 데몬이 종료 코드 2 로 재시작을 되풀이하고 `00-multus.conf` 가 생기지 않는다. 기본값 0.3.1 을 그대로 두거나 노드의 Antrea conflist 판부터 본다.
+6. **`configmap.cniVersion` 을 최신(1.0.0 등)으로 올린다.** [근거] 0.4.0 이상이면 기본 CNI 설정의 판도 0.4.0 이상이어야 하고, 공개 VMware 번들과 upstream 의 Antrea conflist 는 0.3.0 이다(2.4). [추론] VKS 노드도 같다고 보면 데몬이 종료 코드 2 로 끝나 재시작을 되풀이하고 `00-multus.conf` 가 생기지 않을 것이다(실측 전). 기본값 0.3.1 을 그대로 두거나 노드의 Antrea conflist 판부터 본다.
 7. **기존 네임스페이스에 깔려고 `createNamespace: false` 를 쓴다.** [근거] Package 스키마와 AddonConfigDefinition 에 이 키가 없고, 레거시 values 로 끄면 Namespace·LimitRange 가 렌더링되지 않는다(2.3). [추론] 그 네임스페이스가 privileged 가 아니면 데몬 Pod 가 PSA 에 거절된다. 따로 둘 이유가 없으면 기본 `multus-cni` 를 쓴다.
 8. **`host-local` IPAM 을 여러 노드에서 같은 대역으로 쓴다.** [추론] 노드마다 따로 주소를 기록하므로 노드 간에 IP 가 겹칠 수 있다(4.2). 노드 범위를 나누거나 21절 Whereabouts 를 쓴다.
 9. **업스트림 문서에만 있는 설정으로 지원을 요청한다.** [근거] Broadcom 의 도움·설정 안내·문제 해결은 공식 문서에 실린 매개변수와 기능으로 한정되고, 업스트림 문서에만 있는 설정은 검토하지 않는다(1절). 문서에 없는 매개변수를 바꾸거나 넣는 사용자 ytt 오버레이도 지원 범위 밖이다(9.1 릴리스 노트 Out of Scope). [추론] 패키지 밖에서 데몬 설정을 고친 구성은 kapp 조정 때 되돌아간다. Multus 전용 Broadcom 문서가 없으므로 어느 매개변수가 「공식 문서에 실린 것」인지도 분명하지 않다. 문의 전에 Package 스키마의 키만 쓴 구성인지 확인한다.
@@ -382,21 +386,24 @@ ls /opt/cni/bin/          # multus-shim 과, NAD 가 쓰는 ipvlan·macvlan·hos
 <details>
 <summary>답</summary>
 
-1. 아니다. 이 애드온은 shim·데몬만 깔고 macvlan 같은 보조 CNI 실행 파일은 넣지 않는다(1절, 6절 1번). 노드 이미지에 그 플러그인이 있어야 한다. VKS 노드에 무엇이 있는지 `ls /opt/cni/bin` 으로 먼저 본다.
-2. 막히지 않는다. 업스트림 `namespaceIsolation` 기본은 false 이고, 패키지 데몬 설정에는 그 키가 없으며 values 로 넣으면 ytt 가 모르는 키로 거절한다(2.3). 막으려면 승인 정책 같은 패키지 밖의 수단이 필요하다(6절 2번).
+1. 아니다. 이 애드온은 shim·데몬만 깔고 macvlan 같은 보조 CNI 실행 파일은 넣지 않는다(1절, 6절 1번). 노드 이미지에 그 플러그인이 있어야 한다. 공개 빌드 경로로 보면 VKr 노드 이미지는 CNI plugins 묶음 전체를 `/opt/cni/bin` 에 풀고 1.34.9 묶음에는 macvlan 이 들어 있으니(1절), 노드에서 `ls /opt/cni/bin` 으로 실제로 있는지와 NAD 의 `type` 철자부터 본다.
+2. 막히지 않는다. 업스트림 `namespaceIsolation` 기본은 false 이고, 패키지 데몬 설정에는 그 키가 없으며 values 로 넣어도 반영되지 않는다(kapp-controller 가 쓰는 `--data-values-file` 로는 rc=0 으로 무시, 2.3). 막으려면 승인 정책 같은 패키지 밖의 수단이 필요하다(6절 2번).
 3. 데몬 Pod 가 교체되는 동안 `00-multus.conf` 가 지워져 런타임이 기본 CNI(Antrea)만 불렀을 가능성이 크다(2.4, 6절 5번). 이 경우 오류가 남지 않는다. `network-status` 어노테이션으로 확인하고 Pod 를 다시 만든다.
 
 </details>
 
 ---
 
-## 출처 (모두 2026-11-14 확인)
+## 출처 (따로 적지 않은 것은 모두 2026-11-14 확인)
 
 - VKS Add-ons Release Notes (9.1, Last Updated November 11, 2026): <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-1/release-notes/vks-addons-release-notes.html>
 - vSphere Supervisor 9.0 Services and Standalone Components (PDF) 62~63쪽 「Standard Package v2024.7.2」 표 — 이 리포의 앞 절들에서 쓴 9.0 PDF 와 같은 문서
 - 패키지 원본: `projects.packages.broadcom.com/vsphere/supervisor/vks-standard-packages/3.8.0-20261021/vks-addons:3.8.0-20261021` 의 `packages/multus.kubernetes.vmware.com/`, bundle `@sha256:89b04f80b5268a5178e8cc78823db0d0eee5f457221954d612127e4bc11fe336`
 - 업스트림 multus-cni v4.3.1: 릴리스 <https://github.com/k8snetworkplumbingwg/multus-cni/releases/tag/v4.3.1>, README·`docs/thick-plugin.md`·`docs/configuration.md`·`docs/how-to-use.md`·`docs/quickstart.md`·`deployments/multus-daemonset-thick.yml`·`cmd/multus-daemon/main.go`·`pkg/server/config/manager.go`·`pkg/server/config/generator.go` <https://github.com/k8snetworkplumbingwg/multus-cni/tree/v4.3.1>
 - Antrea v2.7.0 `build/charts/antrea/conf/antrea-cni.conflist`, `docs/secondary-network.md`, `docs/cookbooks/multus/README.md`: <https://github.com/antrea-io/antrea/tree/v2.7.0>
+- VMware Antrea 번들 `projects.packages.broadcom.com/tkg/packages/core/antrea:v2.6.1_vmware.1-tkg.2`(익명 pull, `config/_ytt_lib/bundle/config/upstream/antrea.yaml`·`antrea-overlay.yaml`), Antrea v2.4.5·v2.5.3·v2.6.3 `build/charts/antrea/conf/antrea-cni.conflist` (2026-11-14 확인)
+- vks-image-builder `packer-variables/default-args.j2`: <https://github.com/vmware/vks-image-builder>, kubernetes-sigs/image-builder `images/capi/ansible/roles/kubernetes/tasks/url.yml`(커밋 `110e712f`): <https://github.com/kubernetes-sigs/image-builder/blob/110e712f5a777f105c73f1f1dca1e8023fb609b2/images/capi/ansible/roles/kubernetes/tasks/url.yml>, VKr 1.34.9 아티팩트 서버 이미지 `projects.packages.broadcom.com/vsphere/iaas/kubernetes-release/1.34.9/vkr-artifact-server:v1.34.9_vmware.2-vkr.4` 의 `cni_plugins` tgz (2026-11-14 확인)
+- kapp-controller `pkg/template/ytt.go`(values 를 `--data-values-file` 로 넘김): <https://github.com/carvel-dev/kapp-controller/blob/develop/pkg/template/ytt.go> (2026-11-18 확인)
 - CNI ipvlan plugin: <https://www.cni.dev/plugins/current/main/ipvlan/>
 - Kubernetes 「Pod Security Standards」: <https://kubernetes.io/docs/concepts/security/pod-security-standards/>
 - Kubernetes 「Extend the Kubernetes API with CustomResourceDefinitions」: <https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/>

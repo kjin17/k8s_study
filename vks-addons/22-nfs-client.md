@@ -1,6 +1,6 @@
 # 22. NFS Client
 
-> 커리큘럼: [CURRICULUM.md](CURRICULUM.md) · 앞 절: [21. Whereabouts](21-whereabouts.md) · 이어지는 절: 23. Policy Bundle(작성 예정) · 작성 2026-11-16
+> 커리큘럼: [CURRICULUM.md](CURRICULUM.md) · 앞 절: [21. Whereabouts](21-whereabouts.md) · 이어지는 절: [23. Policy Bundle](23-policy-bundle.md) · 작성 2026-11-16
 > 등급: **[근거]** 출처에 그대로 있는 것, **[추론]** 여러 출처를 엮어 직접 내린 결론.
 > 기준 판: VKS Add-ons `3.8.0+20261021` (9.1 VKS Add-ons Release Notes, 2026-11-16 확인, 페이지 표기 Last Updated November 11, 2026, 이 날 기준 가장 높은 판). 판 호환은 이 문서에서 정리하지 않는다. [공식 호환 매트릭스](https://interopmatrix.broadcom.com/)와 릴리스 노트를 직접 볼 것.
 
@@ -43,7 +43,7 @@ flowchart LR
 |---|---|---|
 | 애드온 판 | `4.13.4+vmware.2-vks.1` 한 판 | 9.1 릴리스 노트 What's New·지원 표 |
 | 지원 등급 | Product | 같은 지원 표 |
-| VKr | 1.37·1.36·1.35·1.34·1.33 모두 Yes | 같은 지원 표 |
+| VKr | 이 문서에서 정리하지 않는다 | [공식 호환 매트릭스](https://interopmatrix.broadcom.com/) |
 | 업그레이드 경로 | 4.13.2+vmware.1·4.13.2+vmware.2·4.13.4+vmware.1 에서 바로 | What's New 의 Upgrade Path |
 | 업스트림 | csi-driver-nfs v4.13.4 (2026-07-01 공개) | Package `releaseNotes`, GitHub 릴리스 |
 | 이미지(kbld 전 태그) | nfsplugin v4.13.4, csi-provisioner v6.3.0, csi-resizer v2.2.0, csi-snapshotter v8.6.0, livenessprobe v2.19.0, csi-node-driver-registrar v2.17.0 | 렌더링 결과 |

@@ -332,6 +332,6 @@ kubectl -n kube-system exec ds/cilium -c cilium-agent -- cilium-dbg status --bri
 - Configure PSA for VKr 1.25 and Later (VKS 9.0, Last Updated October 6, 2026): <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-0/managing-vsphere-kuberenetes-service-clusters-and-workloads/managing-security-for-tkg-service-clusters/configure-psa-for-tkr-1-25-and-later.html>
 - 같은 문장, 8.0 판 Configure PSA for TKR 1.25 and Later (vSphere Supervisor 8.0): <https://techdocs.broadcom.com/us/en/vmware-cis/vsphere/vsphere-supervisor/8-0/using-tkg-service-with-vsphere-supervisor/managing-security-for-tkg-service-clusters/configure-psa-for-tkr-1-25-and-later.html>
 - Cilium Gateway API Support (v1.20): <https://docs.cilium.io/en/v1.20/network/servicemesh/gateway-api/gateway-api/>
-- Cilium Policy Enforcement Modes: <https://docs.cilium.io/en/latest/security/policy/intro/>
+- Cilium Policy Enforcement Modes (v1.20): <https://docs.cilium.io/en/v1.20/security/policy/intro/> — v1.20 문서도 1.20.x 의 최신 패치 기준으로 갱신되므로 1.20.1 과 다를 수 있다
 - Cilium v1.20.1 소스(`go.mod`, `install/kubernetes/cilium/values.yaml`): <https://github.com/cilium/cilium/tree/v1.20.1>
 - 패키지 원본: `projects.packages.broadcom.com/vsphere/supervisor/vks-standard-packages/3.8.0-20261021/vks-addons:3.8.0-20261021` 의 `packages/cilium.kubernetes.vmware.com/1.20.1+vmware.1-vks.1.yml`, bundle `@sha256:2d6a39757d5c9681aba0ebb2517b4d0b621ec209567c8bf919e15bf639e155ec`

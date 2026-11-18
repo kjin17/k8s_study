@@ -61,7 +61,7 @@ flowchart LR
 |---|---|---|
 | 패키지 판 | `0.14.1+vmware.1-vks.1` 한 판 | 9.1 VKS Add-ons Release Notes |
 | 지원 등급 | Product | 같은 곳 |
-| VKr | 1.33·1.34·1.35·1.36·1.37 모두 Yes | 같은 곳 |
+| VKr | 이 문서에서 정리하지 않는다 | [공식 호환 매트릭스](https://interopmatrix.broadcom.com/) |
 | 업그레이드 경로 | 「Smooth upgrade from 0.13.0+vmware.4-vks.1 or later」 | 같은 곳 |
 | 이번 판의 변화(Broadcom 문구) | Go 의존성·베이스 이미지 갱신(취약점 대응) | 같은 곳 |
 | 업스트림 | kubernetes-sigs/windows-gmsa v0.14.1 | Package `releaseNotes` |
@@ -305,7 +305,9 @@ spec:
 ```
 
 - [근거] `spec.os.name: windows` 면 restricted 의 권한 상승·seccomp·capabilities 검사가 빠진다. non-root 검사는 남는다. (Kubernetes Pod Security Standards, 2026-11-13 확인)
-- [근거] Server Core 이미지는 기본으로 ContainerAdministrator 로 돈다. (Kubernetes 「Security For Windows Nodes」) [추론] 그래서 restricted 네임스페이스에서는 `runAsUserName: ContainerUser` 를 같이 준다. Windows 노드에서 `runAsNonRoot` 를 어떻게 판정하는지는 실측하지 못했다.
+- [근거] Server Core 이미지는 기본으로 ContainerAdministrator 로 돈다(Kubernetes 「Security For Windows Nodes」). `servercore:ltsc2022` 이미지 설정의 User 는 비어 있다(MCR 레지스트리 config, windows/amd64, 2026-11-13 확인. `nanoserver:ltsc2022` 는 `ContainerUser`).
+- [근거] Windows 노드의 kubelet 은 `runAsNonRoot: true` 일 때 유효 `runAsUserName` 이 `ContainerAdministrator`(대소문자 무시)면 거절하고 다른 이름이면 통과시킨다. 이름이 없으면 이미지 User 가 `ContainerAdministrator` 일 때만 거절한다(kubernetes v1.37.2 `pkg/kubelet/kuberuntime/security_context_windows.go` 의 `verifyRunAsNonRoot`, containerd v2.4.2 `getUserFromImage` 는 빈 User 를 빈 이름으로 넘긴다). PSA restricted 는 `runAsNonRoot: true` 값만 보고 Windows 사용자 이름은 보지 않는다(Pod Security Standards 「Running as Non-root」, pod-security-admission `check_runAsNonRoot.go` v1.37.2).
+- [추론] 그래서 Server Core 에 `runAsNonRoot: true` 만 주면 PSA 와 kubelet 을 모두 통과한 채 ContainerAdministrator 로 돈다. 관리자 권한을 피하려면 위 예시처럼 `runAsUserName: ContainerUser` 를 명시한다. 실제 Windows 노드에서 시험하지는 못했다.
 - [근거] Windows 노드 풀 컨테이너는 Windows Server 2022 기반이어야 한다. (9.0 PDF 276쪽)
 
 ### 4.5 확인 명령
@@ -361,6 +363,7 @@ kubectl -n demo exec gmsa-check -- nltest /query
 8. **옛 문서의 패키지 이름·판으로 설치한다.** [근거] 9.0 PDF 269쪽 절차는 `windows-gmsa-webhook.tanzu.vmware.com` `0.11.0+vmware.1-tkg.1` 로 설치하고 확인 명령에 공백이 빠져 있다(`kubectl -n windows-gmsa-webhookget pod`). 0.11.0 은 3.5.0+20251218 에서 저장소에서 빠졌다. 9.0 kubectl 설치 문서의 AddonConfig 주석은 「cert-manager-data-values.yaml 을 붙여 넣으라」고 적는다(복사 오류). 판과 이름은 3.8.0 저장소의 `kubectl get packages`·`addonreleases` 로 고른다.
 9. **0.14.1 로 올린 뒤 init 컨테이너 Pod 가 막힌다.** [근거] 업스트림 v0.14.1 부터 init 컨테이너의 GMSA 참조도 권한 검사·변경을 받는다(1절 표 아래). 올리기 전에 init 컨테이너에 `gmsaCredentialSpecName` 을 쓰는 워크로드의 서비스 계정 권한을 4.5 의 `kubectl auth can-i ... -n <Pod 네임스페이스>` 로 점검한다.
 10. **`randomHostname` 을 모든 Pod 에 적용되는 설정으로 안다.** [근거] 이 값은 GMSA 를 쓰는 Pod 이면서 `spec.hostname` 이 비어 있을 때만 무작위 UUID 를 hostname 으로 넣는다. 이미 hostname 이 있으면 그대로 두고 경고만 남긴다. (업스트림 v0.14.1 `webhook.go` 409~422행) 업스트림 PR #155 는 이 기능의 목적을 적지 않는다.
+11. **Windows Pod 에 `runAsNonRoot: true` 만 주고 안심한다.** [근거] Windows 노드의 kubelet 은 이름 기준으로만 판정하고, `runAsUserName` 이 없으면 이미지 User 가 `ContainerAdministrator` 일 때만 거절한다. Server Core 이미지는 User 가 비어 있어 거절되지 않는다(4.4). [추론] PSA restricted 를 통과해도 컨테이너는 ContainerAdministrator 로 돌 수 있으니 `runAsUserName: ContainerUser` 를 함께 적는다.
 
 ---
 
@@ -380,7 +383,7 @@ kubectl -n demo exec gmsa-check -- nltest /query
 
 ---
 
-## 출처 (모두 2026-11-13 확인)
+## 출처 (따로 적지 않은 것은 모두 2026-11-13 확인)
 
 - 9.1 VKS Add-ons Release Notes (Last Updated November 11, 2026): <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-1/release-notes/vks-addons-release-notes.html>
 - 9.0 Install Windows gMSA Webhook (Last Updated October 6, 2026): <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-0/managing-vsphere-kuberenetes-service-clusters-and-workloads/installing-standard-packages-on-tkg-service-clusters/installing-standard-packages-on-tkg-cluster-using-tkr-for-vsphere-8-x/install-windows-gmsa-webhook.html>
@@ -395,6 +398,10 @@ kubectl -n demo exec gmsa-check -- nltest /query
 - Kubernetes 「Configure GMSA for Windows Pods and containers」: <https://kubernetes.io/docs/tasks/configure-pod-container/configure-gmsa/>
 - Kubernetes Pod Security Standards: <https://kubernetes.io/docs/concepts/security/pod-security-standards/>
 - Kubernetes 「Security For Windows Nodes」: <https://kubernetes.io/docs/concepts/security/windows-security/>
+- kubelet Windows `runAsNonRoot` 판정(kubernetes v1.37.2): <https://github.com/kubernetes/kubernetes/blob/v1.37.2/pkg/kubelet/kuberuntime/security_context_windows.go> (2026-11-18 확인)
+- containerd v2.4.2 CRI 이미지 User 처리(`getUserFromImage`): <https://github.com/containerd/containerd/blob/v2.4.2/internal/cri/server/images/image_status.go> (2026-11-18 확인)
+- PSA `runAsNonRoot` 검사(v1.37.2): <https://github.com/kubernetes/kubernetes/blob/v1.37.2/staging/src/k8s.io/pod-security-admission/policy/check_runAsNonRoot.go> (2026-11-18 확인)
+- MCR 이미지 config(`mcr.microsoft.com/windows/servercore:ltsc2022`·`nanoserver:ltsc2022`, windows/amd64 os.version 10.0.20348.5870, 레지스트리 API 익명 조회)
 - Kubernetes API reference, MutatingWebhookConfiguration v1: <https://kubernetes.io/docs/reference/kubernetes-api/admissionregistration/mutating-webhook-configuration-v1/>
 - k8s.io/api `admissionregistration/v1/types.go` (`CABundle` 주석): <https://github.com/kubernetes/api/blob/master/admissionregistration/v1/types.go>
 - Kubernetes 「Extend the Kubernetes API with CustomResourceDefinitions」(CRD 삭제 시 객체 삭제): <https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/>

@@ -37,12 +37,12 @@ flowchart LR
 
 ### 판과 지원 등급 (3.8.0+20261021 기준)
 
-- [근거] 3.8.0+20261021 지원 표에 Contour 는 **`1.33.7+vmware.1-vks.1` 한 판**이고, 등급은 **Ecosystem** 이며, Kubernetes 1.33~1.37 VKr 모두에 「Yes」다. 업그레이드는 1.32.0+vmware.1-vks.1 과 1.33.0·1.33.1·1.33.2·1.33.4·1.33.5 계열에서 매끄럽게 올라간다고 적혀 있다. 이 판에서 바뀐 것은 Go 의존성과 베이스 이미지 취약점 수정이다. (9.1 VKS Add-ons Release Notes, 2026-10-30 확인)
+- [근거] 3.8.0+20261021 지원 표에 Contour 는 **`1.33.7+vmware.1-vks.1` 한 판**이고, 등급은 **Ecosystem** 이다. VKr 과의 짝은 [공식 호환 매트릭스](https://interopmatrix.broadcom.com/)로 확인한다. 업그레이드는 1.32.0+vmware.1-vks.1 과 1.33.0·1.33.1·1.33.2·1.33.4·1.33.5 계열에서 매끄럽게 올라간다고 적혀 있다. 이 판에서 바뀐 것은 Go 의존성과 베이스 이미지 취약점 수정이다. (9.1 VKS Add-ons Release Notes, 2026-10-30 확인)
 - [근거] Ecosystem 등급의 뜻: Broadcom 이 큐레이션해 VKS 기반 호환성만 검증한 오픈소스 패키지다. Broadcom 지원은 **패키징·서명·생명주기(설치·업그레이드) 문제까지**이고, 런타임 버그·보안 패치·기능 요청은 업스트림 커뮤니티가 다룬다. (같은 출처의 VKS Add-ons Support Tiers)
 - [근거] 그 앞 판들은 1.33.5+vmware.2-vks.1(3.7.0+20260924, 「Kubernetes 1.33~1.36 에서 시험」), 1.33.5+vmware.1-vks.1, 1.33.4+vmware.1-vks.1, 1.33.2+vmware.1-vks.1(「1.32~1.35 에서 시험」) 순이다. (같은 출처)
 - [근거] 업스트림 호환 표에서 Contour 1.33.7 은 Envoy 1.38.4 와 함께 **Kubernetes 1.34·1.33·1.32 에서** 시험됐고 Gateway API 1.3.0 을 구현한다. main 브랜치는 Envoy 1.40.2·Kubernetes 1.37·1.36·1.35 로 시험한다. (Contour Compatibility Matrix, 2026-10-30 확인)
 - [근거] 업스트림 정식 릴리스는 v1.33.0(2025-09-09) 이후 2026-10-30 까지 1.33.x 패치만 나왔고 최근 것은 v1.33.7(2026-09-07)이다. v1.34 태그는 없다. (GitHub projectcontour/contour releases, 2026-10-30 확인)
-- [추론] 그러니 **Kubernetes 1.35~1.37 위의 Contour 1.33.7 은 업스트림 CI 가 아니라 Broadcom 검증만 거친 조합**이다. 그런데 Ecosystem 등급이라 그 조합에서 런타임 버그가 나면 Broadcom 이 아니라 업스트림에 기대야 한다. 1.35 이상 VKr 에서 Contour 를 쓸 계획이면 이 빈틈을 미리 알고 고른다.
+- [추론] 그러니 호환 매트릭스가 Kubernetes 1.35 이상 VKr 에 Contour 1.33.7 을 올려 두었다면, **그 조합은 업스트림 CI 가 아니라 Broadcom 검증만 거친 조합**이다. 그런데 Ecosystem 등급이라 그 조합에서 런타임 버그가 나면 Broadcom 이 아니라 업스트림에 기대야 한다. 1.35 이상 VKr 에서 Contour 를 쓸 계획이면 이 빈틈을 미리 알고 고른다.
 
 ## 2. VKS 에서 어떻게 들어가는가
 
@@ -376,7 +376,7 @@ Envoy 는 DaemonSet(노드마다 하나), Contour 는 Deployment(2개). Envoy Po
 - Contour Package Reference (9.0): <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-0/managing-vsphere-kuberenetes-service-clusters-and-workloads/installing-standard-packages-on-tkg-service-clusters/standard-package-reference/contour-package-reference.html>
 - Contour Compatibility Matrix: <https://projectcontour.io/resources/compatibility-matrix/>
 - Contour 릴리스 목록: <https://github.com/projectcontour/contour/releases>
-- Contour 설정 파일: <https://projectcontour.io/docs/main/configuration/#configuration-file>
-- Contour HTTPProxy: <https://projectcontour.io/docs/main/config/fundamentals/>
+- Contour 설정 파일: <https://projectcontour.io/docs/1.33/configuration/#configuration-file>
+- Contour HTTPProxy: <https://projectcontour.io/docs/1.33/config/fundamentals/>
 - Gateway API HTTP routing: <https://gateway-api.sigs.k8s.io/guides/http-routing/>
 - Broadcom 호환 매트릭스: <https://interopmatrix.broadcom.com/>

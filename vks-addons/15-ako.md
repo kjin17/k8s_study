@@ -50,7 +50,7 @@ flowchart LR
 |---|---|---|
 | 패키지 판 | `2.3.1+vmware.1-vks.1` 한 판 | 9.1 VKS Add-ons Release Notes |
 | 지원 등급 | Product | 같은 곳 |
-| VKr | 1.33·1.34·1.35·1.36·1.37 모두 Yes | 같은 곳 |
+| VKr | 이 문서에서 정리하지 않는다 | [공식 호환 매트릭스](https://interopmatrix.broadcom.com/) |
 | 업그레이드 경로 | 2.1.X·2.2.X 에서 「Smooth upgrade」 | 같은 곳 |
 | 이번 판의 변화 | 취약점 대응 의존성·베이스 이미지 갱신, **AKO 로그용 영구 볼륨을 기본으로 끔** | 같은 곳 |
 | 업스트림 AKO 2.3.1 의 쿠버네티스 지원 | 1.32~1.37, Gateway API v1.6 | AKO 2.3 Compatibility Matrix |

@@ -31,7 +31,7 @@ VKS 의 Prometheus 애드온은 Prometheus 서버 하나만이 아니라 **Alert
 
 ### 판과 지원 등급 (3.8.0+20261021 기준)
 
-- [근거] 3.8.0+20261021 에서 Prometheus 는 **Product** 등급이고 `3.13.3+vmware.1-vks.1` **한 판**이며, 지원 표의 VKr 다섯 칸 모두 「Yes」다. 업그레이드 경로는 「Smooth upgrade from 3.5.0+vmware.2-vks.1 and later」다. (9.1 VKS Add-ons Release Notes)
+- [근거] 3.8.0+20261021 에서 Prometheus 는 **Product** 등급이고 `3.13.3+vmware.1-vks.1` **한 판**이다. VKr 과의 짝은 [공식 호환 매트릭스](https://interopmatrix.broadcom.com/)로 확인한다. 업그레이드 경로는 「Smooth upgrade from 3.5.0+vmware.2-vks.1 and later」다. (9.1 VKS Add-ons Release Notes)
 - [근거] 이 판에 함께 든 하위 구성 요소 판: Prometheus-Operator 0.94.0, Alertmanager 0.34.0, kube-state-metrics 2.20.0, **Thanos 0.42.4**, node-exporter 1.12.1, Pushgateway 1.11.3, configmap-reload 0.15.0. (같은 출처)
 - [추론] 패키지 판 번호의 앞부분은 **Prometheus 서버 판**이다(3.13.3 → 업스트림 v3.13.3 노트에 링크). cert-manager·Contour 처럼 판 번호만 보고 「무엇이 바뀌었는지」를 알 수 있지만, 하위 구성 요소 판은 같은 칸의 「Sub-components version info」를 따로 봐야 한다.
 

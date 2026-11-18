@@ -46,7 +46,7 @@ flowchart LR
 |---|---|---|
 | 애드온 판 | `0.2.0+vmware.1-vks.3` 한 판 | 9.1 릴리스 노트 지원 표 |
 | 지원 등급 | Product | 같은 지원 표 |
-| VKr | 1.37·1.36·1.35·1.34·1.33 모두 Yes | 같은 지원 표 |
+| VKr | 이 문서에서 정리하지 않는다 | [공식 호환 매트릭스](https://interopmatrix.broadcom.com/) |
 | 의존 | Gatekeeper 애드온(3.8.0+20261021 은 `3.23.1+vmware.1-vks.1`) | Package 어노테이션, 12절 |
 | 프로필 | `nsa-cisa-k8s-v1.2`(기본), `cis-k8s-v1.12` | Package `valuesSchema` |
 | 업스트림 | 없음(Broadcom 이 만든 정책 묶음). 템플릿 상당수가 gatekeeper-library 의 같은 이름 정책과 닮았다 | 템플릿 원본 [추론, 5절] |

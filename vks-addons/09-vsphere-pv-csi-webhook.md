@@ -57,7 +57,7 @@ VKS 의 웹훅은 업스트림 [kubernetes-sigs/vsphere-csi-driver](https://gith
 
 ### 판과 지원 등급 (3.8.0+20261021 기준)
 
-[근거] 지원 표의 vSphere PV CSI Webhook 은 **`3.9.0+vmware.1-vks.1` 한 판**, Product 등급, Kubernetes v1.33~v1.37 VKr 다섯 칸 모두 Yes. 바뀐 점은 「K8s 업데이트, Go 의존성·기본 이미지 갱신(취약점)」이고 업그레이드 경로는 「3.8.0+vmware.3-vks.1 에서 매끄러운 업그레이드」다. (9.1 VKS Add-ons Release Notes)
+[근거] 지원 표의 vSphere PV CSI Webhook 은 **`3.9.0+vmware.1-vks.1` 한 판**, Product 등급. VKr 과의 짝은 [공식 호환 매트릭스](https://interopmatrix.broadcom.com/)로 확인한다. 바뀐 점은 「K8s 업데이트, Go 의존성·기본 이미지 갱신(취약점)」이고 업그레이드 경로는 「3.8.0+vmware.3-vks.1 에서 매끄러운 업그레이드」다. (9.1 VKS Add-ons Release Notes)
 
 | 저장소 판 | 새로 들어온 웹훅 판 | 적힌 변화 |
 |---|---|---|

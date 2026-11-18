@@ -2,6 +2,7 @@
 
 > [목차로](CURRICULUM.md) · 작성 2026-10-16 · 기준 버전: Kubeflow Trainer v2.3.0(2026-08-07, `v2.3.0` 태그 소스), Training Operator v1.9.4(2026-08-18, `v1.9.4` 태그 소스), JobSet v0.12.0(Trainer 차트 의존성), PyTorch 2.14
 > **[근거]** 출처에 그대로 있는 내용, **[추론]** 여러 출처를 엮어 내린 결론.
+> 링크 판: Trainer 문서 사이트는 판별 문서를 공개하지 않아(Read the Docs 활성 판 목록은 `latest` 와 빌드되지 않은 `v2.2.1` 뿐, `/en/v2.3.0/`·`/en/v2.2.1/` 404, 2026-11-18 확인) `trainer.kubeflow.org/en/latest/` 링크는 main 브랜치 기준 문서다. v2.3.0 기준 내용은 GitHub `kubeflow/trainer` 의 `v2.3.0` 태그 `docs/` 로 확인한다.
 > 앞 절: [06. 멀티노드 분산 학습 기초](06-multinode-ddp-basics.md)
 
 ## 1. 개념

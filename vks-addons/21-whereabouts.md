@@ -1,6 +1,6 @@
 # 21. Whereabouts
 
-> 커리큘럼: [CURRICULUM.md](CURRICULUM.md) · 앞 절: [20. Multus](20-multus.md) · 이어지는 절: 22. NFS Client(작성 예정) · 작성 2026-11-14
+> 커리큘럼: [CURRICULUM.md](CURRICULUM.md) · 앞 절: [20. Multus](20-multus.md) · 이어지는 절: [22. NFS Client](22-nfs-client.md) · 작성 2026-11-14
 > 등급: **[근거]** 출처에 그대로 있는 것, **[추론]** 여러 출처를 엮어 직접 내린 결론.
 > 기준 판: VKS Add-ons `3.8.0+20261021` (9.1 VKS Add-ons Release Notes, 2026-11-14 확인, 페이지 표기 Last Updated November 11, 2026, 이 날 기준 가장 높은 판). 판 호환은 이 문서에서 정리하지 않는다. [공식 호환 매트릭스](https://interopmatrix.broadcom.com/)와 릴리스 노트를 직접 볼 것.
 
@@ -55,7 +55,7 @@ flowchart LR
 | 패키지 이름 | `whereabouts.kubernetes.vmware.com` | 패키지 원본 |
 | 판 | `0.9.4+vmware.3-vks.1` 한 판, `releasedAt: 2026-10-21` | 패키지 원본, 9.1 릴리스 노트 |
 | 지원 등급 | **Product** | 9.1 릴리스 노트 지원 표 |
-| VKr | 1.37·1.36·1.35·1.34·1.33 모두 Yes | 같은 표 |
+| VKr | 이 문서에서 정리하지 않는다 | [공식 호환 매트릭스](https://interopmatrix.broadcom.com/) |
 | 업스트림 | whereabouts v0.9.4 (2026-06-03 UTC 릴리스) | 패키지 `releaseNotes`, 업스트림 릴리스 |
 | 이미지 | `whereabouts:v0.9.4_vmware.3` 하나 (DaemonSet·Deployment 두 개가 같은 이미지) | bundle `.imgpkg/images.yml`, 렌더링 |
 

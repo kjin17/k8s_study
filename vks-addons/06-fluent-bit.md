@@ -40,7 +40,7 @@ flowchart LR
 
 ### 판과 지원 등급 (3.8.0+20261021 기준)
 
-- [근거] 3.8.0+20261021 에서 Fluent Bit 는 **Product** 등급이고 `5.1.2+vmware.1-vks.1` **한 판**이며, 지원 표의 VKr 다섯 칸(1.33~1.37) 모두 「Yes」다. 변경 내용은 「Base images bump to address vulnerabilities」, 업그레이드 경로는 「Smooth upgrade from v4.0.8」이다. (9.1 VKS Add-ons Release Notes)
+- [근거] 3.8.0+20261021 에서 Fluent Bit 는 **Product** 등급이고 `5.1.2+vmware.1-vks.1` **한 판**이다. VKr 과의 짝은 [공식 호환 매트릭스](https://interopmatrix.broadcom.com/)로 확인한다. 변경 내용은 「Base images bump to address vulnerabilities」, 업그레이드 경로는 「Smooth upgrade from v4.0.8」이다. (9.1 VKS Add-ons Release Notes)
 - [근거] Product 등급은 Broadcom 글로벌 지원이 설치·수명 주기·런타임 문제를 모두 받는다. (같은 출처의 Support Tiers)
 - [근거] 업스트림 v5.1.2 는 2026-09-05 에 나왔고, 2026-10-31 현재 업스트림 최신은 v5.1.5(2026-10-21)다. (`gh release list -R fluent/fluent-bit`, 2026-10-31)
 
