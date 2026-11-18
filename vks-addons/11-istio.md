@@ -277,7 +277,7 @@ ytt -f config/ -f my-values.yaml     # 내 values 를 얹어 본다 (파일 맨 
 - 9.1 문서 세트에서 Install Istio 주소(9-0 을 9-1 로 바꾼 것)는 404 였다.
 - VKS Add-ons Release Notes (9.1, Last Updated October 26, 2026): <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-1/release-notes/vks-addons-release-notes.html>
 - 패키지 원본: `projects.packages.broadcom.com/vsphere/supervisor/vks-standard-packages/3.8.0-20261021/vks-addons:3.8.0-20261021` 의 `packages/istio.kubernetes.vmware.com/` 와 1.31.0 bundle(layer sha256 `f8a1e0aa…`), 익명 pull
-- Istio Supported Releases: <https://istio.io/latest/docs/releases/supported-releases/>
+- Istio Supported Releases: <https://istio.io/v1.31/docs/releases/supported-releases/>
 - Announcing Istio 1.31.0 (2026-08-31): <https://istio.io/latest/news/releases/1.31.x/announcing-1.31/>
-- Istio Plug in CA Certificates: <https://istio.io/latest/docs/tasks/security/cert-management/plugin-ca-cert/>
+- Istio Plug in CA Certificates: <https://istio.io/v1.31/docs/tasks/security/cert-management/plugin-ca-cert/>
 - ytt v0.55.4: <https://github.com/carvel-dev/ytt/releases/tag/v0.55.4>

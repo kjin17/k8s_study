@@ -26,7 +26,7 @@
 2. 그 Pod 안에서 `ray start`가 돌며 "이 Ray 노드에는 GPU가 몇 개 있다"고 Ray에 알린다.
 3. Ray 스케줄러가 `@ray.remote(num_gpus=1)` 태스크·액터를 GPU가 남은 Ray 노드에 놓고, `CUDA_VISIBLE_DEVICES`를 설정한 뒤 실행한다.
 
-- **[근거]** KubeRay는 컨테이너의 GPU limits를 읽어 `ray start`에 `--num-gpus`를 넣는다. `rayStartParams`에 `num-gpus`를 직접 쓰면 그 값이 이기고, 컨테이너 limits에 GPU가 없어도 Ray는 그만큼 있다고 믿는다. 출처: <https://docs.ray.io/en/latest/cluster/kubernetes/user-guides/gpu.html> "GPUs and Ray", "Overriding Ray GPU capacity" (2026-10-17 확인)
+- **[근거]** KubeRay는 컨테이너의 GPU limits를 읽어 `ray start`에 `--num-gpus`를 넣는다. `rayStartParams`에 `num-gpus`를 직접 쓰면 그 값이 이기고, 컨테이너 limits에 GPU가 없어도 Ray는 그만큼 있다고 믿는다. 출처: <https://docs.ray.io/en/releases-2.59.0/cluster/kubernetes/user-guides/gpu.html> "GPUs and Ray", "Overriding Ray GPU capacity" (2026-10-17 확인)
 - **[근거]** 이때 GPU 리소스로 인정하는 이름은 두 종류뿐이다. 이름이 `gpu`로 **끝나는** 것(`nvidia.com/gpu`), 그리고 `nvidia.com/mig-<n>g.<m>gb` 꼴의 MIG 이름. 출처: `ray-operator/controllers/ray/utils/resources.go` `IsGPUResourceKey`, `controllers/ray/common/pod.go` `addWellKnownAcceleratorResources` v1.7.1 (2026-10-17 확인)
 - **[근거]** 워커 그룹의 `resources` 필드(문자열 맵)는 `rayStartParams`를 덮어쓰지만 **Pod 컨테이너 자원에는 영향이 없다**. 같은 소스의 `raycluster_types.go` 주석. 또 `rayStartParams`의 `num-cpus`·`num-gpus`·`memory`·`resources`와 그룹 `resources`를 **함께 쓰면 오퍼레이터가 거절한다**("please use only one"). 출처: `controllers/ray/utils/validation.go` `validateRayGroupResources` v1.7.1 (2026-10-17 확인)
 - **[근거]** KubeRay가 만든 `ray start` 명령은 Ray 컨테이너의 환경 변수 `KUBERAY_GEN_RAY_START_CMD`에 그대로 남는다. 같은 소스의 `pod.go`. 확인할 때 이 값을 본다(3.3, 4절).
@@ -43,7 +43,7 @@
 
 ### 1.3 Ray Train: torchrun이 하던 일을 Ray가 한다
 
-- **[근거]** Ray Train의 워커는 학습 함수를 돌리는 **Ray 액터**다. `ScalingConfig(num_workers=8, use_gpu=True)`는 워커 8개에 GPU를 하나씩 잡고, `resources_per_worker={"GPU": 2}`로 늘리거나 `0.5`처럼 분수로 줄 수 있다. `use_gpu=True`면 `CUDA_VISIBLE_DEVICES`를 맞춰 주고 백엔드 기본값은 NCCL, 아니면 Gloo다. 출처: <https://docs.ray.io/en/latest/train/user-guides/using-accelerators.html> (2026-10-17 확인)
+- **[근거]** Ray Train의 워커는 학습 함수를 돌리는 **Ray 액터**다. `ScalingConfig(num_workers=8, use_gpu=True)`는 워커 8개에 GPU를 하나씩 잡고, `resources_per_worker={"GPU": 2}`로 늘리거나 `0.5`처럼 분수로 줄 수 있다. `use_gpu=True`면 `CUDA_VISIBLE_DEVICES`를 맞춰 주고 백엔드 기본값은 NCCL, 아니면 Gloo다. 출처: <https://docs.ray.io/en/releases-2.59.0/train/user-guides/using-accelerators.html> (2026-10-17 확인)
 - **[근거]** 워커들은 placement group 하나로 묶여 자리를 잡고, 기본 전략은 `PACK`이다. 출처: `python/ray/air/config.py` ray-2.59.0 `placement_strategy ... = "PACK"` (2026-10-17 확인)
 - **[근거]** 프로세스 그룹을 만들 때 Ray Train이 rank 0 워커의 주소와 빈 포트를 구해 모든 워커에 `MASTER_ADDR`·`MASTER_PORT`를 넣고 `init_method="env"`로 `init_process_group`을 부른다. `TorchConfig.timeout_s` 기본값은 **1800초**다. 출처: `python/ray/train/torch/config.py` ray-2.59.0 (2026-10-17 확인)
 - **[근거]** Ray 2.59에서 Train V2가 기본으로 켜져 있다(`RAY_TRAIN_V2_ENABLED` 기본 True). V2의 `ScalingConfig`는 `num_workers=(최소, 최대)` 튜플로 탄력 학습을 받고, `label_selector`로 워커를 특정 Ray 노드 라벨에 묶는다. 출처: `python/ray/train/v2/_internal/constants.py`, `python/ray/train/v2/api/config.py` ray-2.59.0 (2026-10-17 확인)
@@ -55,13 +55,13 @@
 
 ### 1.4 Ray Serve와 분수 GPU
 
-- **[근거]** Ray는 분수 자원을 받아 여러 태스크·액터가 GPU 하나를 나눠 쓰게 한다(`num_gpus=0.25`면 넷이 동시에). 다만 "각 태스크가 자기 몫 이상의 가속기 메모리를 쓰지 않게 하는 것은 **사용자의 책임**"이다. 또 GPU 태스크가 끝나도 메모리를 놓지 않는 문제 때문에 GPU 태스크 사이의 워커 프로세스 재사용을 기본으로 끈다. 출처: <https://docs.ray.io/en/latest/ray-core/scheduling/accelerators.html> "Fractional Accelerators" (2026-10-17 확인)
+- **[근거]** Ray는 분수 자원을 받아 여러 태스크·액터가 GPU 하나를 나눠 쓰게 한다(`num_gpus=0.25`면 넷이 동시에). 다만 "각 태스크가 자기 몫 이상의 가속기 메모리를 쓰지 않게 하는 것은 **사용자의 책임**"이다. 또 GPU 태스크가 끝나도 메모리를 놓지 않는 문제 때문에 GPU 태스크 사이의 워커 프로세스 재사용을 기본으로 끈다. 출처: <https://docs.ray.io/en/releases-2.59.0/ray-core/scheduling/accelerators.html> "Fractional Accelerators" (2026-10-17 확인)
 - **[추론]** Ray의 분수 GPU는 04절의 time-slicing과 같은 성격이다. 스케줄러의 장부만 나눌 뿐 메모리·장애 격리가 없다. 다른 점은 장부를 쥔 곳이 Kubernetes가 아니라 Ray라는 것이고, 그래서 Kubernetes 쪽 쿼터·감시에는 "GPU 1장"으로만 보인다. 격리가 필요하면 MIG(04절)로 Pod 단위에서 나눈다.
 - Serve 오토스케일링 파라미터 이름 변경(`target_ongoing_requests`, `max_ongoing_requests` 기본값)은 KubeRay 스터디 노트의 2026-10 업데이트에 정리돼 있다(비공개).
 
 ### 1.5 오토스케일링과 GPU 비용
 
-- **[근거]** GPU 워커 그룹을 `replicas: 0`, `minReplicas: 0`, `maxReplicas: N`으로 두고 `spec.enableInTreeAutoscaling: true`를 켜면, Ray 오토스케일러가 GPU 수요를 보고 Pod를 늘리고 유휴 시간(기본 60초) 뒤 줄인다. GPU 노드 풀도 따로 오토스케일되게 해야 노드까지 줄어든다. `ray.autoscaler.sdk.request_resources(bundles=[{"GPU": 1}] * 2)`로 미리 늘릴 수 있고, 이 요청은 빈 목록으로 덮어쓸 때까지 유지된다. 출처: <https://docs.ray.io/en/latest/cluster/kubernetes/user-guides/gpu.html> "GPU autoscaling", "Requesting GPUs" (2026-10-17 확인)
+- **[근거]** GPU 워커 그룹을 `replicas: 0`, `minReplicas: 0`, `maxReplicas: N`으로 두고 `spec.enableInTreeAutoscaling: true`를 켜면, Ray 오토스케일러가 GPU 수요를 보고 Pod를 늘리고 유휴 시간(기본 60초) 뒤 줄인다. GPU 노드 풀도 따로 오토스케일되게 해야 노드까지 줄어든다. `ray.autoscaler.sdk.request_resources(bundles=[{"GPU": 1}] * 2)`로 미리 늘릴 수 있고, 이 요청은 빈 목록으로 덮어쓸 때까지 유지된다. 출처: <https://docs.ray.io/en/releases-2.59.0/cluster/kubernetes/user-guides/gpu.html> "GPU autoscaling", "Requesting GPUs" (2026-10-17 확인)
 - **[근거]** `autoscalerOptions.idleTimeoutSeconds` 기본 60, `upscalingMode`는 `Conservative`(대기 중 워커 Pod 수를 클러스터 크기 이하로 제한)·`Default`·`Aggressive`. `version`을 비우면 Ray 2.47.0 이상은 오토스케일러 v2다. 워커 그룹별 `idleTimeoutSeconds`는 v2에서만 읽고, 그룹 `priority`(높을수록 먼저 늘림)는 v2 + Ray 2.56 이상에서만 듣는다. 출처: `ray-operator/apis/ray/v1/raycluster_types.go` v1.7.1 (2026-10-17 확인)
 - **[추론]** `request_resources`로 늘린 GPU 노드는 빈 목록으로 지울 때까지 남는다. 노트북에서 한 번 부르고 잊으면 GPU가 계속 과금된다. 유휴 축소가 안 될 때 가장 먼저 의심할 곳이다.
 
@@ -75,7 +75,7 @@
 | GPU 여러 장이 필요한 모델 서빙, 무중단 업그레이드 | KubeRay(`RayService`) | Trainer는 학습 전용이다 |
 | Kueue로 팀별 GPU 쿼터를 거는 게 우선 | 둘 다 가능 | Kueue가 `TrainJob`과 `RayJob`·`RayCluster`·`RayService`를 모두 지원한다(09절) |
 
-전부 **[추론]**이다. 근거로 삼은 것은 1.3의 Ray Train 동작, 07절의 JobSet 재시작, Kueue 문서의 지원 목록(<https://docs.ray.io/en/latest/cluster/kubernetes/k8s-ecosystem/kueue.html>, 2026-10-17 확인)이다.
+전부 **[추론]**이다. 근거로 삼은 것은 1.3의 Ray Train 동작, 07절의 JobSet 재시작, Kueue 문서의 지원 목록(<https://docs.ray.io/en/releases-2.59.0/cluster/kubernetes/k8s-ecosystem/kueue.html>, 2026-10-17 확인)이다.
 
 ## 2. 그림
 
@@ -260,7 +260,7 @@ kubectl patch node $NODE --subresource=status --type=json \
 7. **NCCL 타임아웃을 06절 값으로 기억한다.** Ray Train의 `TorchConfig.timeout_s` 기본값은 1800초다. hang 감지가 늦으면 이 값을 줄인다.
 8. **노드가 늦게 뜨는 클러스터에서 0부터 늘린다.** placement group 대기 60초(1.3). 시한을 늘리거나 `minReplicas`를 잡 크기만큼 둔다.
 9. **`ray-ml` 이미지·오래된 `rayVersion`을 예제에서 베낀다.** 태그가 지워져 `ImagePullBackOff`가 난다(KubeRay v1.7.1 릴리스 노트).
-10. **Ray 2.61로 올리며 토큰 인증을 준비하지 않는다.** Ray 2.61부터 원격 클러스터에도 토큰 인증이 기본으로 켜질 예정이라, 모든 노드와 클라이언트가 같은 토큰을 가져야 한다. KubeRay에선 `spec.authOptions`로 준비한다. 출처: <https://docs.ray.io/en/latest/ray-security/token-auth.html> (2026-10-17 확인)
+10. **Ray 2.61로 올리며 토큰 인증을 준비하지 않는다.** Ray 2.61부터 원격 클러스터에도 토큰 인증이 기본으로 켜질 예정이라, 모든 노드와 클라이언트가 같은 토큰을 가져야 한다. KubeRay에선 `spec.authOptions`로 준비한다. 출처: <https://docs.ray.io/en/releases-2.59.0/ray-security/token-auth.html> (2026-10-17 확인)
 
 ## 6. 확인 문제
 
@@ -289,10 +289,10 @@ kubectl patch node $NODE --subresource=status --type=json \
 - KubeRay 릴리스(v1.7.1, v1.7.0): <https://github.com/ray-project/kuberay/releases>
 - KubeRay 소스 v1.7.1: `ray-operator/apis/ray/v1/raycluster_types.go`, `rayjob_types.go`, `ray-operator/controllers/ray/common/pod.go`, `ray-operator/controllers/ray/utils/resources.go`, `helm-chart/kuberay-operator/values.yaml` — <https://github.com/ray-project/kuberay/tree/v1.7.1>
 - Ray 릴리스(2.59.0): <https://github.com/ray-project/ray/releases>
-- KubeRay에서 GPU 쓰기: <https://docs.ray.io/en/latest/cluster/kubernetes/user-guides/gpu.html>
-- Ray Train 규모·가속기 설정: <https://docs.ray.io/en/latest/train/user-guides/using-accelerators.html>
-- Ray Core 가속기·분수 GPU: <https://docs.ray.io/en/latest/ray-core/scheduling/accelerators.html>
-- KubeRay + Kueue: <https://docs.ray.io/en/latest/cluster/kubernetes/k8s-ecosystem/kueue.html>
-- Ray 토큰 인증: <https://docs.ray.io/en/latest/ray-security/token-auth.html>
+- KubeRay에서 GPU 쓰기: <https://docs.ray.io/en/releases-2.59.0/cluster/kubernetes/user-guides/gpu.html>
+- Ray Train 규모·가속기 설정: <https://docs.ray.io/en/releases-2.59.0/train/user-guides/using-accelerators.html>
+- Ray Core 가속기·분수 GPU: <https://docs.ray.io/en/releases-2.59.0/ray-core/scheduling/accelerators.html>
+- KubeRay + Kueue: <https://docs.ray.io/en/releases-2.59.0/cluster/kubernetes/k8s-ecosystem/kueue.html>
+- Ray 토큰 인증: <https://docs.ray.io/en/releases-2.59.0/ray-security/token-auth.html>
 - Ray 소스 ray-2.59.0: `python/ray/air/config.py`, `python/ray/train/torch/config.py`, `python/ray/train/v2/api/config.py`, `python/ray/train/v2/_internal/constants.py`, `python/ray/train/v2/_internal/execution/worker_group/worker_group.py`, `python/ray/train/v2/_internal/execution/controller/controller.py` — <https://github.com/ray-project/ray/tree/ray-2.59.0>
 - Docker Hub `rayproject/ray` 태그 `2.59.0-gpu`: <https://hub.docker.com/r/rayproject/ray/tags>

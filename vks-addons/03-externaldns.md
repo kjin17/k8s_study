@@ -36,7 +36,7 @@ flowchart LR
 
 ### 판과 지원 등급 (3.8.0+20261021 기준)
 
-- [근거] 3.8.0+20261021 지원 표에서 External DNS 는 **`0.22.0+vmware.1-vks.1` 한 판**이고 등급은 **Product** 다. Kubernetes 1.33~1.37 VKr 모두에 「Yes」다. 0.18.0+vmware.2, 0.20.0+vmware.1·2, 0.21.0+vmware.1·2·3 에서 매끄럽게 올라간다고 적혀 있다. 이 판의 변경 내용은 업스트림 릴리스 노트 링크뿐이다. (9.1 VKS Add-ons Release Notes, 2026-10-30 확인)
+- [근거] 3.8.0+20261021 지원 표에서 External DNS 는 **`0.22.0+vmware.1-vks.1` 한 판**이고 등급은 **Product** 다. VKr 과의 짝은 [공식 호환 매트릭스](https://interopmatrix.broadcom.com/)로 확인한다. 0.18.0+vmware.2, 0.20.0+vmware.1·2, 0.21.0+vmware.1·2·3 에서 매끄럽게 올라간다고 적혀 있다. 이 판의 변경 내용은 업스트림 릴리스 노트 링크뿐이다. (9.1 VKS Add-ons Release Notes, 2026-10-30 확인)
 - [근거] Product 등급은 Broadcom 이 배포·생명주기뿐 아니라 **런타임 문제 해결까지** 지원한다. 단 범위는 Broadcom 공식 문서에 실린 설정값까지다. (같은 출처의 Support Tiers) 02절의 Contour(Ecosystem)와 다르다.
 - [근거] 판별로 바뀐 것 (모두 같은 릴리스 노트):
 

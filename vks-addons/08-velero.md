@@ -65,9 +65,9 @@ flowchart LR
 
 ### 판과 지원 등급 (3.8.0+20261021 기준)
 
-- [근거] 3.8.0+20261021 에서 Velero 는 **Product** 등급이고 **`1.18.4+vmware.1-vks.1` 한 판**이며, 지원 표의 VKr 다섯 칸(1.33~1.37) 모두 「Yes」다. What's New 의 내용은 「Smooth upgrade from 1.18.3+vmware.1-vks.1」뿐이다. (9.1 VKS Add-ons Release Notes)
+- [근거] 3.8.0+20261021 에서 Velero 는 **Product** 등급이고 **`1.18.4+vmware.1-vks.1` 한 판**이다. VKr 과의 짝은 [공식 호환 매트릭스](https://interopmatrix.broadcom.com/)로 확인한다. What's New 의 내용은 「Smooth upgrade from 1.18.3+vmware.1-vks.1」뿐이다. (9.1 VKS Add-ons Release Notes)
 - [근거] 업스트림 v1.18.4 는 2026-09-28 에 나왔고 2026-11-01 현재 업스트림 최신이다. 업스트림 README 의 호환 표에서 1.18 은 Kubernetes 1.33.7·1.34.1·1.35.0 에서 시험했다. (`gh release list -R vmware-tanzu/velero`, README, 2026-11-01)
-- [추론] VKr 1.36·1.37 의 「Yes」는 Broadcom 이 따로 검증한 범위이고 업스트림 시험 범위 밖이다. 문제가 나면 업스트림 이슈보다 Broadcom 지원 쪽으로 간다.
+- [추론] 호환 매트릭스가 1.35 보다 높은 VKr 을 이 판의 지원으로 적는다면, 그 조합은 Broadcom 이 따로 검증한 범위이고 업스트림 시험 범위 밖이다. 문제가 나면 업스트림 이슈보다 Broadcom 지원 쪽으로 간다.
 
 묶음마다 Velero 애드온 판이 어떻게 움직였는지 (모두 같은 9.1 릴리스 노트):
 
@@ -312,7 +312,7 @@ KUBECONFIG=./kc-dummy velero install --provider aws --bucket b --secret-file ./c
 8. **node-agent 를 끄고 CSI 데이터 이동을 기대한다.** [근거] 업스트림은 내장 data mover 에 node-agent 가 꼭 있어야 한다고 하고, 1.18.3 부터 「data mover 를 요청했는데 node-agent Pod 가 없으면 백업 검증을 실패시킨다」(#10360). [추론] `nodeAgent.enableOnLinux: false` 로 두면 CSI 데이터 이동 백업이 바로 FailedValidation 이 된다.
 9. **워커 1대 클러스터에 linked clone 을 켠다.** [근거] 1.18 백업 문서가 그 경우 끄라고 한다(원본과 다른 노드 필요). 이 권고는 9.0 문서 세트 안에 있지만 기능은 **VCF 9.1** 의 것이다.
 10. **공식 문서 예시를 그대로 친다.** [근거] 문서 안팎에서 서로 어긋나는 곳(모두 2026-11-01 확인):
-    - **Version Matrix for Velero** 의 CSI 표는 맨 위가 `v1.17.2_vmware.1`(Kubernetes 1.31~1.34)이고 **1.18 줄이 없다.** 같은 목차에는 Velero 1.18 쪽이 있고, 3.8.0+20261021 은 1.18.4 하나(1.33~1.37)만 준다.
+    - **Version Matrix for Velero** 의 CSI 표는 맨 위가 `v1.17.2_vmware.1`(Kubernetes 1.31~1.34)이고 **1.18 줄이 없다.** 같은 목차에는 Velero 1.18 쪽이 있고, 3.8.0+20261021 은 1.18.4 하나만 준다.
     - 같은 표가 「CSI 플러그인은 v1.15 부터 통합」이라 적었다(업스트림은 1.14). 설치 문서의 사전 조건 「VKr 1.26.5 이상」도 표의 검증 범위(1.31 이상)와 맞지 않는다.
     - 1.18 설치는 `--addon-release-name velero.kubernetes.vmware.com.1.18.1-vmware.1`, 업그레이드는 `--version 1.18.1+vmware.1` 이다. 예시 출력의 VERSION 칸에는 `-vks.1` 꼬리가 없는데 릴리스 노트의 판은 모두 `...-vks.1` 이다.
     - 1.18 CLI 설치 문서는 CLI 를 「vSphere Kubernetes Service **3.7.0**+v1.36」 다운로드 페이지에서 받으라고 한다.
