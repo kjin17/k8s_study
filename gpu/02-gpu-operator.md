@@ -5,6 +5,20 @@
 > 링크 판: NVIDIA 는 GPU Operator 26.x 판별 문서를 따로 두지 않아(`/gpu-operator/26.7.1/` 경로 404, 2026-11-18 확인) 출처 링크는 `/latest/` 다. `/latest/` 는 그때그때 최신 판 문서라(2026-11-18 확인 때 릴리스 노트 맨 위 v26.7.3) 본문의 v26.7.1 기준 표·설명과 다를 수 있다.
 > 앞 절: [01. GPU를 Pod에 붙이는 원리](01-gpu-pod-basics.md)
 
+### 최신화 점검 2026-11-19: v26.7.3 (2026-11-17)
+
+본문 표·명령은 v26.7.1 기준 그대로 두고, 그 뒤 패치에서 바뀐 것만 적는다. 26.7.2 는 DRA·OpenShift·MPS 재적재 고침이 주라 본문 설명은 그대로 맞다.
+
+- **[근거]** v26.7.3 차트 기본 판이 바뀐 구성 요소: Container Toolkit v1.20.1→v1.20.2, device plugin·GFD v0.20.1→v0.20.2, DCGM(단독) 4.6.1-1→4.7.0, DCGM Exporter 4.6.1-4.8.4→4.7.0-4.9.0, MIG Manager v0.15.1→v0.15.2, NFD 하위 차트 0.19.0→0.20.1. driver(595.91.07)와 k8s-driver-manager(v0.12.1) 기본값은 그대로다. 출처: 태그 v26.7.1·v26.7.3 의 `deployments/gpu-operator/values.yaml`·`Chart.yaml` diff, <https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/release-notes.html#v26-7-3> (2026-11-19 확인)
+- **[근거]** 26.7.3 은 릴리스 노트에 Breaking Changes 가 있다. 함께 오는 DCGM Exporter 4.9.0 이 기본 지표를 DCGM 4.7 필드 이름으로 바꾸고, 바뀐 지표 중 11개는 단위도 바뀐다(예: `DCGM_FI_DEV_GPU_UTIL`(퍼센트) → `DCGM_FI_DEV_GPU_UTIL_RATIO`(0~1)). 모든 지표의 드라이버 판 라벨도 `DCGM_FI_DRIVER_VERSION` → `DCGM_FI_SYSTEM_DRIVER_VERSION`. 대시보드·경보를 고쳐야 한다. 지표 쪽 자세한 내용은 [12절 머리의 점검 기록](12-observability-troubleshooting.md). 출처: 같은 릴리스 노트 (2026-11-19 확인)
+- **[추론]** 그래서 26.7.1·26.7.2 → 26.7.3 은 같은 메이저 안 패치지만 지표 이름이 바뀌는 업그레이드다. 경보 규칙을 먼저 새 이름으로(또는 두 이름 모두로) 고친 뒤 올린다. 12절 점검 기록대로 옛 이름을 사용자 CSV 로 계속 받을 수는 있지만 이는 소스 판독이고 실측하지 않았다.
+- **[근거]** CDI 가 켜져 있을 때, 사용자가 `devicePlugin.env` 로 준 `DEVICE_LIST_STRATEGY` 에 `cdi-annotations` 나 `cdi-cri` 가 하나도 없으면 Operator 가 ClusterPolicy 조정 단계에서 오류로 거절한다. 전에는 GPU Pod 가 뜰 때에야 알았다. 다만 소스 주석상 **ConfigMap(설정 파일)으로 준 전략은 이 검사 범위 밖**이다. 출처: 릴리스 노트 26.7.3(PR #3081), v26.7.3 `controllers/object_controls.go` 의 `validateCDIDeviceListStrategy`·`TransformDevicePlugin` (2026-11-19 확인)
+- **[추론]** `helm install` 자체는 이 값으로도 성공한다. 차트는 ClusterPolicy 만 렌더링하고 검사는 Operator 안에서 돌기 때문이다(4.1 「`helm template`로 보이는 것은 ClusterPolicy의 값까지」와 같은 이유). 오류는 Operator 로그와 ClusterPolicy 상태에서 찾아야 한다(GPU 노드에서 실측하지 않음).
+- **[근거]** 고친 문제 가운데 이 절과 닿는 것: 26.3.x 에서 올릴 때 기존 드라이버 DaemonSet 을 지우고 GPU 노드의 드라이버 Pod 를 없애던 문제(이제 노드에 드라이버 소유 라벨이 붙을 때까지 기다린 뒤 업그레이드 정책대로 올림, Issue #3155), 커널 모듈이 올라가거나 내려가는 도중에 operand 가 먼저 뜨던 문제, GPU 가 많거나 지표 설정이 큰 노드에서 DCGM Exporter 가 초기화 전에 재시작되던 문제(시작 probe 가 최대 5분 기다림). 출처: 같은 릴리스 노트 Fixed Issues (2026-11-19 확인)
+- **[추론]** 1.1 의 「25.10 → 26.3 → 26.7」 경로에서 26.3 → 26.7 단계는 26.7.3 이상을 목표 판으로 잡는 편이 안전하다. 26.7.0~26.7.2 로 가면 위 드라이버 Pod 삭제 문제를 만날 수 있다(어느 판부터 생긴 문제인지는 릴리스 노트에 없음).
+- **[근거]** 26.7.3 알려진 문제: 기본값은 기존과 같은 driver·driver manager 판을 쓴다(파괴적 드라이버 업그레이드를 피하려고). 그러나 DRA Driver for NVIDIA GPUs 를 쓰는 클러스터, vfio-pci GPU 통과 노드, 망 분리 OpenShift 는 driver manager v0.13.0 이 필요하고(`--set driver.manager.version=v0.13.0`), **driver manager 이미지를 바꾸면 드라이버 판이 같아도 노드마다 드라이버 업그레이드가 돌아 GPU 워크로드가 축출될 수 있다.** 출처: 같은 릴리스 노트 Known Issues (2026-11-19 확인)
+- **[근거]** 같은 Known Issues: Ampere(A100·A30)에서 MIG 모드와 `DynamicMIG` 기능 게이트를 켜면 DRA validator·DCGM Exporter Pod 가 Pending 에 머문다. Ampere 는 GPU 리셋 없이 MIG 모드를 못 바꿔 DRA 드라이버가 통 GPU 를 광고하지 않기 때문이다(dra-driver-nvidia-gpu Issue #1580). 05절 DRA 와 함께 볼 것.
+
 ## 1. 개념
 
 01절의 부품 넷(드라이버, device plugin, kubelet Device Manager, 런타임+Container Toolkit) 가운데 Kubernetes가 주는 것은 Device Manager 하나뿐이다. 나머지 셋은 GPU 노드마다 누군가 깔고, 버전을 맞추고, 순서대로 띄워야 한다. GPU Operator는 이 일을 DaemonSet 묶음으로 바꿔 클러스터 안에서 관리하는 오퍼레이터다.
