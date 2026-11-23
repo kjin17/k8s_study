@@ -14,7 +14,7 @@ Headlamp 는 쿠버네티스 웹 UI 다. 리소스 목록·로그·exec·YAML �
 
 [근거] 이 절의 렌더링 결과는 공개 저장소(`3.8.0-20261021/vks-addons`)의 Headlamp 패키지 원본과 bundle(`@sha256:860a768a…`)을 익명으로 받아 ytt v0.55.4 로 직접 돌린 것이다(2026-11-13). **VKS 클러스터에 설치해 보지는 못했다.** 4.3~4.5 의 클러스터 쪽 명령과 기대 출력은 문서·렌더링·업스트림 소스에서 읽은 것이고 실측이 아니다.
 
-[근거] 9.0·9.1 문서 세트에서 Headlamp 전용 설치·Package Reference 쪽은 찾지 못했다(다른 애드온과 같은 주소 규칙으로 짐작한 두 주소가 404, 2026-11-13). 그래서 이 절의 1차 출처는 릴리스 노트·패키지 원본·Broadcom VCF 블로그·업스트림이다.
+[근거] ~~9.0·9.1 문서 세트에서 Headlamp 전용 설치·Package Reference 쪽은 찾지 못했다(다른 애드온과 같은 주소 규칙으로 짐작한 두 주소가 404, 2026-11-13). 그래서 이 절의 1차 출처는 릴리스 노트·패키지 원본·Broadcom VCF 블로그·업스트림이다.~~ → 9.0·9.1 문서 세트에는 없고, 「VCF Consumption」 문서 세트(`vcf-consumption/latest/installing-addons-on-vks-clusters/`, Last Updated November 17, 2026)에 Headlamp 설치(VCF CLI·kubectl)·플러그인 관리·Gateway API 노출·OIDC 쪽과 Add-on Reference 가 있다(주소는 출처 절). 이 절의 1차 출처에 이 문서들을 더한다. 문서 표기가 패키지 원본과 다른 곳은 해당 줄에 나란히 적는다. (2026-11-19 확인)
 
 ---
 
@@ -45,6 +45,7 @@ flowchart LR
 - [근거] Broadcom 블로그의 설치 예시는 UI 를 연 뒤 사용자용 토큰을 따로 만들어 붙여 넣고, 그 이유를 「RBAC 이 유지되고 최종 사용자가 가진 권한만큼만 보이게 하려고」라고 적는다. 블로그는 보여 주기용으로 `cluster-admin` 을 썼다고 밝히고, 실제로는 필요한 최소 권한의 RoleBinding·ClusterRoleBinding 을 권한다. (같은 블로그)
 - [추론] 위 두 사실을 합치면, 기본 설치에서 UI 사용자의 권한은 서비스 계정이 아니라 사용자가 낸 토큰의 RBAC 이 정한다.
 - [근거] OIDC 로그인도 지원한다(`oidc.*` 값, 3.1). VKS 3.7 의 네이티브 OIDC 인증은 Headlamp 같은 대시보드의 JWT 통과 인증을 쓸 수 있게 한다고 적는다. (VKS 3.7 Release Notes, Last Updated November 11, 2026)
+- [근거] OIDC 설정 문서는 전제 조건으로 대상 클러스터 Cluster CR 의 `kubernetes` 변수 아래 `apiServerConfiguration.extraAuthentication.jwt`(issuer url·audiences·claimMappings·claimValidationRules)를 먼저 설정하는 예시를 준다. 같은 문서는 OIDC 가 수동 설정이 필요하니 꼭 필요하지 않으면 기본 토큰 로그인을 쓰라고 권한다. (VCF Consumption 「Headlamp OIDC」, 2026-11-19 확인)
 
 ### 판과 지원 등급 (3.8.0+20261021 기준)
 
@@ -105,11 +106,12 @@ roleRef: {kind: ClusterRole, name: cluster-admin, apiGroup: rbac.authorization.k
 
 - [근거] Pod 는 `runAsNonRoot: true`·`runAsUser: 65532`·`seccompProfile: RuntimeDefault`, `headlamp` 컨테이너는 `allowPrivilegeEscalation: false`·`capabilities.drop: [ALL]`·`readOnlyRootFilesystem: true` 다. init 컨테이너 두 개(`install-addons`, `prepull-debug-image`)에는 컨테이너 수준 securityContext 가 없다. (렌더링 결과)
 - [근거] Kubernetes Pod Security Standards 의 Restricted 는 init 컨테이너를 포함한 모든 컨테이너에 `allowPrivilegeEscalation: false` 와 `capabilities.drop: [ALL]` 을 요구한다. (Kubernetes 「Pod Security Standards」) [추론] 그래서 `createNamespace: false` 로 이미 있는 restricted 네임스페이스에 깔면 init 컨테이너 때문에 Pod 생성이 거절될 것이다(6절 5번).
-- [근거] Service 는 기본 `type: LoadBalancer`, `port: 443`, `targetPort: 4466` 이다. `gatewayApi.enabled: true` 이면 `ClusterIP`, 포트 80 으로 바뀐다. `targetPort` 는 오버레이가 4466 으로 고정해 `service.targetPort` 값은 렌더링에 쓰이지 않는다. 패키지 OpenAPI 스키마는 `service.targetPort` 기본을 443 으로, bundle `values.yaml` 은 4466 으로 적는다. (overlay, 패키지 `valuesSchema`, `config/values.yaml`, `service.targetPort: 443` 렌더링 결과)
+- [근거] Service 는 기본 `type: LoadBalancer`, `port: 443`, `targetPort: 4466` 이다. `gatewayApi.enabled: true` 이면 `ClusterIP`, 포트 80 으로 바뀐다. `targetPort` 는 오버레이가 4466 으로 고정해 `service.targetPort` 값은 렌더링에 쓰이지 않는다. 패키지 OpenAPI 스키마는 `service.targetPort` 기본을 443 으로, bundle `values.yaml` 은 4466 으로 적는다. (overlay, 패키지 `valuesSchema`, `config/values.yaml`, `service.targetPort: 443` 렌더링 결과) Headlamp Add-on Reference 의 data values 예시도 `targetPort: 443` 이다. 문서·스키마가 함께 실제 렌더링(4466)과 다르다. (2026-11-19 확인)
 - [근거] Gateway API 를 쓰지 않으면 Pod 가 TLS 를 직접 끝낸다. 인자에 `-tls-cert-path`·`-tls-key-path` 가 붙고, Secret `headlamp-tls-cert`(또는 `tls.existingSecret`)를 `/etc/headlamp/tls` 에 마운트하며, 프로브 scheme 이 HTTPS 로 바뀐다. (overlay, 렌더링 결과)
 - [근거] `tls.certManager.enabled: true`(기본)이고 `existingSecret` 이 비어 있으면 selfSigned Issuer `headlamp-issuer` 와 Certificate `headlamp-cert` 를 만든다. 기본은 `duration: 87600h`(10년), `renewBefore: 360h`, `dnsNames` 는 `hostname` 하나(기본 `headlamp.vks.example.com`), `ipAddresses` 는 비어 있다. (렌더링 결과)
+- [근거] Headlamp Add-on Reference 의 data values 예시는 `isCA: true` 다. Package 스키마 기본은 `isCA: false` 이고, 0.45.0+vmware.1 릴리스 노트(1절 판 흐름 표)도 「Certificate 기본 `isCA: false`」다. [추론] 문서 예시는 옛 판 값으로 보인다. 예시를 그대로 붙이면 리프 인증서가 CA 로 표시된다. (2026-11-19 확인)
 - [추론] 따라서 기본 설치로 LoadBalancer IP 에 접속하면 브라우저는 자체 서명이고 이름도 맞지 않는 인증서를 보게 된다. 실제 이름을 `hostname` 에 넣고, IP 로 접속할 거면 `tls.certManager.ipAddresses` 에 넣거나, 조직 CA 로 만든 Secret 을 `tls.existingSecret` 으로 준다(6절 3번).
-- [근거] Broadcom 블로그의 전제 조건은 VKS 3.7 과 「VKS 클러스터에 Cert-Manager 애드온 설치」다. (Broadcom VCF 블로그) Issuer·Certificate 는 `cert-manager.io/v1` 리소스다. (렌더링 결과) cert-manager 설치는 [01절](01-cert-manager.md)을 본다.
+- [근거] Broadcom 블로그의 전제 조건은 VKS 3.7 과 「VKS 클러스터에 Cert-Manager 애드온 설치」다. (Broadcom VCF 블로그) kubectl 설치 문서도 「기본 배포는 미리 깔린 cert-manager 애드온으로 인증서를 만드니 cert-manager 애드온을 먼저 깔아야 한다」고 적는다. (Install Headlamp add-on using kubectl, 2026-11-19 확인) Issuer·Certificate 는 `cert-manager.io/v1` 리소스다. (렌더링 결과) cert-manager 설치는 [01절](01-cert-manager.md)을 본다.
 - [근거] 기본 자원은 요청 100m·128Mi, 한도 500m·256Mi 다. LimitRange 는 컨테이너 기본 요청 100m·128Mi 를 넣고 `default: {}`(기본 한도 없음)로 렌더링된다. `priorityClassName` 이 비어 있으면 `vks_cluster_version` 이 1.34.0 이상일 때 `vmware-system-observability` 를 넣는다. 렌더링으로 확인: `v1.35.2+vmware.1-fips`·`v1.34.0` → 넣음, `v1.33.1+vmware.1`·값 없음 → 넣지 않음. (overlay, 렌더링 결과)
 
 ### 2.3 values 검사: 막는 것과 안 막는 것
@@ -130,8 +132,11 @@ roleRef: {kind: ClusterRole, name: cluster-admin, apiGroup: rbac.authorization.k
 
 - [근거] init 컨테이너 `install-addons` 가 이미지 안 `/plugins` 에서 `app-catalog` 와 `headlamp-clarity` 를 늘 복사하고, `installedAddons` 에 적힌 이름을 추가로 복사한다. (overlay)
 - [근거] Add-on 경로에서는 AddonConfigDefinition 이 ClusterAddon `<cluster>-cert-manager`·`<cluster>-prometheus`·`<cluster>-gatekeeper` 를 선택 입력으로 읽고, 있으면 `installedAddons` 에 해당 이름을 넣는다. (AddonConfigDefinition `templateInputResources`·`templateOutputResources`) [추론] 입력 정의에 네임스페이스가 적혀 있지 않으므로 클러스터와 같은 Supervisor 네임스페이스에서 찾는 것으로 보이지만, 확인하지 못했다.
-- [근거] Broadcom 블로그(VKS 3.7 기준)는 cert-manager·Prometheus 애드온을 Headlamp 보다 나중에 깔아도 애드온 컨트롤러가 계속 확인해 플러그인을 넣는다고 적는다. Gatekeeper 플러그인 자동 설치는 0.45.0+vmware.1 릴리스 노트에 있다.
+- [근거] Broadcom 블로그(VKS 3.7 기준)는 cert-manager·Prometheus 애드온을 Headlamp 보다 나중에 깔아도 애드온 컨트롤러가 계속 확인해 플러그인을 넣는다고 적는다. Gatekeeper 플러그인 자동 설치는 0.45.0+vmware.1 릴리스 노트에 있다. 플러그인 관리 문서는 자동 설치 플러그인을 Prometheus·cert-manager 둘만 적는다(Gatekeeper·Clarity·app-catalog 없음). [추론] 문서가 VKS 3.7 블로그 시점 기준으로 남아 있다. (VCF Consumption 「Headlamp Plugin Management」, 2026-11-19 확인)
 - [근거] `pluginsManager.enabled: true` 이면 사이드카 `headlamp-plugin`(`headlamp-node-builder` 이미지)과 ConfigMap `headlamp-plugin-config` 를 더하고, init 컨테이너가 `plugin.yml` 의 `source:` 가 `.tar.gz` 이고 artifacthub.io 가 아닌 주소를 `curl`(없으면 `wget`)로 내려받아 플러그인 디렉터리에 푼다. `-watch-plugins-changes` 도 켜진다. (overlay, 렌더링 결과)
+- [근거] 주소는 두 갈래로 나뉜다. `source` 에 `.tar.gz` 가 있고 `artifacthub.io` 가 아니면 위 init 컨테이너가 받는다. 그 밖의 주소(`.tar.gz` 가 없거나 artifacthub.io)는 사이드카가 `/plugin-workdir/ah_plugins.yml` 로 모아 `pluginctl install --config … --folderName /plugin-workdir/ah_plugins_dir` 로 깔고 `cp -a …/. <pluginsDir>/ 2>/dev/null || true` 로 합친다. 플러그인 관리 문서의 예시(`source: https://artifacthub.io/packages/headlamp/kubescape-headlamp-plugin/headlamp_kubescape`, `version: 0.11.2`)는 둘째 갈래다. (overlay 「PLUGIN MANAGER SIDECAR」 블록, Headlamp Plugin Management, 2026-11-19 확인)
+- [근거] 갈래는 주소 문자열에 `.tar.gz` 가 들어 있는지만으로 정한다. 문서는 에어갭에서 플러그인 파일을 사내 웹 서버(Nginx·Apache)에 올리고 `source` 를 그 주소로 바꾸라고 적는다. [추론] 사내 주소가 `.tar.gz` 를 담지 않으면(예: `…/download?id=…`) 둘째 갈래로 넘어가 `pluginctl` 이 처리하려다 실패할 것이다. 사내 주소는 `.tar.gz` 로 끝나게 둔다.
+- [근거] 사이드카 스크립트에는 `set -e` 가 없고, `pluginctl` 이 실패해도 「Sidecar execution complete」를 찍고 `sleep infinity` 로 남는다. 합치기도 `|| true` 다. (overlay) [추론] 플러그인 설치 실패가 Pod 상태(Running·Ready)에 드러나지 않는다. `kubectl -n headlamp logs deploy/headlamp -c headlamp-plugin` 으로 본다(4.5).
 - [추론] 이 경로는 런타임에 외부 주소로 나가므로 에어갭 클러스터에서는 실패하고, 내려받은 코드가 브라우저에서 사용자 토큰으로 돈다. 플러그인 출처는 내부 저장소로 한정한다(6절 7번).
 
 ---
@@ -145,12 +150,13 @@ roleRef: {kind: ClusterRole, name: cluster-admin, apiGroup: rbac.authorization.k
 - [추론] 사용자가 AddonConfig 에 `installedAddons` 를 적으면 값 파일에 같은 키가 두 번 생기고, ytt 는 뒤의 값을 쓰므로(2.3 표 마지막 줄) 사용자 값은 무시된다. Add-on 경로에서 플러그인은 애드온 감지로만 고른다고 보는 편이 안전하다.
 - [근거] OIDC 값을 Supervisor 의 Secret 에서 읽을 수 있다. `oidc.externalSecret.enabled: true` 와 `name` 을 주면 그 Secret 의 `clientID`·`clientSecret`·`issuerURL`·`scopes`(쉼표 구분)를 base64 로 풀어 `oidc` 값에 넣는다. AddonConfigDefinition 의 `addonInstallPermission` 은 `secrets` 의 `get`·`list` 를 요구한다. (AddonConfigDefinition) 0.45.0+vmware.1 릴리스 노트의 「Supervisor 클러스터의 Day-1 OIDC 외부 Secret 생성과 게스트 클러스터 자동 전파」가 이것이다.
 - [추론] 이때 비밀값은 게스트 클러스터 `vmware-system-tkg` 의 values Secret 에 평문 YAML 로 들어간다. 그 네임스페이스의 Secret 읽기 권한도 OIDC 클라이언트 비밀값 읽기 권한과 같다.
+- [근거] OIDC 문서는 이 외부 Secret 경로를 「Recommended」로 적고 AddonConfig 에 비밀값이 드러나지 않는다고 설명한다. 그런데 overlay 는 `oidc.enabled` 일 때 `oidc.secret.create: true`(기본)이면 `headlamp` 네임스페이스에 Secret(`externalSecret.enabled: true` 이고 `name` 이 있으면 그 이름, 아니면 `oidc.secret.name`(기본 `headlamp-oidc`))을 `stringData` 로 만들고 컨테이너 env 로 읽는다. (Headlamp OIDC, overlay, 2026-11-19 확인) [추론] 그러니 「드러나지 않는다」는 AddonConfig 에 한해서이고, 비밀값은 게스트의 `vmware-system-tkg` values Secret 과 `headlamp` 네임스페이스 Secret 두 곳에 있다.
 - AddonConfig·AddonInstall 의 일반 모양과 이름 규칙(`<cluster-name>-<addon-name>`)은 [00절](00-repository-and-install-paths.md)을 본다.
 
 ### 3.2 레거시 PackageInstall 경로
 
 - [근거] 패키지 `headlamp.kubernetes.vmware.com` 은 같은 Carvel 저장소에 들어 있다(`packages/headlamp.kubernetes.vmware.com/0.45.0+vmware.2-vks.1.yml`). (저장소 원본)
-- [추론] 그래서 다른 패키지처럼 PackageInstall 로도 깔 수 있겠지만, Headlamp 는 3.7.0+20260618 에서 처음 들어온 애드온이고 레거시 경로 설치 문서를 찾지 못했다. Broadcom 블로그는 VCF Automation 의 Add-ons 탭과 Add-on 관리 문서만 안내한다. 이 경로에서는 `vks_cluster_version` 이 비어 priority class 가 안 붙고(2.2), 플러그인 자동 감지도 없다.
+- [추론] 그래서 다른 패키지처럼 PackageInstall 로도 깔 수 있겠지만, Headlamp 는 3.7.0+20260618 에서 처음 들어온 애드온이고 ~~레거시 경로 설치 문서를 찾지 못했다~~ → 공식 설치 문서(VCF Consumption)도 Add-on 경로(VCF CLI·kubectl)만 안내한다(2026-11-19 확인). Broadcom 블로그는 VCF Automation 의 Add-ons 탭과 Add-on 관리 문서만 안내한다. 이 경로에서는 `vks_cluster_version` 이 비어 priority class 가 안 붙고(2.2), 플러그인 자동 감지도 없다.
 
 설치 흐름과 kapp-controller 동작은 [00절](00-repository-and-install-paths.md)과 루트 [`../carvel-kapp.md`](../carvel-kapp.md)를 본다.
 
@@ -242,7 +248,16 @@ kubectl -n demo-ns apply -f addonconfig.yaml -f addoninstall.yaml
 kubectl -n demo-ns get clusteraddon | grep headlamp                       # READY True 기대
 ```
 
-[추론] AddonConfig·AddonInstall 의 모양과 어노테이션은 18절에서 쓴 9.0 Add-on 설치 예시의 틀을 Headlamp 이름으로 바꾼 것이다. Headlamp 용 공식 kubectl 예시는 찾지 못했으므로 `releaseFilter.ref.name` 과 `addonRef.name` 은 위 `addonreleases` 출력으로 확인한다.
+[추론] AddonConfig·AddonInstall 의 모양과 어노테이션은 18절에서 쓴 9.0 Add-on 설치 예시의 틀을 Headlamp 이름으로 바꾼 것이다. ~~Headlamp 용 공식 kubectl 예시는 찾지 못했으므로~~ `releaseFilter.ref.name` 과 `addonRef.name` 은 위 `addonreleases` 출력으로 확인한다.
+
+→ [근거] 공식 kubectl 예시가 있다(Install Headlamp add-on using kubectl, 2026-11-19 확인). 위 예시와 같은 점이 둘(첫 줄), 다른 점이 셋이다.
+
+- AddonConfig 이름은 `<cluster>-headlamp`(예시 `wl-calico-headlamp`)로 위 짐작과 같고, AddonInstall 의 `addonRef.name: headlamp` 도 같다.
+- 공식 AddonConfig 에는 `spec.clusterName: <cluster>` 가 있다. 위 예시에는 없다. 필수인지는 문서에 적혀 있지 않다.
+- 공식 AddonInstall 이름은 `<addon>-<cluster>`(`headlamp-wl-calico`, 주석 `# <addon-name>-<cluster-name>`)다. 위 예시는 AddonConfig 와 같은 `wl-01-headlamp` 를 쓴다.
+- 공식 예시의 `addonreleases` 출력은 `headlamp.kubernetes.vmware.com.0.42.0-vmware.1-vks.1`(옛 판)이다. 판 이름은 여전히 위 명령으로 확인한다.
+
+[근거] 같은 문서는 Policy-Bundle 을 Deny 모드로 쓰면서 기본이 아닌 네임스페이스에 깔면 그 네임스페이스를 Policy-Bundle 면제 목록에 넣으라고 경고한다(System Namespaces Exclusion). 면제 목록은 [23절](23-policy-bundle.md) 2.3 을 본다.
 
 ### 4.4 사용자 토큰 만들기 (VKS 클러스터 컨텍스트)
 
@@ -285,6 +300,7 @@ kubectl get ns headlamp --show-labels | tr ',' '\n' | grep pod-security    # enf
 kubectl get clusterrolebinding headlamp-admin -o jsonpath='{.roleRef.name}{" "}{.subjects[0].namespace}{"\n"}'   # cluster-admin headlamp
 kubectl -n headlamp get deploy headlamp -o jsonpath='{.spec.template.spec.containers[0].args}' | tr ',' '\n'
 kubectl -n headlamp logs deploy/headlamp -c install-addons                   # Installing app-catalog... 등
+kubectl -n headlamp logs deploy/headlamp -c headlamp-plugin                  # pluginsManager 를 켰을 때만. 실패해도 Pod 는 Ready (2.4)
 ```
 
 [추론] 기대 출력은 렌더링 결과에서 읽은 것이다. `headlamp-admin` 의 대상 네임스페이스가 `kube-system` 이면 0.44.0 전 판의 문제(1절 판 흐름)가 남아 있는 것이다.
@@ -318,10 +334,13 @@ kubectl -n headlamp logs deploy/headlamp -c install-addons                   # I
 3. **기본 hostname 으로 깔고 인증서 경고를 무시하라고 안내한다.** 기본 인증서는 `headlamp.vks.example.com` 이름에 자체 서명이다(2.2). 실제 이름·IP 를 넣거나 조직 CA Secret 을 `tls.existingSecret` 으로 준다. [근거]
 4. **cert-manager 없이 `tls.certManager.enabled: false` 만 준다.** Issuer·Certificate 는 빠지지만 Deployment 는 `headlamp-tls-cert` Secret 을 그대로 마운트한다(2.3 표). [추론] Secret 볼륨은 `optional` 이 아니면 Secret 이 생길 때까지 Pod 가 시작하지 못한다. Gateway API 를 쓰지 않는다면 `existingSecret` 을 같이 준다.
 5. **`createNamespace: false` 로 기존 네임스페이스에 깐다.** Namespace 와 함께 LimitRange 도 빠지고, init 컨테이너에 컨테이너 수준 securityContext 가 없어 restricted 네임스페이스에서는 거절될 것이다(2.2). [근거: 렌더링, PSS] [추론: 거절]
-6. **`service.targetPort` 를 바꿔 포트를 맞추려 한다.** 오버레이가 4466 으로 고정한다. 패키지 스키마의 기본 443 도 실제와 다르다(2.2). [근거]
-7. **`pluginsManager` 로 인터넷의 플러그인을 바로 받는다.** 런타임에 외부로 나가 에어갭에서 실패하고, 받은 코드가 사용자 토큰으로 돈다(2.4). [추론]
+6. **`service.targetPort` 를 바꿔 포트를 맞추려 한다.** 오버레이가 4466 으로 고정한다. 패키지 스키마의 기본 443 도, Add-on Reference 예시의 443 도 실제와 다르다(2.2). [근거]
+7. **`pluginsManager` 로 인터넷의 플러그인을 바로 받는다.** 런타임에 외부로 나가 에어갭에서 실패하고, 받은 코드가 사용자 토큰으로 돈다(2.4). 내부 저장소 주소는 `.tar.gz` 가 들어가야 직접 받기 갈래로 간다(2.4). [추론]
 8. **Add-on 경로에서 `installedAddons` 를 AddonConfig 에 적는다.** 출력 템플릿이 같은 키를 뒤에 다시 써 무시된다(3.1). [추론]
 9. **Ecosystem 등급인데 런타임 문제를 Broadcom 지원으로 풀려 한다.** 런타임 버그·보안 패치는 업스트림 몫이다(1절). 판 올리기는 릴리스 노트의 업그레이드 경로를 본다. [근거]
+10. **Add-on Reference 매개변수 표대로 `configuration.extraArgs` 를 쓴다.** 표는 키 이름을 `configuration.extraArgs` 로 적지만 같은 문서의 data values 예시, OIDC 문서 예시, Package 스키마는 `config.extraArgs` 다. 표대로 쓰면 없는 키라 조용히 무시된다(2.3 표의 오타 키와 같은 동작). [근거: 문서·스키마, 2026-11-19 확인] [추론: 무시]
+11. **Gateway API 노출을 켜고 다른 네임스페이스의 HTTPRoute 를 막지 않는다.** overlay 의 Gateway 리스너는 `allowedRoutes.namespaces.from: All` 이다. [추론] 다른 네임스페이스에 HTTPRoute 를 만들 수 있는 사용자는 같은 `hostname` 과 더 구체적인 경로(예: `/oidc-callback`)로 이 Gateway 에 붙어 Headlamp 로 가는 요청 일부를 가로챌 수 있다. OIDC 를 함께 쓰면 인가 코드가 그 경로로 간다. 이 리스너 설정을 바꿀 values 는 없으니 `gatewayApi.gateway.create: false` 로 직접 만든 Gateway 를 쓴다. 클러스터에서 확인하지 않았다. [근거: overlay] [추론: 가로채기]
+12. **사설 IdP 에 `-oidc-skip-tls-verify` 를 준다.** OIDC 문서는 사설 IdP 용으로 `config.extraArgs` 에 `-oidc-ca-file=/path/to/ca-certificate.pem` 또는 `-oidc-skip-tls-verify` 를 제시한다. [근거] 스키마의 `config.*` 는 `extraArgs`·`pluginsDir`·`watchPlugins` 셋뿐이라 CA 파일용 볼륨을 더할 값이 없고, 컨테이너는 `readOnlyRootFilesystem: true` 다. [추론] 그래서 skip 쪽으로 가기 쉽고, 그러면 IdP 응답을 위조할 수 있는 중간자에게 토큰 교환이 열린다. Gateway API 를 쓰지 않을 때는 TLS Secret 이 `/etc/headlamp/tls` 에 마운트되니 `tls.existingSecret` 에 `ca.crt` 를 함께 넣고 `-oidc-ca-file=/etc/headlamp/tls/ca.crt` 를 주는 방법이 있을 수 있다(미확인).
 
 ---
 
@@ -330,7 +349,7 @@ kubectl -n headlamp logs deploy/headlamp -c install-addons                   # I
 1. 기본 설치에서 브라우저 사용자가 Headlamp 로 보는 리소스의 범위는 무엇이 정하는가? 패키지가 서비스 계정에 묶은 `cluster-admin` 은 그 범위와 어떤 관계인가?
    - 답: 사용자가 넣은 토큰(또는 OIDC 신원)의 RBAC 이 정한다. `--unsafe-use-service-account-token` 이 기본 `false` 라 서비스 계정 권한으로 사용자를 대신하지 않는다. 다만 서비스 계정 토큰은 Pod 에 마운트돼 있어, 그 네임스페이스에 Pod 를 만들 수 있으면 얻을 수 있다(1절, 2.1).
 2. `gatewayApi.enabled: true` 로 바꾸면 Service·TLS·프로브는 어떻게 달라지는가?
-   - 답: Service 는 `ClusterIP`·80, Pod 는 TLS 를 끝내지 않아 TLS 인자·볼륨이 빠지고 프로브는 HTTP 로 바뀐다. 대신 Gateway(`gatewayClassName` 기본 `istio`, 443 HTTPS Terminate)와 HTTPRoute 가 생기고, 인증서 Secret 은 Gateway 리스너가 쓴다(2.2, overlay). Istio 는 [11절](11-istio.md)을 본다.
+   - 답: Service 는 `ClusterIP`·80, Pod 는 TLS 를 끝내지 않아 TLS 인자·볼륨이 빠지고 프로브는 HTTP 로 바뀐다. 대신 Gateway(`gatewayClassName` 기본 `istio`, 443 HTTPS Terminate)와 HTTPRoute 가 생기고, 인증서 Secret 은 Gateway 리스너가 쓴다(2.2, overlay). Istio 는 [11절](11-istio.md)을 본다. Gateway API 노출 문서의 전제 조건은 「Istio 또는 Avi 같은 GatewayClass 가 Ready」다(Headlamp Service Expose, 2026-11-19 확인).
 3. 클러스터 `wl-01` 에 Prometheus 애드온(ClusterAddon `wl-01-prometheus`)이 깔려 있고 AddonConfig 에는 `installedAddons: [gatekeeper]` 를 적었다. Gatekeeper 애드온은 없다. 어떤 플러그인이 깔리는가?
    - 답: [추론] app-catalog·Clarity(늘)와 prometheus. 출력 템플릿이 감지 결과로 `installedAddons` 를 다시 써 사용자가 적은 gatekeeper 는 무시된다(3.1).
 
@@ -348,3 +367,10 @@ kubectl -n headlamp logs deploy/headlamp -c install-addons                   # I
 - Kubernetes 「Pod Security Standards」: <https://kubernetes.io/docs/concepts/security/pod-security-standards/>
 - Kubernetes 「Using RBAC Authorization」: <https://kubernetes.io/docs/reference/access-authn-authz/rbac/>
 - kubectl reference `kubectl create token`: <https://kubernetes.io/docs/reference/kubectl/generated/kubectl_create/kubectl_create_token/>
+- (2026-11-19 추가, 모두 VCF Consumption, Last Updated November 17, 2026)
+  - Install Headlamp: <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-consumption/latest/installing-addons-on-vks-clusters/installing-standard-packages-on-tkg-service-clusters-installing-standard-packages-on-tkg-cluster-using-tkr-for-vsphere-8-x-install-headlamp.html>
+  - Install Headlamp add-on using kubectl: <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-consumption/latest/installing-addons-on-vks-clusters/installing-standard-packages-on-tkg-service-clusters-installing-standard-packages-on-tkg-cluster-using-tkr-for-vsphere-8-x-install-headlamp-install-headlamp-addon-using-kubectl.html>
+  - Headlamp Plugin Management: <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-consumption/latest/installing-addons-on-vks-clusters/installing-standard-packages-on-tkg-service-clusters-installing-standard-packages-on-tkg-cluster-using-tkr-for-vsphere-8-x-install-headlamp-headlamp-plugin-management.html>
+  - Headlamp Service Expose (Gateway API): <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-consumption/latest/installing-addons-on-vks-clusters/installing-standard-packages-on-tkg-service-clusters-installing-standard-packages-on-tkg-cluster-using-tkr-for-vsphere-8-x-install-headlamp-service-expose.html>
+  - Headlamp OIDC: <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-consumption/latest/installing-addons-on-vks-clusters/installing-standard-packages-on-tkg-service-clusters-installing-standard-packages-on-tkg-cluster-using-tkr-for-vsphere-8-x-install-headlamp-oidc.html>
+  - Headlamp Add-on Reference: <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-consumption/latest/installing-addons-on-vks-clusters/installing-standard-packages-on-tkg-service-clusters-standard-package-reference-headlamp-package-reference.html>

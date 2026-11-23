@@ -90,7 +90,12 @@ PackageInstall 의 values 스키마 보기·ytt overlay 덧씌우기(와 그것�
 - [근거] 클러스터 업그레이드 전에 VKS 는 깔린 애드온이 목표 Kubernetes·KR 판과 맞는지 사전 점검한다. 맞지 않으면 호환되는 다른 AddonRelease 를 찾아 함께 올리고, 없으면 클러스터 업그레이드를 막는다. AddonRelease 가 「업그레이드 중 어느 단계에서 반드시 올라가야 하는지」를 지정할 수 있다. (Managing Add-ons in VKS Clusters, 9.0)
 - [근거] 3.8.0+20261021 의 Helm Controller 1.5.5 판에 dry-run·롤백 기능을 위한 `ExtendedHelmRelease` 가 들어왔다. External Secrets Operator 와 Tekton Operator 는 「Helm add-on」으로 처음 들어왔다. (9.1 Release Notes)
 
-[추론] 「Helm add-on」이 Add-on Management 에서 어떤 리소스 모양으로 설치되는지는 2026-10-27 기준 9.1 문서 세트의 Add-on 관리 페이지 주소를 아직 열어 보지 못했다(9.0 경로를 9.1 로 바꾼 주소는 404). 24·25절을 쓸 때 9.1 설치 문서로 확인한다.
+~~[추론] 「Helm add-on」이 Add-on Management 에서 어떤 리소스 모양으로 설치되는지는 2026-10-27 기준 9.1 문서 세트의 Add-on 관리 페이지 주소를 아직 열어 보지 못했다(9.0 경로를 9.1 로 바꾼 주소는 404). 24·25절을 쓸 때 9.1 설치 문서로 확인한다.~~ → (2026-11-19 확인, [24절](24-external-secrets-operator.md) 2.1·2.2)
+
+- [근거] VKS 3.7 릴리스 노트: Add-on 관리 틀이 Helm 기반 애드온을 Carvel 애드온과 같은 선언형 API 로 배포·관리하고, 이를 위해 helm-controller 가 기본 애드온으로 들어와 `builtin-generic-v3.7.0` ClusterClass 이상 클러스터에 자동 설치된다. (VKS 3.7 Release Notes, Last Updated November 11, 2026)
+- [근거] Helm add-on 의 차트는 Carvel 저장소가 아니라 같은 레지스트리의 `…/3.8.0-20261021/vks-addons-helm/<차트>` OCI 에 있고, AddonConfigDefinition 은 차트 OCI 매니페스트 어노테이션에 들어 있다. (레지스트리 카탈로그·crane manifest, 24절 2.1)
+- [근거] 사용자 쪽 모양은 Carvel 애드온과 같은 AddonConfig·AddonInstall 이고, AddonConfig 값은 `helmOptions`·`helmValues` 로 나뉜다. 설치 문서의 확인 단계는 워크로드 클러스터에서 `kubectl get helmrelease -n vmware-system-helm` 으로 Flux helm-controller 가 관리하는 Helm release 를 보는 것이다. (Install External Secrets Operator add-on using kubectl, 24절 2.2·2.4)
+- [추론] HelmRelease 가 차트를 어떤 source 로 가리키는지와 Helm add-on 의 AddonRelease 원본은 공개 문서·레지스트리에서 보지 못했다(24절 2.1·2.2).
 
 ## 3. 실습
 
@@ -250,3 +255,5 @@ VKS 가 사전 점검에서 호환되는 다른 AddonRelease 를 찾아 클러�
 - Manage Package Repository (9.0): <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-0/managing-vsphere-kuberenetes-service-clusters-and-workloads/installing-standard-packages-on-tkg-service-clusters/installing-standard-packages-on-tkg-cluster-using-tkr-for-vsphere-8-x/create-the-package-repository.html>
 - Managing VKS Standard Packages (9.0): <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-0/managing-vsphere-kuberenetes-service-clusters-and-workloads/installing-standard-packages-on-tkg-service-clusters/installing-standard-packages-on-tkg-cluster-using-tkr-for-vsphere-8-x/manage-vks-standard-packages.html>
 - Broadcom 호환 매트릭스: <https://interopmatrix.broadcom.com/>
+- (2026-11-19 추가) VKS 3.7 Release Notes (Helm 기반 애드온, Last Updated November 11, 2026): <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-1/release-notes/vks-release-notes/vmware-tanzu-kubernetes-grid-service-37-release-notes.html>
+- Install External Secrets Operator add-on using kubectl (VCF Consumption, Last Updated November 17, 2026): <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-consumption/latest/installing-addons-on-vks-clusters/installing-standard-packages-on-tkg-service-clusters-installing-standard-packages-on-tkg-cluster-using-tkr-for-vsphere-8-x-install-external-secrets-install-external-secrets-addon-using-kubectl.html>

@@ -183,7 +183,7 @@ flowchart LR
 
 [근거] 3.8.0+20261021 저장소의 `packages/` 는 디렉터리 23개이고 그중 External Secrets Operator 나 Tekton 은 없다. `.imgpkg/images.yml` 에도 없다. 릴리스 노트는 이 둘을 「Helm add-on」이라고 부른다. (2026-11-06 실측)
 
-[추론] 이름만 보면 Helm Controller 를 쓸 것 같지만 그 연결을 확인한 공개 문서를 찾지 못했다. 24·25절에서 확인한다.
+~~[추론] 이름만 보면 Helm Controller 를 쓸 것 같지만 그 연결을 확인한 공개 문서를 찾지 못했다. 24·25절에서 확인한다.~~ → [근거] VKS 3.7 릴리스 노트는 Add-on 관리 틀이 Helm 기반 애드온을 지원하고, 이를 위해 helm-controller 가 기본 애드온으로 들어와 `builtin-generic-v3.7.0` ClusterClass 이상 클러스터에 자동 설치된다고 적는다. ESO 차트는 Carvel 저장소 밖 `…/3.8.0-20261021/vks-addons-helm/` OCI 에 있고, kubectl 설치 문서는 `kubectl get helmrelease -n vmware-system-helm` 으로 Flux helm-controller 가 관리하는 Helm release 를 확인하라고 한다. (VKS 3.7 Release Notes, Install External Secrets Operator add-on using kubectl, 2026-11-19 확인) [추론] HelmRelease 가 어떤 source 를 가리키는지는 보지 못했다. 자세한 흐름은 [24절](24-external-secrets-operator.md) 2.1·2.2 를 본다.
 
 ---
 
@@ -471,3 +471,5 @@ kubectl -n apps describe ehr podinfo-ext
 - Network Policies (hostNetwork 절): <https://kubernetes.io/docs/concepts/services-networking/network-policies/>
 - ytt v0.55.4: <https://github.com/carvel-dev/ytt/releases/tag/v0.55.4>
 - crane(이미지·bundle 받기): <https://github.com/google/go-containerregistry>
+- (2026-11-19 추가) VKS 3.7 Release Notes (Helm 기반 애드온, Last Updated November 11, 2026): <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-1/release-notes/vks-release-notes/vmware-tanzu-kubernetes-grid-service-37-release-notes.html>
+- Install External Secrets Operator add-on using kubectl (VCF Consumption, Last Updated November 17, 2026): <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-consumption/latest/installing-addons-on-vks-clusters/installing-standard-packages-on-tkg-service-clusters-installing-standard-packages-on-tkg-cluster-using-tkr-for-vsphere-8-x-install-external-secrets-install-external-secrets-addon-using-kubectl.html>

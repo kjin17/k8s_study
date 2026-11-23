@@ -14,7 +14,7 @@ Whereabouts 는 **CNI IPAM 플러그인** 이다. 스스로 인터페이스를 �
 
 [근거] 이 절의 렌더링 결과는 공개 저장소(`3.8.0-20261021/vks-addons`)의 Whereabouts 패키지 원본과 bundle(`@sha256:3af85dc1…`)을 익명으로 받아 ytt v0.55.4 로 직접 돌린 것이다(2026-11-14). 비교용으로 `3.7.0-20260618/vks-addons` 의 0.9.3 bundle(`@sha256:68011d2d…`)도 받았다. **VKS 클러스터에 설치해 보지는 못했다.** 4.3~4.5 의 클러스터 쪽 명령과 기대 출력은 렌더링·업스트림 소스에서 읽은 것이고 실측이 아니다.
 
-[근거] 9.0·9.1 문서 세트에서 Whereabouts 전용 설치·Package Reference 쪽은 찾지 못했다(20절 머리말과 같은 사정). 그래서 1차 출처는 릴리스 노트·패키지 원본·업스트림 v0.9.4 이다.
+[근거] ~~9.0·9.1 문서 세트에서 Whereabouts 전용 설치·Package Reference 쪽은 찾지 못했다(20절 머리말과 같은 사정). 그래서 1차 출처는 릴리스 노트·패키지 원본·업스트림 v0.9.4 이다.~~ → 9.0·9.1 문서 세트에는 없고 「VCF Consumption」 문서 세트(`vcf-consumption/latest/installing-addons-on-vks-clusters/`, Last Updated November 17, 2026)에 Whereabouts 설치(VCF CLI·kubectl)와 Add-on Reference 가 있다(주소는 출처 절). 1차 출처는 릴리스 노트·이 문서들·패키지 원본·업스트림 v0.9.4 다. 문서가 패키지 원본과 다른 곳은 2.4 아래에 적는다. (2026-11-19 확인)
 
 ---
 
@@ -184,6 +184,8 @@ spec:
 
 - [근거] DaemonSet 의 `ip-control-loop -log-level debug` 는 업스트림 셸 인자 그대로 고정이라 values 로 바꿀 수 없다. reconciler 의 로그 수준만 열려 있다. (bundle `daemonset-install.yaml`·`overlay-reconciler.yaml`)
 - [근거] cron 식(`whereabouts-config` ConfigMap 의 `cron-expression`)은 values 에 없다. (같은 곳)
+- [근거] Whereabouts Add-on Reference 의 구성 요소 표에는 `whereabouts` DaemonSet·`whereabouts-controller` Deployment·CRD 셋만 있고 `whereabouts-reconciler` 가 없다. 키 표에도 `whereabouts.reconciler.*`(스키마 기본 `logLevel: debug`, 요청·한도 100m·50Mi)가 없다. (2026-11-19 확인) [추론] 문서만 보면 남은 IP 를 푸는 reconciler(2.2 의 cron `30 4 * * *`)를 모르고 넘어간다. 이 표는 패키지 원본 기준이다.
+- [근거] 같은 Reference 표는 `whereabouts.config` 를 「CNI 네트워크 템플릿과 IPAM 매개변수(범위·제외)를 담은 Raw JSON 문자열」로 설명하고 기본값을 「아래 JSON 블록」으로 가리키지만, 그런 블록은 문서에 없다. 스키마와 같은 문서의 data values 예시에서 `whereabouts.config` 는 `resources` 만 가진 객체다. [추론] 문서 설명이 틀렸다. IP 범위는 여전히 NAD 의 `ipam` 에 적는다(4.4).
 - [근거] `whereabouts.reconciler: null` 을 주면 reconciler Deployment 가 렌더링에서 빠진다. 오버레이 주석은 「블록을 통째로 빼면 Deployment 를 지운다」이다. (렌더링 rc=0, `whereabouts-reconciler` 0건, `overlay-reconciler.yaml`)
 - [추론] 그러면 Pod 삭제 때의 회수(`ip-control-loop`)만 남고, 노드 장애·강제 삭제로 남은 IP 를 푸는 작업이 없어진다.
 - [근거] bundle 에는 ytt 값 스키마(`#@data/values-schema`)가 없고 `#@data/values` 파일 하나뿐이다. kapp-controller 는 values Secret 을 ytt 에 `--data-values-file` 로 넘긴다. (bundle `values.yaml`, kapp-controller `pkg/template/ytt.go` develop 브랜치)
@@ -204,7 +206,7 @@ spec:
 ### 3.2 레거시 PackageInstall 경로
 
 - [근거] 패키지 `whereabouts.kubernetes.vmware.com` 은 같은 Carvel 저장소에 들어 있다(`packages/whereabouts.kubernetes.vmware.com/0.9.4+vmware.3-vks.1.yml`). 디렉터리 이름과 패키지 이름이 같다. (저장소 원본)
-- [추론] 그래서 PackageInstall 로도 깔 수 있겠지만, 이 판의 레거시 설치 문서는 찾지 못했다.
+- [추론] 그래서 PackageInstall 로도 깔 수 있겠지만, ~~이 판의 레거시 설치 문서는 찾지 못했다~~ → 공식 설치 문서(VCF Consumption)도 Add-on 경로(VCF CLI·kubectl)만 안내한다(2026-11-19 확인).
 
 설치 흐름과 kapp-controller 동작은 [00절](00-repository-and-install-paths.md)과 루트 [`../carvel-kapp.md`](../carvel-kapp.md)를 본다.
 
@@ -297,7 +299,7 @@ kubectl -n demo-ns apply -f addonconfig.yaml -f addoninstall.yaml
 kubectl -n demo-ns get clusteraddon | grep -i whereabouts                     # READY True 기대
 ```
 
-[추론] AddonConfig·AddonInstall 의 모양은 20절 4.3 과 같은 틀(9.0 Add-on 설치 예시)을 이름만 바꾼 것이다. Whereabouts 용 공식 kubectl 예시는 찾지 못했다. `releaseFilter.ref.name` 과 `addonRef.name` 은 위 `addonreleases` 출력으로 확인한다. AddonConfig 이름의 `whereabouts` 는 출력 Secret 이름 `<cluster>-whereabouts`(3.1)에서 짐작했다. Multus 애드온(20절)이 먼저 깔려 있어야 4.4 를 할 수 있다.
+[추론] AddonConfig·AddonInstall 의 모양은 20절 4.3 과 같은 틀(9.0 Add-on 설치 예시)을 이름만 바꾼 것이다. ~~Whereabouts 용 공식 kubectl 예시는 찾지 못했다.~~ → [근거] 공식 kubectl 예시가 있고 AddonInstall 의 `addonRef.name: whereabouts` 로 아래 짐작과 같다. 공식 예시의 판은 `whereabouts.kubernetes.vmware.com.0.9.3-vmware.1-vks.1` 이다. `spec.clusterName` 과 AddonInstall 이름 규칙(`<addon>-<cluster>`)은 19절 4.3 을 본다. 같은 문서는 Policy-Bundle 을 Deny 모드로 쓰면서 기본이 아닌 네임스페이스에 깔면 그 네임스페이스를 면제 목록에 넣으라고 경고한다([23절](23-policy-bundle.md) 2.3). (Install Whereabouts add-on using kubectl, 2026-11-19 확인) `releaseFilter.ref.name` 과 `addonRef.name` 은 위 `addonreleases` 출력으로 확인한다. AddonConfig 이름의 `whereabouts` 는 출력 Secret 이름 `<cluster>-whereabouts`(3.1)에서 짐작했다. Multus 애드온(20절)이 먼저 깔려 있어야 4.4 를 할 수 있다.
 
 ### 4.4 Whereabouts IPAM 을 쓰는 NAD 와 Pod (VKS 클러스터 컨텍스트)
 
@@ -446,3 +448,6 @@ ls -l /etc/cni/net.d/whereabouts.d/      # whereabouts.conf, whereabouts.kubecon
 - kapp-controller ytt 템플릿 단계: <https://github.com/carvel-dev/kapp-controller/blob/develop/pkg/template/ytt.go>
 - Kubernetes Pod Security Standards: <https://kubernetes.io/docs/concepts/security/pod-security-standards/>
 - 렌더링 도구: ytt v0.55.4, crane v0.22.1
+- (2026-11-19 추가) Install Whereabouts (VCF Consumption, Last Updated November 17, 2026): <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-consumption/latest/installing-addons-on-vks-clusters/installing-standard-packages-on-tkg-service-clusters-installing-standard-packages-on-tkg-cluster-using-tkr-for-vsphere-8-x-install-whereabouts.html>
+- Install Whereabouts add-on using kubectl: <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-consumption/latest/installing-addons-on-vks-clusters/installing-standard-packages-on-tkg-service-clusters-installing-standard-packages-on-tkg-cluster-using-tkr-for-vsphere-8-x-install-whereabouts-install-whereabouts-addon-using-kubectl.html>
+- Whereabouts Add-on Reference: <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-consumption/latest/installing-addons-on-vks-clusters/installing-standard-packages-on-tkg-service-clusters-standard-package-reference-whereabouts-package-reference.html>
