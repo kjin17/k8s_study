@@ -15,7 +15,7 @@
 
 [근거] 이 절의 렌더링 결과는 공개 저장소(`3.8.0-20261021/vks-addons`)의 NFS Client 패키지 원본과 bundle(`@sha256:c7ba3552…`)을 익명으로 받아 ytt v0.55.4 로 직접 돌린 것이다(2026-11-16). **VKS 클러스터와 NFS 서버로 설치해 보지는 못했다.** 4.3~4.5 의 클러스터 쪽 명령과 기대 출력은 렌더링·업스트림 문서에서 읽은 것이고 실측이 아니다.
 
-[근거] 9.0·9.1 문서 세트에서 NFS Client 전용 설치·Package Reference 쪽은 찾지 못했다(19~21절과 같은 사정). 그래서 1차 출처는 릴리스 노트·패키지 원본·업스트림 csi-driver-nfs v4.13.4 이다.
+[근거] ~~9.0·9.1 문서 세트에서 NFS Client 전용 설치·Package Reference 쪽은 찾지 못했다(19~21절과 같은 사정). 그래서 1차 출처는 릴리스 노트·패키지 원본·업스트림 csi-driver-nfs v4.13.4 이다.~~ → 9.0·9.1 문서 세트에는 없고 「VCF Consumption」 문서 세트(`vcf-consumption/latest/installing-addons-on-vks-clusters/`, Last Updated November 17, 2026)에 NFS Client 설치(VCF CLI·kubectl)와 Add-on Reference 가 있다(주소는 출처 절). 1차 출처는 릴리스 노트·이 문서들·패키지 원본·업스트림 csi-driver-nfs v4.13.4 다. (2026-11-19 확인)
 
 ---
 
@@ -124,12 +124,14 @@ ClusterRoleBinding  nfs-csi-resizer-role
 - [근거] 패키지가 만드는 `nfs-client` 네임스페이스에는 `pod-security.kubernetes.io/enforce: privileged` 라벨이 붙는다. (렌더링 결과)
 - [근거] Pod Security Standards 의 Baseline 은 `hostNetwork: true`, privileged 컨테이너, hostPath 볼륨을 막는다. (Kubernetes PSS 문서)
 - [추론] 컨트롤러·노드 Pod 가 셋 다 쓰므로 이 네임스페이스는 privileged 가 아니면 Pod 가 거절된다. 렌더링된 Pod 스펙과 네임스페이스 라벨은 서로 맞다. 다만 이 네임스페이스에 다른 워크로드를 같이 두면 그 워크로드도 privileged 수준으로 열린다.
-- [근거] `createNamespace` 는 bundle `values.yaml` 에만 있고(기본 `true`) Package `valuesSchema` 와 AddonConfigDefinition 스키마에는 없다. (패키지 원본)
+- [근거] `createNamespace` 는 bundle `values.yaml` 에만 있고(기본 `true`) Package `valuesSchema` 와 AddonConfigDefinition 스키마에는 없다. (패키지 원본) NFS Client Add-on Reference 는 `createNamespace`(기본 true)를 바꿀 수 있는 키로 싣는다. 문서와 스키마가 다르다. (2026-11-19 확인)
 - [추론] Add-on 경로에서는 `createNamespace` 를 바꿀 길이 사실상 없다고 본다(스키마에 없는 키). 그러면 `namespace` 를 `kube-system` 같은 이미 있는 이름으로 주면 패키지가 그 Namespace 객체에 privileged 라벨을 붙여 kapp 소유로 가져가려 한다. 실측하지 않았다. `namespace` 는 기본값 그대로 둔다.
 
 ### 2.4 values: StorageClass 가 만들어지는 규칙
 
 [근거] values 는 셋으로 나뉜다. `nfs`·`storageClass`(주 StorageClass 하나), `storageClasses`(목록으로 여럿), `controller`·`node`·`nsLimitRange`(자원). (Package `valuesSchema`, bundle `config/values.yaml`)
+
+[근거] NFS Client Add-on Reference 는 `nfs.server`·`nfs.path`·`storageClass.create`·`storageClass.defaultClass` 를 「[LEGACY / DEPRECATED]」로, `storageClass.*` 는 「These properties are no longer used. Use the storageClasses array instead」로, `storageClasses` 를 「[RECOMMENDED]」로 적는다. (2026-11-19 확인) [근거] 그런데 아래 렌더링대로 템플릿은 `nfs.server` 를 아직 읽어, 값이 있으면 주 StorageClass 를 만든다. `storageClass.create` 를 읽지 않는다는 점은 문서와 맞다. 문서는 쓰지 말라 하고 템플릿은 아직 읽는다.
 
 | 키 | 기본값 | 템플릿이 실제로 하는 일 |
 |---|---|---|
@@ -173,7 +175,7 @@ nfs.sever (오타)                             → rc=0, 오류 없이 무시
 ### 3.2 레거시 PackageInstall 경로
 
 - [근거] 패키지 `nfs-client.kubernetes.vmware.com` 은 같은 Carvel 저장소에 들어 있다(`packages/nfs-client.kubernetes.vmware.com/4.13.4+vmware.2-vks.1.yml`). PackageMetadata 의 분류는 `container storage interface`, 설명은 「A CSI for NFS.」다. (저장소 원본)
-- [추론] 그래서 PackageInstall 로도 깔 수 있겠지만, 이 판의 레거시 설치 문서는 찾지 못했다.
+- [추론] 그래서 PackageInstall 로도 깔 수 있겠지만, ~~이 판의 레거시 설치 문서는 찾지 못했다~~ → 공식 설치 문서(VCF Consumption)도 Add-on 경로(VCF CLI·kubectl)만 안내한다(2026-11-19 확인).
 
 설치 흐름과 kapp-controller 동작은 [00절](00-repository-and-install-paths.md)과 루트 [`../carvel-kapp.md`](../carvel-kapp.md)를 본다.
 
@@ -268,7 +270,7 @@ kubectl -n demo-ns apply -f addonconfig.yaml -f addoninstall.yaml
 kubectl -n demo-ns get clusteraddon | grep -i nfs                     # READY True 기대
 ```
 
-[추론] AddonConfig·AddonInstall 의 모양은 20·21절 4.3 과 같은 틀(9.0 Add-on 설치 예시)을 이름만 바꾼 것이다. NFS Client 용 공식 kubectl 예시는 찾지 못했다. `releaseFilter.ref.name` 과 `addonRef.name` 은 위 `addonreleases` 출력으로 확인한다. AddonConfig 이름의 `nfs-client` 는 출력 Secret 이름 `<cluster>-nfs-client`(3.1)에서 짐작했다. `kubectl` 은 `-n` 을 빼면 현재 컨텍스트의 네임스페이스로 가므로 위 명령은 모두 `-n` 을 붙였다.
+[추론] AddonConfig·AddonInstall 의 모양은 20·21절 4.3 과 같은 틀(9.0 Add-on 설치 예시)을 이름만 바꾼 것이다. ~~NFS Client 용 공식 kubectl 예시는 찾지 못했다.~~ → [근거] 공식 kubectl 예시가 있고 AddonConfig 이름 `wl-calico-nfs-client` 로 아래 짐작과 같다. 공식 예시의 판은 `nfs-client.kubernetes.vmware.com.4.13.2-vmware.1-vks.1` 이다. `spec.clusterName` 과 AddonInstall 이름 규칙(`<addon>-<cluster>`)은 19절 4.3 을 본다. 같은 문서는 Policy-Bundle 을 Deny 모드로 쓰면서 기본이 아닌 네임스페이스에 깔면 그 네임스페이스를 면제 목록에 넣으라고 경고한다([23절](23-policy-bundle.md) 2.3). (Install NFS Client add-on using kubectl, 2026-11-19 확인) `releaseFilter.ref.name` 과 `addonRef.name` 은 위 `addonreleases` 출력으로 확인한다. AddonConfig 이름의 `nfs-client` 는 출력 Secret 이름 `<cluster>-nfs-client`(3.1)에서 짐작했다. `kubectl` 은 `-n` 을 빼면 현재 컨텍스트의 네임스페이스로 가므로 위 명령은 모두 `-n` 을 붙였다.
 
 ### 4.4 PVC 와 Pod (VKS 클러스터 컨텍스트)
 
@@ -360,12 +362,12 @@ kubectl -n nfs-client logs deploy/csi-nfs-controller -c nfs --tail=50
 ## 6. 흔한 실수
 
 1. **기본값으로 깔고 StorageClass 를 찾는다.** [근거] `nfs.server` 가 비면 StorageClass 가 0개다(2.4). 애드온이 READY 여도 PVC 를 받을 클래스가 없다.
-2. **`storageClass.create: false` 로 주 StorageClass 를 막으려 한다.** [근거] 템플릿이 그 키를 읽지 않아 `nfs.server` 만 있으면 생긴다(2.4). 막으려면 `nfs.server` 를 비우고 `storageClasses` 목록만 쓴다.
+2. **`storageClass.create: false` 로 주 StorageClass 를 막으려 한다.** [근거] 템플릿이 그 키를 읽지 않아 `nfs.server` 만 있으면 생긴다(2.4). 막으려면 `nfs.server` 를 비우고 `storageClasses` 목록만 쓴다. Add-on Reference 도 `nfs.*`·`storageClass.*` 를 폐기 키로, `storageClasses` 를 권장으로 적는다(2.4, 2026-11-19 확인).
 3. **`defaultClass` 를 비워 「기본값 그대로」라고 생각한다.** [근거] 빈 값이면 Broadcom 이 넣은 `is-default-class: "true"` 가 남는다(2.1, 2.4). [추론] vSphere CSI 의 기본 클래스가 이미 있는 클러스터라면 기본 표시가 두 개가 되고, `storageClassName` 을 안 적은 PVC 가 어느 쪽으로 갈지 사용자가 예상하기 어려워진다. 기본 클래스는 하나만 둔다.
 4. **PVC 를 지우면 NFS 공간이 돌아온다고 생각한다.** [근거] `onDelete: archive` 라 하위 디렉터리가 `archived-…` 로 남는다(2.4). [추론] NFS 서버 쪽에서 주기적으로 정리하지 않으면 공간이 계속 찬다. values 로는 이 값을 바꿀 수 없다.
 5. **`mountPermissions: "0777"` 을 그냥 둔다.** [근거] 업스트림 문서는 이 값이 공유를 누구나 쓸 수 있게 만들고 여러 테넌트 클러스터에서 쓰지 말라고 경고한다(2.4). [추론] 테넌트 사이 격리가 필요하면 NFS export 를 나누고 클러스터도 나누는 쪽으로 설계한다.
 6. **NFS export 를 Pod CIDR 로 연다.** [추론] 컨트롤러·노드 Pod 가 `hostNetwork` 라 요청은 노드 IP 에서 나간다(1절). 워커 노드 대역을 허용해야 한다.
-7. **`storageClasses` 목록에 `nfs.server` 를 빼먹는다.** [근거] 그 항목은 업스트림 예시 주소 `nfs-server.default.svc.cluster.local` 을 그대로 갖는다(2.4). [추론] 그런 서비스가 없으면 PVC 가 `Pending` 으로 남는다. 목록 항목은 `create`·`name`·`defaultClass`·`nfs.server`·`nfs.path` 를 모두 적는다(빠지면 렌더링이 실패하기도 한다).
+7. **`storageClasses` 목록에 `nfs.server` 를 빼먹는다.** [근거] 그 항목은 업스트림 예시 주소 `nfs-server.default.svc.cluster.local` 을 그대로 갖는다(2.4). [추론] 그런 서비스가 없으면 PVC 가 `Pending` 으로 남는다. 목록 항목은 `create`·`name`·`defaultClass`·`nfs.server`·`nfs.path` 를 모두 적는다(빠지면 렌더링이 실패하기도 한다). [근거] Add-on Reference 의 data values 예시는 `storageClasses` 에 예시 서버 둘(`nfs-server.nfs-server.svc.cluster.local` → `nfs-client`, `defaultClass: "true"`, 그리고 `another-nfs-client`)을 싣는다. 스키마 기본은 `[]` 다. (2026-11-19 확인) [추론] 예시를 그대로 붙이면 없는 서버를 가리키는 클러스터 기본 클래스가 생긴다.
 8. **이름만 보고 `nfs-subdir-external-provisioner` 문서를 따라 한다.** [근거] 이 애드온은 csi-driver-nfs 다(Package `releaseNotes`). StorageClass 매개변수 이름(`server`·`share`·`onDelete`)과 provisioner 이름이 다르다.
 9. **NFSv3 전용 서버에 붙인다.** [근거] 만들어지는 StorageClass 의 `mountOptions` 는 `nfsvers=4.1` 고정이다(2.4). [추론] v4.1 을 못 하는 서버면 마운트가 실패한다. 이 경우 패키지 values 로는 바꿀 수 없어, StorageClass 를 따로 만들어 쓰는 쪽을 검토한다(실측 안 함).
 
@@ -398,4 +400,7 @@ kubectl -n nfs-client logs deploy/csi-nfs-controller -c nfs --tail=50
 - 업스트림 `onDelete: archive` 처리: <https://github.com/kubernetes-csi/csi-driver-nfs/blob/v4.13.4/pkg/nfs/controllerserver.go>
 - Kubernetes Pod Security Standards: <https://kubernetes.io/docs/concepts/security/pod-security-standards/>
 - Kubernetes 기본 StorageClass: <https://kubernetes.io/docs/concepts/storage/storage-classes/#default-storageclass>
+- (2026-11-19 추가) Install NFS Client (VCF Consumption, Last Updated November 17, 2026): <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-consumption/latest/installing-addons-on-vks-clusters/installing-standard-packages-on-tkg-service-clusters-installing-standard-packages-on-tkg-cluster-using-tkr-for-vsphere-8-x-install-nfs-client.html>
+- Install NFS Client add-on using kubectl: <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-consumption/latest/installing-addons-on-vks-clusters/installing-standard-packages-on-tkg-service-clusters-installing-standard-packages-on-tkg-cluster-using-tkr-for-vsphere-8-x-install-nfs-client-install-nfs-client-addon-using-kubectl.html>
+- NFS Client Add-on Reference: <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-consumption/latest/installing-addons-on-vks-clusters/installing-standard-packages-on-tkg-service-clusters-standard-package-reference-nfs-client-package-reference.html>
 - 렌더링 도구: ytt v0.55.4, crane v0.22.1

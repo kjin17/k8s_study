@@ -1,6 +1,6 @@
 # 24. External Secrets Operator
 
-> 커리큘럼: [CURRICULUM.md](CURRICULUM.md) · 앞 절: [23. Policy Bundle](23-policy-bundle.md) · 이어지는 절: 25. Tekton Operator(작성 예정) · 작성 2026-11-19
+> 커리큘럼: [CURRICULUM.md](CURRICULUM.md) · 앞 절: [23. Policy Bundle](23-policy-bundle.md) · 이어지는 절: [25. Tekton Operator](25-tekton-operator.md) · 작성 2026-11-19
 > 등급: **[근거]** 출처에 그대로 있는 것, **[추론]** 여러 출처를 엮어 직접 내린 결론.
 > 기준 판: VKS Add-ons `3.8.0+20261021` (9.1 VKS Add-ons Release Notes, 2026-11-19 확인, 페이지 표기 Last Updated November 11, 2026, 이 날 기준 가장 높은 판). 판 호환은 이 문서에서 정리하지 않는다. [공식 호환 매트릭스](https://interopmatrix.broadcom.com/)와 릴리스 노트를 직접 볼 것.
 

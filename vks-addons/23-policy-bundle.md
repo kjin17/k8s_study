@@ -1,6 +1,6 @@
 # 23. Policy Bundle
 
-> 커리큘럼: [CURRICULUM.md](CURRICULUM.md) · 앞 절: [22. NFS Client](22-nfs-client.md) · 이어지는 절: 24. External Secrets Operator(작성 예정) · 작성 2026-11-17
+> 커리큘럼: [CURRICULUM.md](CURRICULUM.md) · 앞 절: [22. NFS Client](22-nfs-client.md) · 이어지는 절: [24. External Secrets Operator](24-external-secrets-operator.md) · 작성 2026-11-17
 > 등급: **[근거]** 출처에 그대로 있는 것, **[추론]** 여러 출처를 엮어 직접 내린 결론.
 > 기준 판: VKS Add-ons `3.8.0+20261021` (9.1 VKS Add-ons Release Notes, 2026-11-17 확인, 페이지 표기 Last Updated November 11, 2026, 이 날 기준 가장 높은 판). 판 호환은 이 문서에서 정리하지 않는다. [공식 호환 매트릭스](https://interopmatrix.broadcom.com/)와 릴리스 노트를 직접 볼 것.
 
@@ -9,14 +9,14 @@ Policy Bundle 은 정책 엔진이 아니라 **정책 내용물**이다. 엔진�
 이 절에서 먼저 잡을 것은 다섯 가지다.
 
 1. **values 없이 깔아도 NSA/CISA 프로필의 Constraint 19개가 `warn` 으로 바로 걸린다.** 막지는 않지만 위반 경고와 감사(audit) 기록이 쌓이기 시작한다(2.2).
-2. **`exemptions` 의 `namespaceSelector`·`labelSelector` 는 이름과 달리 Gatekeeper `match` 의 「포함」 조건으로 들어간다.** `matchLabels` 로 「면제할 네임스페이스」를 적으면 오히려 그 네임스페이스에만 정책이 걸린다(2.4, 6절 1번).
+2. **`exemptions` 의 `namespaceSelector`·`labelSelector` 는 이름과 달리 Gatekeeper `match` 의 「포함」 조건으로 들어간다.** `matchLabels` 로 「면제할 네임스페이스」를 적으면 오히려 그 네임스페이스에만 정책이 걸린다(2.4, 6절 1번). 공식 Add-on Reference 는 이 셀렉터를 「면제」로 설명하고 예시도 그렇게 적는다. 문서와 렌더링 결과가 어긋난다(2026-11-19 확인).
 3. **Pod 대상 Constraint 는 Pod 를 볼 뿐 Deployment 를 보지 않는다.** `deny` 로 올리면 `kubectl apply` 는 성공하고 ReplicaSet 이 Pod 를 못 만드는 모양으로 실패가 드러난다(6절 3번).
 4. **면제 네임스페이스 31개는 패키지에 박혀 있어 values 로 뺄 수 없다.** 반대로 이 목록에 없는 애드온 네임스페이스(예: 14절 Vault Injector 의 기본 `vks-vault-injector`)는 정책을 받는다(2.3).
 5. **레거시 경로와 Add-on 경로에서 `profiles: []` 의 뜻이 다르다.** 레거시는 Constraint 0개, Add-on 경로는 스키마가 막고 출력 템플릿이 NSA 프로필로 되돌린다(3.1).
 
 [근거] 이 절의 렌더링 결과는 공개 저장소(`3.8.0-20261021/vks-addons`)의 Policy Bundle 패키지 원본과 bundle(`@sha256:c285b5f9…`), 비교용 `3.7.0-20260924/vks-addons` 의 앞 판 bundle(`@sha256:303fea77…`)을 익명으로 받아 ytt v0.55.4 로 직접 돌린 것이다(2026-11-17). **VKS 클러스터에 설치해 Gatekeeper 가 실제로 경고·거절하는 것은 보지 못했다.** 4.3~4.5 의 클러스터 쪽 명령과 기대 출력은 렌더링·Gatekeeper 문서에서 읽은 것이고 실측이 아니다.
 
-[근거] 9.0·9.1 문서 세트에서 Policy Bundle 전용 설치·Package Reference 쪽은 찾지 못했다. Broadcom VCF 블로그(2026-08-04)가 가리키는 「install-policy-bundle.html」 주소와, 12절 Gatekeeper 문서와 같은 경로 규칙으로 만든 9.0·9.1 주소가 모두 404 였다(2026-11-17). 그래서 1차 출처는 릴리스 노트·패키지 원본·블로그·업스트림 Gatekeeper 문서다.
+[근거] ~~9.0·9.1 문서 세트에서 Policy Bundle 전용 설치·Package Reference 쪽은 찾지 못했다. Broadcom VCF 블로그(2026-08-04)가 가리키는 「install-policy-bundle.html」 주소와, 12절 Gatekeeper 문서와 같은 경로 규칙으로 만든 9.0·9.1 주소가 모두 404 였다(2026-11-17). 그래서 1차 출처는 릴리스 노트·패키지 원본·블로그·업스트림 Gatekeeper 문서다.~~ → 블로그가 가리킨 「install-policy-bundle.html」은 「VCF Consumption」 문서 세트(`vcf-consumption/latest/installing-addons-on-vks-clusters/`, Last Updated November 17, 2026)에 있다. 같은 세트에 kubectl 설치 쪽과 Add-on Reference 도 있다(주소는 출처 절). 1차 출처는 릴리스 노트·이 문서들·패키지 원본·블로그·업스트림 Gatekeeper 문서다. 문서와 렌더링이 어긋나는 곳은 해당 줄에 나란히 적는다. (2026-11-19 확인)
 
 ---
 
@@ -48,7 +48,7 @@ flowchart LR
 | 지원 등급 | Product | 같은 지원 표 |
 | VKr | 이 문서에서 정리하지 않는다 | [공식 호환 매트릭스](https://interopmatrix.broadcom.com/) |
 | 의존 | Gatekeeper 애드온(3.8.0+20261021 은 `3.23.1+vmware.1-vks.1`) | Package 어노테이션, 12절 |
-| 프로필 | `nsa-cisa-k8s-v1.2`(기본), `cis-k8s-v1.12` | Package `valuesSchema` |
+| 프로필 | `nsa-cisa-k8s-v1.2`(기본), `cis-k8s-v1.12` | Package `valuesSchema`. Add-on Reference 표는 기본을 두 프로필로 적음(2.4) |
 | 업스트림 | 없음(Broadcom 이 만든 정책 묶음). 템플릿 상당수가 gatekeeper-library 의 같은 이름 정책과 닮았다 | 템플릿 원본 [추론, 5절] |
 
 ### 판 흐름 (9.1 릴리스 노트에서)
@@ -137,16 +137,17 @@ multus-cni  gpu-operator  nfs-client  calico-system  tigera-*  external-secrets
 
 - [근거] 주석은 「Gatekeeper v3.9.0 부터 `excludedNamespaces` 가 앞뒤 `*` 글롭을 받는다」고 적는다. (같은 파일)
 - [근거] Gatekeeper 애드온 자체도 `controllerManager.exemptNamespaces` 23개와 접두어 `vmware-system-`·`tanzu-system-`·`tigera-` 를 웹훅에서 아예 건너뛴다(12절 2.2). 두 목록은 같은 계열이지만 별개로 관리된다. (3.8.0+20261021 Gatekeeper bundle `values/use-tag-values.yaml`)
+- [근거] 설치 문서의 「System Namespaces Exclusion」은 목록 없이 「플랫폼·VKS 시스템 네임스페이스는 애드온이 모든 정책에서 늘 제외한다. 면제 계층으로 더한 네임스페이스는 그 층에서 제외된다」고만 적는다. Headlamp·Multus·Whereabouts·NFS Client 의 kubectl 설치 문서 넷이 「Policy-Bundle 이 Deny 모드이고 기본이 아닌 네임스페이스에 깔면 그 네임스페이스를 면제 목록에 넣으라」며 이 절을 가리킨다. (2026-11-19 확인) [추론] 문서가 말하는 「늘 제외하는 네임스페이스」가 위 31개다. 그러니 19~22절 애드온을 기본 네임스페이스가 아닌 곳에 깔면 `exemptions.global.namespaces` 에 더한다.
 - [추론] 이 문서의 다른 절에서 본 애드온 네임스페이스 가운데 14절 Vault Injector 의 기본 `vks-vault-injector` 는 두 목록 어디에도 없다. 이 네임스페이스는 PSA `privileged` 라벨을 받는다(14절). 그래서 `deny` 로 올린 뒤 인젝터 Pod 를 다시 띄우면 Pod 정책에 걸릴 수 있다. 실제로 걸리는지는 인젝터 Pod 명세와 대조해야 하며 시험하지 않았다. 해당하면 `exemptions.global.namespaces` 에 더한다.
 
 ### 2.4 values: 세 층 면제 모델
 
 | 키 | 뜻 | 합치는 규칙 |
 |---|---|---|
-| `profiles` | 켤 프로필 목록 | 기본 `[nsa-cisa-k8s-v1.2]` |
+| `profiles` | 켤 프로필 목록 | 기본 `[nsa-cisa-k8s-v1.2]`. Add-on Reference 표는 `["nsa-cisa-k8s-v1.2", "cis-k8s-v1.12"]` 로 적음. 같은 문서 세트의 설치 쪽은 「기본 AddonConfig 는 nsa-cisa-k8s-v1.2 를 warn 으로」라 스키마와 같음 |
 | `enforcementAction` | 모든 Constraint 의 기본 동작 | `dryrun`·`warn`·`deny`, 기본 `warn` |
 | `exemptions.global` | 모든 프로필·Constraint 공통 | |
-| `exemptions.profiles.<프로필>` | 그 프로필 Constraint 만. `skipConstraints`·`policyParameters` 도 여기 | |
+| `exemptions.profiles.<프로필>` | 그 프로필 Constraint 만. `skipConstraints`·`policyParameters` 도 여기 | 설치 문서: `skipConstraints` 에 넣으면 Constraint 만 바로 빠지고 ConstraintTemplate 은 남는다. 목록에서 다시 빼면 재배포 없이 돌아온다. configure-to-activate 정책에는 효과가 없다 |
 | `exemptions.constraints.<kind>` | 그 kind 의 Constraint 만 | |
 | `namespaces`·`images` | 면제 네임스페이스·이미지 글롭 | 세 층을 모두 더한다(위 31개 + global + profile + constraint) |
 | `namespaceSelector`·`labelSelector` | 셀렉터 | 가장 구체적인 층 하나만 쓴다(constraint > profile > global) |
@@ -156,6 +157,7 @@ multus-cni  gpu-operator  nfs-client  calico-system  tigera-*  external-secrets
 
 **셀렉터의 실제 동작.** [근거] 렌더링하면 `exemptions.global.namespaceSelector` 값은 Constraint 의 `spec.match.namespaceSelector` 에 그대로 들어간다(4.2 의 렌더링으로 확인). [근거] Gatekeeper 문서는 `namespaceSelector` 를 「객체가 속한 네임스페이스에 대한 라벨 셀렉터」라 설명하고, 여러 matcher 가 있으면 자원이 각 matcher 를 모두 만족해야 범위에 든다고 적는다. (Gatekeeper `howto.md` 「The match field」, 2026-11-17)
 [추론] 즉 이 값은 「이 라벨이 붙은 네임스페이스에만 적용」이다. 스키마 설명의 「matching 네임스페이스를 건너뛴다」와 반대로 움직인다. 라벨로 면제하려면 `matchExpressions` 에 `operator: NotIn` 이나 `DoesNotExist` 를 써야 원하는 뜻이 된다. 클러스터에서 확인하지는 않았다.
+[근거] 공식 Add-on Reference 도 스키마와 같은 쪽이다. 표는 `exemptions.global.namespaceSelector` 를 「Label selector for namespaces excluded from every policy」, `labelSelector` 를 「Label selector for individual resources excluded from every policy」로 적고, 예시 values 의 `namespaceSelector.matchLabels: {environment: sandbox}` 주석은 「any sandbox namespace is exempt everywhere」다. (2026-11-19 확인) [근거] 반면 위 렌더링에서는 그 값이 `spec.match.namespaceSelector`(포함 조건)로 들어간다. [추론] 렌더링대로라면 문서 예시는 sandbox 네임스페이스에만 정책을 건다. Gatekeeper 가 실제로 그렇게 동작하는지는 클러스터로 보지 못했다.
 
 **constraint 층은 kind 단위다.** [근거] `exemptions.constraints.VksK8sPSPPrivilegedContainer` 처럼 kind 로 키를 잡으므로, 두 프로필을 함께 켜면 같은 kind 의 두 Constraint(`…-nsa-cisa-v1.2-vks`, `…-cis-k8s-v1.12-vks`)에 똑같이 적용된다. 4.2 의 렌더링에서 두 Constraint 가 모두 `deny` 로 나왔다. 반면 `skipConstraints` 는 프로필 층에만 있어 한쪽 프로필에서만 뺀다.
 
@@ -179,7 +181,8 @@ multus-cni  gpu-operator  nfs-client  calico-system  tigera-*  external-secrets
 ### 3.2 레거시 PackageInstall 경로
 
 - [근거] 패키지 `policy-bundle.kubernetes.vmware.com` 은 같은 Carvel 저장소에 있다(`packages/policy-bundle.kubernetes.vmware.com/0.2.0+vmware.1-vks.3.yml`). PackageMetadata 의 표시 이름은 「VKS Policy Package」, 분류는 `policy`·`compliance`·`security` 다. deploy 단계는 `kapp --wait-timeout=600s` 다. (저장소 원본)
-- [추론] PackageInstall 로도 깔 수 있겠지만 이 판의 레거시 설치 문서는 찾지 못했다. 레거시 경로에는 `depends-on` 을 처리하는 AddonRelease 가 없으니 Gatekeeper 가 먼저 READY 인지 사용자가 확인해야 한다. 그렇지 않으면 자리표시 CRD 를 기다리다 600초 제한에 걸릴 수 있다.
+- [근거] 설치 문서는 전제 조건으로 VKS 3.5 이상과 Gatekeeper 애드온을 들고, 「Gatekeeper 애드온이 Ready 가 될 때까지 Policy-Bundle 설치가 막힌다」고 적는다. Add-on 경로의 의존 처리(3.1)와 맞는다. (2026-11-19 확인)
+- [추론] PackageInstall 로도 깔 수 있겠지만 ~~이 판의 레거시 설치 문서는 찾지 못했다~~ → 공식 설치 문서(VCF Consumption)도 Add-on 경로(VCF CLI·kubectl)만 안내한다(2026-11-19 확인). 레거시 경로에는 `depends-on` 을 처리하는 AddonRelease 가 없으니 Gatekeeper 가 먼저 READY 인지 사용자가 확인해야 한다. 그렇지 않으면 자리표시 CRD 를 기다리다 600초 제한에 걸릴 수 있다.
 
 설치 흐름과 kapp-controller 동작은 [00절](00-repository-and-install-paths.md)과 루트 [`../carvel-kapp.md`](../carvel-kapp.md)를 본다.
 
@@ -289,7 +292,7 @@ kubectl -n demo-ns apply -f addonconfig.yaml -f addoninstall.yaml
 kubectl -n demo-ns get clusteraddon | grep -i policy                                     # READY True 기대
 ```
 
-[추론] AddonConfig·AddonInstall 의 모양은 20~22절 4.3 과 같은 틀(9.0 Add-on 설치 예시)에 이름만 바꾼 것이다. Policy Bundle 용 공식 kubectl 예시는 찾지 못했다. `addonRef.name` 은 Package 어노테이션 `addon.kubernetes.vmware.com/addon-name: policy-bundle` 에서, AddonConfig 이름은 다른 애드온의 `<cluster>-<애드온>` 규칙에서 짐작했다. 출력 Secret 이름은 `-data-values` 가 붙어 다르다(3.1). 이름이 틀렸다면 `addonreleases`·`clusteraddon` 출력으로 바로잡는다. `kubectl` 은 `-n` 을 빼면 현재 컨텍스트의 네임스페이스로 가므로 위 명령은 모두 `-n` 을 붙였다.
+[추론] AddonConfig·AddonInstall 의 모양은 20~22절 4.3 과 같은 틀(9.0 Add-on 설치 예시)에 이름만 바꾼 것이다. ~~Policy Bundle 용 공식 kubectl 예시는 찾지 못했다.~~ → [근거] 공식 kubectl 예시가 있다. AddonConfig `wl-antrea-policy-bundle`(`spec.clusterName: wl-antrea`), AddonInstall `policy-bundle-wl-antrea`, `addonRef.name: policy-bundle` 로 아래 짐작과 같다. 문서 본문의 이름 형식은 `<cluster-name><add-on-name>` 으로 하이픈이 빠져 있다(예시와 다름). 공식 예시의 판은 `policy-bundle.kubernetes.vmware.com.0.1.0-vmware.1-vks.1` 이다. AddonInstall 이름 규칙은 19절 4.3 을 본다. (Install Policy-Bundle Add-on using Kubectl, 2026-11-19 확인) `addonRef.name` 은 Package 어노테이션 `addon.kubernetes.vmware.com/addon-name: policy-bundle` 에서, AddonConfig 이름은 다른 애드온의 `<cluster>-<애드온>` 규칙에서 짐작했다. 출력 Secret 이름은 `-data-values` 가 붙어 다르다(3.1). 이름이 틀렸다면 `addonreleases`·`clusteraddon` 출력으로 바로잡는다. `kubectl` 은 `-n` 을 빼면 현재 컨텍스트의 네임스페이스로 가므로 위 명령은 모두 `-n` 을 붙였다.
 
 ### 4.4 위반을 일부러 만들어 보기 (VKS 클러스터 컨텍스트)
 
@@ -362,7 +365,7 @@ kubectl -n vmware-system-tkg get secret wl-01-policy-bundle-data-values -o jsonp
 
 ## 6. 흔한 실수
 
-1. **`exemptions.*.namespaceSelector` 에 `matchLabels` 로 면제 라벨을 적는다.** [근거] 값이 `spec.match.namespaceSelector` 에 그대로 들어간다(2.4). [추론] Gatekeeper 에서 이것은 「적용 대상」 조건이라 그 라벨이 붙은 네임스페이스에만 정책이 걸리고 나머지는 빠진다. 면제는 `namespaces` 목록을 쓰거나 `matchExpressions` 의 `NotIn`·`DoesNotExist` 로 적는다.
+1. **`exemptions.*.namespaceSelector` 에 `matchLabels` 로 면제 라벨을 적는다.** [근거] 값이 `spec.match.namespaceSelector` 에 그대로 들어간다(2.4). 공식 Add-on Reference 는 이 값을 「면제」로 적고 `environment: sandbox` 면제 예시를 든다(2.4). 문서 예시를 그대로 따라도 같은 문제가 생긴다. [추론] Gatekeeper 에서 이것은 「적용 대상」 조건이라 그 라벨이 붙은 네임스페이스에만 정책이 걸리고 나머지는 빠진다. 면제는 `namespaces` 목록을 쓰거나 `matchExpressions` 의 `NotIn`·`DoesNotExist` 로 적는다.
 2. **기본값이면 아무 일도 없을 거라 생각한다.** [근거] values 없이도 NSA Constraint 19개가 `warn` 으로 깔린다(2.1). [추론] 막지는 않지만 `kubectl apply` 마다 경고가 여러 줄 붙고, CI 가 경고를 실패로 다루면 파이프라인이 깨질 수 있다.
 3. **Deployment 를 apply 했는데 경고가 없어서 통과했다고 본다.** [근거] Pod 대상 Constraint 는 `kinds: [Pod]` 만 본다(2.2). [추론] Deployment 에서 생긴 Pod 의 경고는 ReplicaSet 컨트롤러가 받는다. `deny` 로 올리면 Deployment 는 만들어지고 `kubectl describe rs` 이벤트에 `admission webhook … denied` 가 쌓인다. 4.5 의 `status.violations` 로 미리 본다.
 4. **`deny` 로 한 번에 올린다.** [근거] 공식 블로그도 운영 중인 클러스터는 `warn` 으로 시작해 고친 뒤 `deny` 로 가라고 권한다. [추론] 특히 `VksK8sImageDigests`(다이제스트 없는 이미지 전부), `VksK8sRequiredProbes`, `VksK8sPSPReadOnlyRootFilesystem`, `VksK8sContainerLimits`(2Gi 초과 메모리) 는 평범한 앱도 대부분 걸린다. 정책별로 `exemptions.constraints.<kind>.enforcementAction` 을 하나씩 올린다.
@@ -379,7 +382,7 @@ kubectl -n vmware-system-tkg get secret wl-01-policy-bundle-data-values -o jsonp
 ## 7. 확인 문제
 
 1. Gatekeeper 와 Policy Bundle 을 values 없이 깔았다. `privileged: true` Pod 를 `kubectl apply` 하면 무엇이 일어나나? Deployment 로 만들면 무엇이 다른가?
-2. 플랫폼 팀이 `exemptions.global.namespaceSelector.matchLabels: {policy-exempt: "true"}` 를 넣고 몇몇 네임스페이스에 그 라벨을 붙였다. 나머지 앱 네임스페이스의 정책은 어떻게 되나?
+2. 플랫폼 팀이 (공식 Add-on Reference 예시와 같은 모양으로) `exemptions.global.namespaceSelector.matchLabels: {policy-exempt: "true"}` 를 넣고 몇몇 네임스페이스에 그 라벨을 붙였다. 나머지 앱 네임스페이스의 정책은 어떻게 되나?
 3. NSA·CIS 두 프로필을 켜고 `exemptions.constraints.VksK8sPSPPrivilegedContainer.enforcementAction: deny` 를 넣었다. `deny` 가 되는 Constraint 는 몇 개고, NSA 쪽만 `deny` 로 하려면 어떻게 하나?
 
 <details><summary>답</summary>
@@ -404,3 +407,6 @@ kubectl -n vmware-system-tkg get secret wl-01-policy-bundle-data-values -o jsonp
 - gatekeeper-library privileged-containers: <https://github.com/open-policy-agent/gatekeeper-library/blob/master/library/pod-security-policy/privileged-containers/template.yaml>
 - Kubernetes Pod Security Standards: <https://kubernetes.io/docs/concepts/security/pod-security-standards/>
 - 렌더링 도구: ytt v0.55.4, crane v0.22.1
+- (2026-11-19 추가) Install Policy Bundle (VCF Consumption, Last Updated November 17, 2026): <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-consumption/latest/installing-addons-on-vks-clusters/installing-standard-packages-on-tkg-service-clusters-installing-standard-packages-on-tkg-cluster-using-tkr-for-vsphere-8-x-install-policy-bundle.html>
+- Install Policy-Bundle Add-on using Kubectl: <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-consumption/latest/installing-addons-on-vks-clusters/installing-standard-packages-on-tkg-service-clusters-installing-standard-packages-on-tkg-cluster-using-tkr-for-vsphere-8-x-install-policy-bundle-install-policy-bundle-add-on-using-kubectl.html>
+- Policy Bundle Add-on Reference: <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-consumption/latest/installing-addons-on-vks-clusters/installing-standard-packages-on-tkg-service-clusters-standard-package-reference-policy-bundle-package-reference.html>
