@@ -1,6 +1,6 @@
 # VKS 애드온(Standard Packages) 교육 커리큘럼
 
-> **완료: 2026-11-20, 26절(00~25) 모두 채움.** 이후로는 공개 문서의 패키지 목록·판이 바뀐 것만 점검해 해당 절을 고치고 아래 진행 기록에 남긴다.
+> ~~**완료: 2026-11-20, 26절(00~25) 모두 채움.**~~ → 2026-11-28: 3.8.0+20261118 에서 애드온 4개가 새로 들어와 Part 7(26~29절)을 더했다. 26~29절은 아직 비어 있다. 00~25절은 3.8.0+20261021 기준이라 아래 「3.8.0+20261118 판 변경 점검표」로 한 절씩 고친다. 그 뒤로는 공개 문서의 패키지 목록·판이 바뀐 것만 점검해 해당 절을 고치고 진행 기록에 남긴다.
 > 시작: 2026-10-26. 한 회차에 한 절씩 `vks-addons/NN-<패키지>.md`로 채운다. 채운 절은 `[x]`로 바꾸고 파일 링크를 단다.
 > 공개된 1차 출처(Broadcom TechDocs, 각 업스트림 공식 문서)만 쓴다.
 > 주장마다 등급을 붙인다. **[근거]** 는 출처에 그대로 있는 것, **[추론]** 은 여러 출처를 엮어 직접 내린 결론이다.
@@ -33,6 +33,8 @@
 <https://techdocs.broadcom.com/us/en/vmware-cis/vcf/vcf-service-administration-and-development/9-0/managing-vsphere-kuberenetes-service-clusters-and-workloads/installing-standard-packages-on-tkg-service-clusters/standard-package-reference.html> (2026-10-26 확인)
 
 [근거] ~~Grafana, Alertmanager, Multus, Whereabouts, Calico, Pinniped 는 2026-10-26 기준 위 세 문서의 패키지 목록에 이름으로 나오지 않는다.~~ → Grafana, Alertmanager, Calico, Pinniped 는 2026-10-26 기준 위 문서들과 3.8.0+20261021 지원 표에 이름으로 나오지 않는다. Multus·Whereabouts 는 9.0 문서 세 곳에는 없지만 3.7.0+20260618 부터 애드온으로 들어왔으므로 절을 만든다(Part 6). (9.1 VKS Add-ons Release Notes, 2026-10-26 확인) 예전 TKG 문서에서 보던 이름이라도 지원 표에 없으면 여기서 절로 만들지 않는다. ~~Alertmanager 가 Prometheus 패키지 안에 들어 있는지는 05절에서 Prometheus 패키지 참조 문서로 확인한다.~~ → Alertmanager 는 Prometheus 패키지의 구성 요소로 들어 있다(2026-10-31, Prometheus Package Reference). 따로 절을 만들지 않고 05절에서 다룬다.
+
+[근거] 2026-11-28 다시 확인한 가장 높은 판은 **`3.8.0+20261118`**(페이지 표기 Last Updated November 25, 2026)이고 그 앞 판은 `3.8.0+20261021` 이다. 저장소는 `projects.packages.broadcom.com/vsphere/supervisor/vks-standard-packages/3.8.0-20261118/vks-addons:3.8.0-20261118` 이다. 지원 표의 애드온은 29개로, 3.8.0+20261021 의 25개에 Agentgateway(Ecosystem)·GPU Operator(Ecosystem)·OpenTelemetry eBPF Instrumentation(Product)·OpenTelemetry Operator(Product)가 더해졌다. 이 판에도 「Packages Removed」 절은 없고 빠진 애드온도 없다. 9.2 문서 세트의 같은 주소는 404 다. (9.1 VKS Add-ons Release Notes, 2026-11-28 확인)
 
 ## 설치 경로 두 가지
 
@@ -126,6 +128,49 @@
 
 [추론] 24·25절의 「Helm add-on」은 지금까지의 Carvel 패키지와 설치 형식이 다를 수 있다. 00절을 쓸 때 9.1 문서에서 그 설치 경로를 확인해 두 경로 설명에 더한다.
 
+### Part 7. 3.8.0+20261118 에서 들어온 애드온
+
+[근거] 아래 네 개는 3.8.0+20261118 에서 처음 들어왔다(What's New 에 🆕 표시). 출처는 9.1 VKS Add-ons Release Notes(위 링크, Last Updated November 25, 2026)이고 2026-11-28 확인했다. 9.1 문서 세트의 설치·Add-on Reference 페이지 주소는 절을 쓸 때 확인한다. [추론] 순서는 관측 둘을 먼저(05절 Prometheus·06절 Fluent Bit 와 같은 Part 2 계열), 그다음 GPU, 마지막으로 VKr 지원 폭이 가장 좁은 Agentgateway 로 잡았다.
+
+- [ ] **26. OpenTelemetry Operator** — [근거] OpenTelemetryCollector·TargetAllocator·Instrumentation CRD 를 깔고, Collector 를 Deployment·DaemonSet·StatefulSet·Sidecar 로 띄우며, 네임스페이스·Pod 어노테이션으로 자동 계측을 주입한다. 「Helm based add-on」으로 나오고 `0.122.0+vmware.1-vks.1` 한 판(Product 등급, VKr 1.37~1.33 모두 Yes)이다. 릴리스 노트는 Operator·구성 요소 판을 0.158.0 이라고 적었고, 판 번호 `0.122.0` 은 업스트림 opentelemetry-helm-charts 의 `opentelemetry-operator-0.122.0` 차트 태그를 가리킨다. (05절 Prometheus·27절과 잇는다)
+  출처: 업스트림 릴리스 <https://github.com/open-telemetry/opentelemetry-helm-charts/releases/tag/opentelemetry-operator-0.122.0> (릴리스 노트의 링크, 2026-11-28 확인)
+- [ ] **27. OpenTelemetry eBPF Instrumentation (OBI)** — [근거] eBPF 프로브로 코드 수정·SDK 주입·Pod 재시작 없이 트레이스·스팬 지표·서비스 그래프·네트워크 흐름을 모아 OTLP 나 Prometheus 엔드포인트로 내보낸다. `0.15.2+vmware.1-vks.1` 한 판(Product 등급, VKr 1.37~1.33 모두 Yes)이다. 릴리스 노트는 커널 요구 조건을 업스트림 문서로 미룬다. (26절과 잇는다)
+  출처: <https://opentelemetry.io/docs/zero-code/obi/>, <https://github.com/open-telemetry/opentelemetry-ebpf-instrumentation/releases> (릴리스 노트의 링크, 2026-11-28 확인)
+- [ ] **28. GPU Operator** — [근거] NVIDIA 드라이버·Container Toolkit·device plugin 배포, GPU 노드 찾기·라벨, DCGM Exporter 모니터링을 자동화한다. 「Helm add-on」으로 나오고 `26.3.3+vmware.1-vks.1` 한 판(Ecosystem 등급, VKr 1.37·1.36·1.35 만 Yes)이다. 업스트림 GPU Operator 자체는 루트 [`../gpu/02-gpu-operator.md`](../gpu/02-gpu-operator.md)가 다루므로 이 절은 VKS 애드온으로 들어가는 방식과 다른 점만 쓰고 링크로 잇는다.
+  출처: <https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/26.3/index.html>, <https://github.com/NVIDIA/gpu-operator/releases> (릴리스 노트의 링크, 2026-11-28 확인)
+- [ ] **29. Agentgateway** — [근거] Gateway API 로 에이전트와 LLM·MCP 서버·에이전트 사이(A2A) 트래픽을 라우팅·보호·관측하는 프록시다. JWT/OAuth 2.1 인증, Cedar 기반 RBAC, mTLS, 프롬프트·응답 가드레일, 소비자별 토큰 속도 제한을 내세운다. 판 표기가 `1.3.1-789` 로 다른 애드온의 `+vmware.N-vks.N` 꼴과 다르고, Ecosystem 등급이며 VKr 1.37·1.36 에서만 Yes 다. (02절 Contour·11절 Istio 와 잇는다)
+  출처: <https://agentgateway.dev/docs/>, <https://github.com/agentgateway/agentgateway/releases> (릴리스 노트의 링크, 2026-11-28 확인)
+
+## 3.8.0+20261118 판 변경 점검표
+
+[근거] 3.8.0+20261021 → 3.8.0+20261118 에서 기존 25개 애드온의 판이 모두 바뀌었다(9.1 VKS Add-ons Release Notes, 2026-11-28 확인). 대부분은 「Go dependencies and base images bump up for vulnerability fixing」 한 줄이다. 아래 줄은 절마다 판 번호와 What's New 에 적힌 변화만 옮긴 것이고, 패키지 원본을 다시 받아 대조하는 일은 해당 절을 고칠 때 한다. 판 호환은 공식 호환 매트릭스를 볼 것.
+
+- [ ] 01 Cert Manager: 1.21.2 → `1.21.3+vmware.1-vks.1`, 1.20.4 → `1.20.5+vmware.1-vks.1`, 1.19.6 `vmware.4` → `vmware.5`
+- [ ] 02 Contour: 1.33.7 → `1.33.8+vmware.1-vks.1`
+- [ ] 03 ExternalDNS: `0.22.0+vmware.1` → `vmware.2`
+- [ ] 04 Cluster Autoscaler: 1.37.0 `vmware.1` → `vmware.2`, 1.36.1 `vmware.2` → `vmware.3`, 1.35.2 `vmware.1` → `vmware.2`, 1.34.2 → `1.34.5+vmware.1-vks.1`, 1.33 줄은 `1.33.6+vmware.1-vks.1`. 「VKS 3.8.0 이상, Kubernetes 마이너가 워크로드 클러스터와 같아야 한다」 문장이 지원 표 머리에 새로 붙었다
+- [ ] 05 Prometheus: 3.13.3 → `3.13.5+vmware.1-vks.1`, Prometheus Operator 0.94.0 → 0.94.2, Alertmanager 0.34.0 → 0.34.2
+- [ ] 06 Fluent Bit: `5.1.2+vmware.1` → `vmware.2`
+- [ ] 07 Telegraf: `1.39.3+vmware.2` → `vmware.3`
+- [ ] 08 Velero: `1.18.4+vmware.1` → `vmware.2`
+- [ ] 09 vSphere PV CSI Webhook: `3.9.0+vmware.1` → `vmware.2`
+- [ ] 10 Harbor: `2.15.4+vmware.1` → `vmware.2`
+- [ ] 11 Istio: 1.31.0 → `1.31.3+vmware.1-vks.1`, 1.30.4 → `1.30.7+vmware.1-vks.1`, 앰비언트 모드에서 `istio-cni-owned-config` 설정 지원이 새로 적혔다
+- [ ] 12 Gatekeeper: `3.23.1+vmware.1-vks.1` → `vks.3`
+- [ ] 13 Helm Controller: `vmware.3` → `1.5.5+v4.02.00-vmware.4-vks.1`
+- [ ] 14 Vault Injector: `1.7.4+vmware.4-vks.1` → `vks.3`
+- [ ] 15 AKO: 2.3.1 → `2.3.2+vmware.1-vks.1`
+- [ ] 16 Cilium: `1.20.1+vmware.1` → `vmware.4`
+- [ ] 17 SR-IOV Network Device Plugin: `3.11.0+vmware.6` → `vmware.7`
+- [ ] 18 Windows gMSA Webhook: `0.14.1+vmware.1` → `vmware.2`
+- [ ] 19 Headlamp: 0.45.0 → `0.46.0+vmware.1-vks.1`
+- [ ] 20 Multus: `4.3.1+vmware.1` → `vmware.2`
+- [ ] 21 Whereabouts: `0.9.4+vmware.3` → `vmware.4`
+- [ ] 22 NFS Client: 4.13.4 → `4.13.6+vmware.1-vks.1`
+- [ ] 23 Policy Bundle: `vks.3` → `0.2.0+vmware.1-vks.4`
+- [ ] 24 External Secrets Operator: 2.11.0 → `2.14.0+vmware.1-vks.1`(마이너 판이 셋 올랐다, 업스트림 변경을 같이 본다)
+- [ ] 25 Tekton Operator: `0.80.0+vmware.1` → `vmware.2`
+
 ## 진행 기록
 
 - 2026-10-26: 커리큘럼 작성. 공식 표·릴리스 노트(~~최신 저장소 3.6.0+20260521~~ → 3.6.0+20260521, 2026-10-26 기준 최신 아님)·참조 목차 세 곳을 대조해 19절(00~18)로 확정.
@@ -155,3 +200,4 @@
 - 2026-11-17: 23절(Policy Bundle) 작성. 9.1 릴리스 노트(Last Updated November 11, 2026, 3.7.0+20260723 의 0.1.0+vmware.1 첫 등장부터 3.8.0+20261021 의 `0.2.0+vmware.1-vks.3` 까지, Product 등급, vks.3 은 What's New 에 없고 지원 표에만 있음), VCF 블로그(2026-08-04), 업스트림 Gatekeeper `howto.md`·`violations.md`, gatekeeper-library 로 정리. Policy Bundle 전용 설치·Package Reference 쪽은 9.0·9.1 문서에서 찾지 못했고 블로그가 가리키는 설치 문서 주소는 404 였다. 3.8.0+20261021 저장소의 패키지·AddonConfigDefinition 과 bundle, 비교용 3.7.0+20260924 의 vks.2 bundle, 같은 저장소의 Gatekeeper bundle 을 익명으로 받아 ytt v0.55.4 로 렌더링해, 기본 values 로 템플릿 23·자리표시 CRD 23·Constraint 19(모두 `warn`)가 나오는 것, 면제 네임스페이스 31개가 코드에 고정인 것, 셀렉터 면제가 `spec.match` 에 그대로 들어가는 것, constraint 층이 kind 단위라 두 프로필에 함께 걸리는 것, 오타·잘못된 enforcementAction 이 rc=0 으로 렌더링되는 것, Add-on 출력 템플릿이 빈 `profiles` 를 NSA 로 되돌리는 것, vks.2 → vks.3 에서 면제 네임스페이스 5개·policyParameters 판단·이미지 대소문자 처리가 바뀐 것을 확인했다. 셀렉터가 면제와 반대로 동작한다는 것, Pod 대상 정책의 경고가 Deployment 사용자에게 오지 않는다는 것, `vks-vault-injector` 가 면제 밖이라는 것의 영향은 문서·소스에서 엮은 추론이다. 클러스터 실측은 하지 않았다.
 - 2026-11-19: 24절(External Secrets Operator) 작성. 9.1 릴리스 노트(Last Updated November 11, 2026, 3.8.0+20261021 의 `2.11.0+vmware.1-vks.1` 첫 등장, Product 등급), VKS 3.7 릴리스 노트(Helm 기반 애드온과 기본 helm-controller), 「VCF Consumption」 문서 세트의 설치 문서 세 쪽과 Add-on Reference(Last Updated November 17, 2026), 업스트림 v2.11.0 릴리스·차트 2.11.0·「Lifecycle: ownership & deletion」으로 정리. 레지스트리 카탈로그에서 Carvel 저장소 옆의 `vks-addons-helm/` 경로(ESO·Tekton 차트와 이미지)를 찾아, 차트를 익명으로 받아 helm v3.19.0 으로 렌더링하고 업스트림 차트와 비교했다. AddonConfigDefinition 이 차트 OCI 매니페스트 어노테이션에 들어 있는 것, 출력이 `vmware-system-helm` 의 values Secret 과 Supervisor 쪽 options ConfigMap 인 것, 기본 `global.imageRegistry` 가 비어 이미지가 레지스트리 없는 경로로 렌더링되는 것, Broadcom 이 바꾼 기본값(Linux nodeSelector, `vmware-system-important` 는 1.34 이상만, requests, LimitRange, Bitwarden 하위 차트 제거), CRD 25개가 업스트림과 같고 차트 템플릿으로 들어가는 것, values 오타가 차트·ACD 양쪽에서 통과하는 것, 컨테이너가 PSS restricted 조건에 맞는 것을 확인했다. Add-on Reference 표의 기본값 네 곳이 차트·ACD 와 다른 것을 흔한 실수에 적었다. HelmRelease 원본과 `global.imageRegistry` 를 채우는 주체는 공개 자료에서 찾지 못해 추론으로 두었다. 클러스터 실측은 하지 않았다. 19~23절에서 「전용 문서를 찾지 못했다」고 적은 애드온의 Add-on Reference 가 이 문서 세트에 있어 후속 대조가 필요하다.
 - 2026-11-20: 25절(Tekton Operator) 작성. 9.1 릴리스 노트(Last Updated November 11, 2026, 3.8.0+20261021 의 `0.80.0+vmware.1-vks.1` 첫 등장, Ecosystem 등급, 지원 표 VKr 1.33~1.37 모두 Yes), 「VCF Consumption」 문서 세트의 설치 문서 네 쪽과 Add-on Reference(Last Updated November 17, 2026), 업스트림 tektoncd/operator v0.80.0 차트·문서·`tektonconfig_defaults.go`, knative/pkg 최소 판 검사 소스, Tekton Dashboard 접근 제어 문서로 정리. `vks-addons-helm/tekton-operator` 차트와 OCI 어노테이션의 AddonConfigDefinition 을 익명으로 받아 helm v3.19.0 으로 렌더링하고 업스트림 차트와 비교해, `autoInstallComponents`·`installCRDs` 기본값이 업스트림과 반대인 것, 차트가 `tekton-pipelines` 네임스페이스를 PSA baseline 으로 만드는 것, 기본 노출이 Istio Gateway(`allowedRoutes: All`)·self-signed 인증서를 만들고 `tls.certManager.enabled: false` 만 주면 없는 Secret 을 가리키는 것, 오퍼레이터 ClusterRole 에 `bind`·`escalate` 가 더해진 것, pruner 이미지만 ghcr 에 남는 것, values 오타가 rc=0 으로 무시되는 것을 확인했다. 대시보드가 인증 없이 읽기·쓰기로 열릴 수 있다는 것, VKr 1.33 에서 기본 `KUBERNETES_MIN_VERSION=v1.34.0` 때문에 오퍼레이터가 뜨지 못할 수 있다는 것은 문서·소스에서 엮은 추론이다. Add-on Reference 표의 기본값 세 곳이 차트와 다른 것을 흔한 실수에 적었다. 클러스터 실측은 하지 않았다. **커리큘럼 완료.**
+- 2026-11-28: 최신화 점검. 9.1 VKS Add-ons Release Notes 가 Last Updated November 25, 2026 으로 바뀌며 `3.8.0+20261118` 이 올라왔다. 새 애드온 4개를 Part 7(26~29절)로 더했고, 기존 25개 애드온의 판 변경은 「3.8.0+20261118 판 변경 점검표」에 절마다 한 줄로 적었다. 26~29절 본문과 점검표 반영은 다음 회차부터 한 절씩 한다.
